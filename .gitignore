@@ -1,0 +1,15 @@
+/.env
+/.env.*
+!/.env.example
+/vendor
+/node_modules
+/public/build
+/upload
+/sutoorii-tickets-foundation.zip
+/storage/*.key
+/storage/logs/*
+/.phpunit.cache
+/.idea
+/.vscode
+Thumbs.db
+.DS_Store
