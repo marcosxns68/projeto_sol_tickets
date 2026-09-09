@@ -33,7 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         require $root.'/vendor/autoload.php';
         $app = require $root.'/bootstrap/app.php';
         $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-        Illuminate\Support\Facades\Artisan::call('migrate', ['--force'=>true]);
+        // O banco é exclusivo desta instalação. O modo fresh também recupera
+        // com segurança uma primeira tentativa interrompida pela metade.
+        Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--force'=>true]);
         Illuminate\Support\Facades\Artisan::call('db:seed', ['--force'=>true]);
         $role = App\Models\Role::where('name','Super Admin')->firstOrFail();
         $user = App\Models\User::updateOrCreate(['email'=>strtolower((string)$_POST['admin_email'])], ['name'=>(string)$_POST['admin_name'],'password'=>(string)$_POST['admin_password'],'role_id'=>$role->id,'active'=>true,'email_verified_at'=>now()]);
