@@ -68,4 +68,4 @@ jobs:
         run: |
           curl --fail --silent --show-error --retry 5 --retry-delay 5 \
             --data-urlencode "token=$DEPLOY_TOKEN" \
-            https://tickets.sutoorii.com/deploy.php
+            https://tickets.sutoorii.com/public/deploy.php
