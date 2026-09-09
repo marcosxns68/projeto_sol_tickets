@@ -28,7 +28,10 @@ jobs:
           coverage: none
 
       - name: Instalar dependências de produção
-        run: composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+        run: |
+          mkdir -p bootstrap/cache storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
+          chmod -R 775 storage bootstrap/cache
+          composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
 
       - name: Preparar diretórios do Laravel
         run: |
