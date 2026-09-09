@@ -1,0 +1,11 @@
+Options -Indexes
+RewriteEngine On
+
+# Bloqueia arquivos ocultos e pastas internas do Laravel.
+RewriteRule (^|/)\. - [F,L]
+RewriteRule ^(app|bootstrap|config|database|deploy|resources|routes|storage|vendor)(/|$) - [F,L,NC]
+RewriteRule ^(artisan|composer\.(json|lock)|DEPLOY\.md|README\.md)$ - [F,L,NC]
+
+# Mantém o subdomínio limpo mesmo quando a hospedagem aponta para a raiz do projeto.
+RewriteRule ^public/ - [L]
+RewriteRule ^(.*)$ public/$1 [L]
