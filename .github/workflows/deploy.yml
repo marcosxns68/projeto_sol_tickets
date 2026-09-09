@@ -38,6 +38,17 @@ jobs:
           mkdir -p storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
           chmod -R 775 storage bootstrap/cache
 
+      - name: Compactar versão de produção
+        run: |
+          mkdir -p .deploy
+          zip -qr .deploy/release.zip . \
+            -x '.git/*' '.github/*' '.deploy/*' '.env' '.env.*' 'node_modules/*' 'tests/*' 'README.md' 'DEPLOY.md'
+          DEPLOY_TOKEN="$(openssl rand -hex 32)"
+          DEPLOY_HASH="$(printf '%s' "$DEPLOY_TOKEN" | sha256sum | cut -d' ' -f1)"
+          echo "::add-mask::$DEPLOY_TOKEN"
+          echo "DEPLOY_TOKEN=$DEPLOY_TOKEN" >> "$GITHUB_ENV"
+          sed "s/__DEPLOY_HASH__/$DEPLOY_HASH/" deploy/extract.php > .deploy/deploy.php
+
       - name: Enviar para hospedagem
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
@@ -46,16 +57,15 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          local-dir: ./
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          local-dir: ./.deploy/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}public/
           dangerous-clean-slate: false
           exclude: |
             **/.git*
             **/.git*/**
-            **/node_modules/**
-            **/tests/**
-            .env
-            .env.*
-            !.env.example
-            phpunit.xml
-            README.md
+
+      - name: Extrair versão no servidor
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 \
+            --data-urlencode "token=$DEPLOY_TOKEN" \
+            https://tickets.sutoorii.com/deploy.php
