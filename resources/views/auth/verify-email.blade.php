@@ -1,0 +1,1 @@
+@extends('layouts.app') @section('content')<section class="auth-card"><h1>Valide seu e-mail</h1><p>Enviamos um link para o seu endereço @sutoorii.com. O acesso será liberado após a confirmação.</p><form method="post" action="{{ route('verification.send') }}">@csrf<button class="button full">Reenviar link</button></form></section>@endsection
