@@ -35,6 +35,41 @@ jobs:
           mkdir -p storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
           chmod -R 775 storage bootstrap/cache
 
+      - name: Criar ambiente de produção
+        run: |
+          cat > .env <<'ENV'
+          APP_NAME="Sutoorii Tickets"
+          APP_ENV=production
+          APP_KEY=${{ secrets.APP_KEY }}
+          APP_DEBUG=false
+          APP_URL=https://tickets.sutoorii.com
+          APP_TIMEZONE=America/Sao_Paulo
+          LOG_CHANNEL=stack
+          LOG_LEVEL=warning
+          DB_CONNECTION=mysql
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=3306
+          DB_DATABASE=${{ secrets.DB_DATABASE }}
+          DB_USERNAME=${{ secrets.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          SESSION_DRIVER=database
+          QUEUE_CONNECTION=database
+          CACHE_STORE=database
+          MAIL_MAILER=smtp
+          MAIL_HOST=mail.sutoorii.com
+          MAIL_PORT=465
+          MAIL_USERNAME=tickets@sutoorii.com
+          MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+          MAIL_ENCRYPTION=ssl
+          MAIL_FROM_ADDRESS=tickets@sutoorii.com
+          MAIL_FROM_NAME="Sutoorii Tickets"
+          IMAP_HOST=mail.sutoorii.com
+          IMAP_PORT=993
+          IMAP_ENCRYPTION=ssl
+          IMAP_USERNAME=tickets@sutoorii.com
+          IMAP_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+          ENV
+
       - name: Enviar para hospedagem
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
@@ -51,8 +86,6 @@ jobs:
             **/.git*/**
             **/node_modules/**
             **/tests/**
-            .env
-            .env.*
-            !.env.example
+            .env.example
             phpunit.xml
             README.md
