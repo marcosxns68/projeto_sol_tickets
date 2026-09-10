@@ -3,11 +3,11 @@ name: CI Sutoorii Tickets
 on:
   push:
     branches:
-      - feature/finalizacao-sutoorii-tickets
+      - 'feature/**'
   workflow_dispatch:
 
 concurrency:
-  group: sutoorii-tickets-feature-ci
+  group: sutoorii-tickets-feature-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
