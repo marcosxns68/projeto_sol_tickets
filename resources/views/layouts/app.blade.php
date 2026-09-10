@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#241438">
 <title>@yield('title','Sutoorii Tickets')</title>
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
 </head>
 <body>
 @auth
@@ -26,46 +26,36 @@
 
         <nav class="sidebar-nav" aria-label="Navegação principal">
             <p class="sidebar-label">CAIXAS</p>
-            <a href="{{ route('boxes.mine') }}" class="sidebar-link {{ request()->routeIs('boxes.mine') ? 'active' : '' }}">
-                <span class="nav-glyph">▣</span><span>Minha Caixa</span>
-            </a>
+            <a href="{{ route('boxes.mine') }}" class="sidebar-link {{ request()->routeIs('boxes.mine') ? 'active' : '' }}">Minha Caixa</a>
             @if($me->department_id && $me->hasPermission('tickets.view_department'))
-                <a href="{{ route('boxes.department',$me->department_id) }}" class="sidebar-link {{ request()->routeIs('boxes.department') ? 'active' : '' }}">
-                    <span class="nav-glyph">◫</span><span>Meu Departamento</span>
-                </a>
+                <a href="{{ route('boxes.department',$me->department_id) }}" class="sidebar-link {{ request()->routeIs('boxes.department') ? 'active' : '' }}">Meu Departamento</a>
             @endif
 
             @if($me->hasPermission('users.manage') || $me->hasPermission('departments.manage') || $me->hasPermission('roles.manage'))
                 <p class="sidebar-label admin-label">ADMINISTRAÇÃO</p>
             @endif
             @if($me->hasPermission('users.manage'))
-                <a href="{{ route('admin.users.index') }}" class="sidebar-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-                    <span class="nav-glyph">◎</span><span>Usuários</span>
-                </a>
+                <a href="{{ route('admin.users.index') }}" class="sidebar-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Usuários</a>
             @endif
             @if($me->hasPermission('departments.manage'))
-                <a href="{{ route('admin.departments.index') }}" class="sidebar-link {{ request()->routeIs('admin.departments.*') ? 'active' : '' }}">
-                    <span class="nav-glyph">▤</span><span>Departamentos</span>
-                </a>
+                <a href="{{ route('admin.departments.index') }}" class="sidebar-link {{ request()->routeIs('admin.departments.*') ? 'active' : '' }}">Departamentos</a>
             @endif
             @if($me->hasPermission('roles.manage'))
-                <a href="{{ route('admin.roles.index') }}" class="sidebar-link {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
-                    <span class="nav-glyph">◇</span><span>Cargos</span>
-                </a>
+                <a href="{{ route('admin.roles.index') }}" class="sidebar-link {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">Cargos</a>
             @endif
         </nav>
 
         <div class="sidebar-user">
             <span class="sidebar-avatar">{{ strtoupper(substr($me->name,0,1)) }}</span>
             <div class="sidebar-user-copy"><strong>{{ $me->name }}</strong><small>{{ $me->role?->name ?? 'Usuário' }}</small></div>
-            <form action="{{ route('logout') }}" method="post">@csrf<button class="sidebar-logout" title="Sair">↗</button></form>
+            <form action="{{ route('logout') }}" method="post">@csrf<button class="sidebar-logout" title="Sair">Sair</button></form>
         </div>
     </aside>
 
     <section class="workspace-main">
         <header class="workspace-topbar">
             <details class="mobile-menu">
-                <summary aria-label="Abrir menu">☰</summary>
+                <summary aria-label="Abrir menu">Menu</summary>
                 <div class="mobile-menu-panel">
                     <a href="{{ route('boxes.mine') }}">Minha Caixa</a>
                     @if($me->department_id && $me->hasPermission('tickets.view_department'))<a href="{{ route('boxes.department',$me->department_id) }}">Meu Departamento</a>@endif
@@ -76,7 +66,6 @@
             </details>
             <div class="mobile-brand"><span class="brand-mark small">S</span><b>Sutoorii Tickets</b></div>
             <form class="global-search" method="get" action="{{ route('boxes.mine') }}">
-                <span class="search-icon">⌕</span>
                 <input name="q" value="{{ request()->routeIs('boxes.mine') ? request('q') : '' }}" placeholder="Buscar ticket por número, título ou descrição" aria-label="Buscar tickets">
             </form>
             <div class="topbar-user"><span>{{ $me->name }}</span></div>
@@ -98,6 +87,6 @@
     <footer class="site-footer guest-footer">Desenvolvido por Sutoorii Labs</footer>
 </div>
 @endauth
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/service-worker.js');</script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/service-worker.js',{updateViaCache:'none'}).then(function(reg){reg.update();});}</script>
 </body>
 </html>
