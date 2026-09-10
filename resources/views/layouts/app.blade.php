@@ -11,6 +11,8 @@
 <a href="{{ route('boxes.mine') }}" class="nav-link">Minha Caixa</a>
 @if(auth()->user()->department_id && auth()->user()->hasPermission('tickets.view_department'))<a href="{{ route('boxes.department',auth()->user()->department_id) }}" class="nav-link desktop">Meu Departamento</a>@endif
 @if(auth()->user()->hasPermission('users.manage'))<a href="{{ route('admin.users.index') }}" class="nav-link desktop">Usuários</a>@endif
+@if(auth()->user()->hasPermission('departments.manage'))<a href="{{ route('admin.departments.index') }}" class="nav-link desktop">Departamentos</a>@endif
+@if(auth()->user()->hasPermission('roles.manage'))<a href="{{ route('admin.roles.index') }}" class="nav-link desktop">Cargos</a>@endif
 @if(auth()->user()->hasPermission('tickets.create'))<a href="{{ route('tickets.create') }}" class="button create-button">+ Novo</a>@endif
 <form action="{{ route('logout') }}" method="post">@csrf<button class="link">Sair</button></form>
 </nav>
