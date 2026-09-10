@@ -6,10 +6,6 @@
     <h1>Esqueceu a senha?</h1>
     <p>Informe o e-mail cadastrado na sua conta. Enviaremos um link temporário para criar uma nova senha.</p>
 
-    @if(session('success'))
-        <div class="success">{{ session('success') }}</div>
-    @endif
-
     <form method="post" action="{{ route('password.email') }}">
         @csrf
         <label>
