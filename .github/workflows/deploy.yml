@@ -35,12 +35,18 @@ jobs:
       - name: Instalar dependências de produção
         run: composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
 
-      - name: Preparar publicação
+      - name: Montar pacote da nova versão
         run: |
           printf '%s\n' "${GITHUB_SHA}:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" > storage/framework/deploy-migrate
           printf '%s\n' "${GITHUB_SHA}" > public/release-version.txt
+          mkdir -p .deploy/archive .deploy/bootstrap
+          zip -qr .deploy/archive/deploy-release.zip . \
+            -x '.git/*' '.github/*' '.deploy/*' '.env' '.env.*' 'node_modules/*' 'tests/*' 'docs/*' 'README.md' 'DEPLOY.md' \
+               'storage/logs/*' 'storage/framework/cache/*' 'storage/framework/sessions/*' 'storage/framework/views/*' \
+               'storage/app/private/*' 'storage/app/public/*'
+          cp public/index.php public/deployment-bootstrap.php .deploy/bootstrap/
 
-      - name: Enviar aplicação diretamente para a hospedagem
+      - name: Enviar pacote para área privada
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -48,27 +54,18 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          local-dir: ./
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          local-dir: ./.deploy/archive/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}storage/app/private/
           dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/.github/**
-            **/node_modules/**
-            **/tests/**
-            docs/**
-            deploy/**
-            .env
-            .env.*
-            !.env.example
-            phpunit.xml
-            README.md
-            DEPLOY.md
-            composer.lock
-            storage/logs/**
-            storage/framework/cache/**
-            storage/framework/sessions/**
-            storage/framework/views/**
-            storage/app/private/**
-            storage/app/public/**
+
+      - name: Ativar nova versão pelo bootstrap local
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: ./.deploy/bootstrap/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}public/
+          dangerous-clean-slate: false

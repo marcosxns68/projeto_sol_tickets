@@ -43,10 +43,12 @@ jobs:
         run: |
           php artisan route:list >/dev/null
           php -l app/Support/DeploymentMigration.php
+          php -l public/deployment-bootstrap.php
           php -l public/index.php
-          if grep -q 'public/deploy.php' .github/workflows/deploy.yml; then
+          if grep -Eq 'curl .*deploy\.php|public/deploy\.php' .github/workflows/deploy.yml; then
             echo 'O deploy ainda depende do endpoint HTTP bloqueado pela hospedagem.'
             exit 1
           fi
-          grep -q 'local-dir: ./' .github/workflows/deploy.yml
+          grep -q 'storage/app/private/' .github/workflows/deploy.yml
+          grep -q 'deployment-bootstrap.php' .github/workflows/deploy.yml
           grep -q 'storage/framework/deploy-migrate' .github/workflows/deploy.yml
