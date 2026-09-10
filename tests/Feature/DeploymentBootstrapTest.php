@@ -24,7 +24,7 @@ class DeploymentBootstrapTest extends TestCase
         $zip->addFromString('release-marker.txt', 'nova-versao');
         $zip->close();
 
-        DeploymentBootstrap::apply($archive, $target);
+        \DeploymentBootstrap::apply($archive, $target);
 
         $this->assertSame('nova-versao', file_get_contents($target.'/release-marker.txt'));
         $this->assertFileDoesNotExist($archive);
