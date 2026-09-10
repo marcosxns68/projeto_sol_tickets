@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\PasswordResetController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 
@@ -11,6 +12,10 @@ Route::middleware('guest')->group(function () {
     Route::post('/entrar', [AuthController::class, 'authenticate'])->name('login.perform');
     Route::get('/cadastro', [AuthController::class, 'register'])->name('register');
     Route::post('/cadastro', [AuthController::class, 'store'])->name('register.store');
+    Route::get('/esqueci-senha', [PasswordResetController::class, 'requestForm'])->name('password.request');
+    Route::post('/esqueci-senha', [PasswordResetController::class, 'sendLink'])->middleware('throttle:5,1')->name('password.email');
+    Route::get('/redefinir-senha/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
+    Route::post('/redefinir-senha', [PasswordResetController::class, 'reset'])->name('password.update');
 });
 Route::get('/email/verificar', fn()=>view('auth.verify-email'))->middleware('auth')->name('verification.notice');
 Route::get('/email/verificar/{id}/{hash}', function(EmailVerificationRequest $request){$request->fulfill();return redirect()->route('dashboard');})->middleware(['auth','signed'])->name('verification.verify');
