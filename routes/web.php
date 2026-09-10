@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
+use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
@@ -61,6 +63,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/admin/usuarios', [AdminUserController::class, 'index'])->name('admin.users.index');
     Route::get('/admin/usuarios/{user}/editar', [AdminUserController::class, 'edit'])->name('admin.users.edit');
     Route::patch('/admin/usuarios/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
+
+    Route::get('/admin/departamentos', [AdminDepartmentController::class, 'index'])->name('admin.departments.index');
+    Route::post('/admin/departamentos', [AdminDepartmentController::class, 'store'])->name('admin.departments.store');
+    Route::get('/admin/departamentos/{department}/editar', [AdminDepartmentController::class, 'edit'])->name('admin.departments.edit');
+    Route::patch('/admin/departamentos/{department}', [AdminDepartmentController::class, 'update'])->name('admin.departments.update');
+
+    Route::get('/admin/cargos', [AdminRoleController::class, 'index'])->name('admin.roles.index');
+    Route::post('/admin/cargos', [AdminRoleController::class, 'store'])->name('admin.roles.store');
+    Route::get('/admin/cargos/{role}/editar', [AdminRoleController::class, 'edit'])->name('admin.roles.edit');
+    Route::patch('/admin/cargos/{role}', [AdminRoleController::class, 'update'])->name('admin.roles.update');
 
     Route::resource('tickets', TicketController::class)->except(['destroy']);
     Route::post('/sair', [AuthController::class, 'logout'])->name('logout');
