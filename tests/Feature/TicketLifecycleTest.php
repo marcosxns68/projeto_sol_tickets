@@ -26,7 +26,7 @@ class TicketLifecycleTest extends TestCase
         return User::create(['name'=>'Usuário','email'=>uniqid('life').'@sutoorii.com','email_verified_at'=>now(),'password'=>'SenhaTeste123','role_id'=>$role->id,'department_id'=>$department->id,'active'=>true]);
     }
 
-    private function status(string $key, string $name, string $category = 'open'): Status
+    private function ticketStatus(string $key, string $name, string $category = 'open'): Status
     {
         return Status::firstOrCreate(['system_key'=>$key], ['name'=>$name,'category'=>$category,'color'=>'#6D28D9','active'=>true]);
     }
@@ -35,7 +35,7 @@ class TicketLifecycleTest extends TestCase
     {
         $department = Department::create(['name'=>'Operações']);
         $user = $this->user($department, ['tickets.view_department','tickets.manage_checklist']);
-        $status = $this->status('new','Novo');
+        $status = $this->ticketStatus('new','Novo');
         $ticket = Ticket::create(['number'=>Ticket::nextNumber(),'origin'=>'internal','title'=>'Ticket','description'=>'Descrição','priority'=>'normal','status_id'=>$status->id,'department_id'=>$department->id]);
 
         $this->actingAs($user)->post('/tickets/'.$ticket->id.'/checklist', ['text'=>'Validar retorno','required'=>1])->assertRedirect();
@@ -51,8 +51,8 @@ class TicketLifecycleTest extends TestCase
         $department = Department::create(['name'=>'Desenvolvimento']);
         $assignee = $this->user($department, ['tickets.view_department','tickets.resolve','tickets.manage_checklist']);
         $other = $this->user($department, ['tickets.view_department','tickets.resolve']);
-        $progress = $this->status('in_progress','Em andamento');
-        $resolved = $this->status('resolved','Resolvido','completed');
+        $progress = $this->ticketStatus('in_progress','Em andamento');
+        $resolved = $this->ticketStatus('resolved','Resolvido','completed');
         $ticket = Ticket::create(['number'=>Ticket::nextNumber(),'origin'=>'internal','title'=>'Ticket','description'=>'Descrição','priority'=>'normal','status_id'=>$progress->id,'department_id'=>$department->id,'assignee_id'=>$assignee->id]);
         $item = ChecklistItem::create(['ticket_id'=>$ticket->id,'text'=>'Pendência','required'=>true]);
 
@@ -69,10 +69,10 @@ class TicketLifecycleTest extends TestCase
     {
         $department = Department::create(['name'=>'Gestão']);
         $user = $this->user($department, ['tickets.view_department','tickets.close','tickets.cancel','tickets.reopen']);
-        $progress = $this->status('in_progress','Em andamento');
-        $resolved = $this->status('resolved','Resolvido','completed');
-        $closed = $this->status('closed','Fechado','completed');
-        $cancelled = $this->status('cancelled','Cancelado','cancelled');
+        $progress = $this->ticketStatus('in_progress','Em andamento');
+        $resolved = $this->ticketStatus('resolved','Resolvido','completed');
+        $closed = $this->ticketStatus('closed','Fechado','completed');
+        $cancelled = $this->ticketStatus('cancelled','Cancelado','cancelled');
         $ticket = Ticket::create(['number'=>Ticket::nextNumber(),'origin'=>'internal','title'=>'Ticket','description'=>'Descrição','priority'=>'normal','status_id'=>$resolved->id,'department_id'=>$department->id]);
 
         $this->actingAs($user)->post('/tickets/'.$ticket->id.'/fechar')->assertRedirect();
