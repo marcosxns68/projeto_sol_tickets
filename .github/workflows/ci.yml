@@ -28,13 +28,13 @@ jobs:
           extensions: mbstring, intl, pdo_mysql, pdo_sqlite, bcmath, gd, zip, imap
           coverage: none
 
-      - name: Instalar dependências
-        run: composer install --prefer-dist --no-interaction --no-progress
-
       - name: Preparar diretórios
         run: |
           mkdir -p bootstrap/cache storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
           chmod -R 775 storage bootstrap/cache
+
+      - name: Instalar dependências
+        run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Executar testes
         run: php artisan test
