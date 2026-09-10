@@ -28,7 +28,7 @@ class TicketWorkspaceTest extends TestCase
         ]);
     }
 
-    private function status(string $key, string $name, string $category = 'open'): Status
+    private function ticketStatus(string $key, string $name, string $category = 'open'): Status
     {
         return Status::firstOrCreate(['system_key' => $key], ['name' => $name, 'category' => $category, 'color' => '#6D28D9', 'active' => true]);
     }
@@ -37,8 +37,8 @@ class TicketWorkspaceTest extends TestCase
     {
         $department = Department::create(['name' => 'Suporte']);
         $user = $this->user($department, ['tickets.view_department','tickets.edit','tickets.change_priority','tickets.change_due_date','tickets.change_status']);
-        $new = $this->status('new','Novo');
-        $progress = $this->status('in_progress','Em andamento');
+        $new = $this->ticketStatus('new','Novo');
+        $progress = $this->ticketStatus('in_progress','Em andamento');
         $ticket = Ticket::create(['number'=>Ticket::nextNumber(),'origin'=>'internal','title'=>'Antigo','description'=>'Texto antigo','priority'=>'normal','status_id'=>$new->id,'department_id'=>$department->id,'due_at'=>now()->addDay()]);
 
         $this->actingAs($user)->patch('/tickets/'.$ticket->id, [
@@ -56,7 +56,7 @@ class TicketWorkspaceTest extends TestCase
     public function test_public_comment_and_internal_note_require_their_permissions(): void
     {
         $department = Department::create(['name' => 'Atendimento']);
-        $status = $this->status('new','Novo');
+        $status = $this->ticketStatus('new','Novo');
         $user = $this->user($department, ['tickets.view_department','tickets.comment','tickets.internal_note']);
         $ticket = Ticket::create(['number'=>Ticket::nextNumber(),'origin'=>'internal','title'=>'Ticket','description'=>'Descrição','priority'=>'normal','status_id'=>$status->id,'department_id'=>$department->id]);
 
