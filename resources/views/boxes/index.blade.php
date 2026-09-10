@@ -3,75 +3,93 @@
 @section('title', $boxTitle.' — Sutoorii Tickets')
 
 @section('content')
-<div class="page-head">
+<div class="page-head helpdesk-head">
     <div>
         <p class="eyebrow">{{ $boxKind === 'mine' ? 'MINHA CAIXA' : 'DEPARTAMENTO' }}</p>
         <h1>{{ $boxTitle }}</h1>
+        <p class="muted head-sub">Acompanhe e organize os tickets que precisam da sua atenção.</p>
     </div>
     @if(auth()->user()->hasPermission('tickets.create'))
-        <a class="button desktop" href="{{ route('tickets.create') }}">+ Novo ticket</a>
+        <a class="button" href="{{ route('tickets.create') }}">+ Novo ticket</a>
     @endif
 </div>
 
-<form class="box-search panel" method="get">
-    <div class="box-search-grid">
-        <label>Buscar
-            <input name="q" value="{{ request('q') }}" placeholder="Número, título ou descrição">
-        </label>
-        <label>Status
-            <select name="status">
-                <option value="">Ativos</option>
-                @foreach($statuses as $status)
-                    <option value="{{ $status->system_key ?: $status->id }}" @selected((string)request('status') === (string)($status->system_key ?: $status->id))>{{ $status->name }}</option>
-                @endforeach
-            </select>
-        </label>
-        <label>Prioridade
-            <select name="priority">
-                <option value="">Todas</option>
-                <option value="low" @selected(request('priority')==='low')>Baixa</option>
-                <option value="normal" @selected(request('priority')==='normal')>Normal</option>
-                <option value="high" @selected(request('priority')==='high')>Alta</option>
-                <option value="urgent" @selected(request('priority')==='urgent')>Urgente</option>
-            </select>
-        </label>
-    </div>
+<div class="box-tabs" role="navigation" aria-label="Filtros rápidos">
     @if($boxKind === 'mine')
-        <div class="filters">
-            <a class="filter-chip {{ !request('relation') ? 'active' : '' }}" href="{{ route('boxes.mine', array_filter(request()->except('relation'))) }}">Todos</a>
-            <a class="filter-chip {{ request('relation')==='assignee' ? 'active' : '' }}" href="{{ route('boxes.mine', array_merge(request()->except('relation'), ['relation'=>'assignee'])) }}">Responsável</a>
-            <a class="filter-chip {{ request('relation')==='collaborator' ? 'active' : '' }}" href="{{ route('boxes.mine', array_merge(request()->except('relation'), ['relation'=>'collaborator'])) }}">Colaborador</a>
-            <a class="filter-chip {{ request('relation')==='follower' ? 'active' : '' }}" href="{{ route('boxes.mine', array_merge(request()->except('relation'), ['relation'=>'follower'])) }}">Seguidor</a>
-        </div>
+        <a class="box-tab {{ !request('relation') && !request('status') ? 'active' : '' }}" href="{{ route('boxes.mine') }}">Abertos</a>
+        <a class="box-tab {{ request('relation')==='assignee' ? 'active' : '' }}" href="{{ route('boxes.mine', ['relation'=>'assignee']) }}">Responsável</a>
+        <a class="box-tab {{ request('relation')==='collaborator' ? 'active' : '' }}" href="{{ route('boxes.mine', ['relation'=>'collaborator']) }}">Colaborador</a>
+        <a class="box-tab {{ request('relation')==='follower' ? 'active' : '' }}" href="{{ route('boxes.mine', ['relation'=>'follower']) }}">Seguidor</a>
+    @else
+        <span class="box-tab active">Abertos</span>
     @endif
-    <div class="box-actions">
-        <label class="inline-check"><input type="checkbox" name="unassigned" value="1" @checked(request()->boolean('unassigned'))> Sem responsável</label>
-        <label class="inline-check"><input type="checkbox" name="overdue" value="1" @checked(request()->boolean('overdue'))> Atrasados</label>
-        <button class="button" type="submit">Filtrar</button>
-        <a class="subtle-link" href="{{ $boxKind === 'mine' ? route('boxes.mine') : route('boxes.department', $department) }}">Limpar</a>
+    @foreach($statuses->whereIn('system_key',['resolved','closed','cancelled']) as $status)
+        <a class="box-tab {{ request('status')===$status->system_key ? 'active' : '' }}" href="{{ $boxKind === 'mine' ? route('boxes.mine',['status'=>$status->system_key]) : route('boxes.department',[$department,'status'=>$status->system_key]) }}">{{ $status->name }}</a>
+    @endforeach
+</div>
+
+<form class="helpdesk-toolbar" method="get">
+    <div class="toolbar-search">
+        <span>⌕</span>
+        <input name="q" value="{{ request('q') }}" placeholder="Buscar nesta caixa...">
     </div>
+    <label class="toolbar-field">Status
+        <select name="status">
+            <option value="">Ativos</option>
+            @foreach($statuses as $status)
+                <option value="{{ $status->system_key ?: $status->id }}" @selected((string)request('status') === (string)($status->system_key ?: $status->id))>{{ $status->name }}</option>
+            @endforeach
+        </select>
+    </label>
+    <label class="toolbar-field">Prioridade
+        <select name="priority">
+            <option value="">Todas</option>
+            <option value="low" @selected(request('priority')==='low')>Baixa</option>
+            <option value="normal" @selected(request('priority')==='normal')>Normal</option>
+            <option value="high" @selected(request('priority')==='high')>Alta</option>
+            <option value="urgent" @selected(request('priority')==='urgent')>Urgente</option>
+        </select>
+    </label>
+    @if($boxKind === 'mine' && request('relation'))<input type="hidden" name="relation" value="{{ request('relation') }}">@endif
+    <label class="toolbar-check"><input type="checkbox" name="unassigned" value="1" @checked(request()->boolean('unassigned'))> Não atribuídos</label>
+    <label class="toolbar-check"><input type="checkbox" name="overdue" value="1" @checked(request()->boolean('overdue'))> Atrasados</label>
+    <button class="button compact" type="submit">Filtrar</button>
+    <a class="subtle-link" href="{{ $boxKind === 'mine' ? route('boxes.mine') : route('boxes.department', $department) }}">Limpar</a>
 </form>
 
-<section class="ticket-list box-list">
-@forelse($tickets as $ticket)
-    <a class="ticket" href="{{ route('tickets.show', $ticket) }}">
-        <div class="ticket-top">
-            <span class="number">#{{ $ticket->number }}</span>
-            <span class="status" style="--status:{{ $ticket->status->color }}">{{ $ticket->status->name }}</span>
-        </div>
-        <h2>{{ $ticket->title }}</h2>
-        <p>{{ Str::limit($ticket->description, 110) }}</p>
-        <div class="meta">
-            <span>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</span>
-            <span>{{ $ticket->department?->name ?? 'Sem departamento' }}</span>
-            <span>{{ $ticket->assignee?->name ?? 'Sem responsável' }}</span>
-            <span>{{ $ticket->due_at?->format('d/m/Y H:i') ?? 'Sem prazo' }}</span>
-        </div>
-    </a>
-@empty
-    <div class="empty panel"><span>✓</span><h2>Nenhum ticket nesta caixa</h2><p>Ajuste os filtros ou aguarde novos tickets.</p></div>
-@endforelse
-</section>
-
-{{ $tickets->links() }}
+<div class="ticket-table-panel">
+    <div class="table-summary"><strong>{{ $tickets->total() }}</strong> {{ $tickets->total() === 1 ? 'ticket' : 'tickets' }}</div>
+    <div class="responsive-table">
+        <table class="tickets-table">
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Título</th>
+                    <th>Status</th>
+                    <th>Prioridade</th>
+                    <th>Departamento</th>
+                    <th>Responsável</th>
+                    <th>Prazo</th>
+                </tr>
+            </thead>
+            <tbody>
+            @forelse($tickets as $ticket)
+                @php($ticketUrl = route('tickets.show',$ticket))
+                <tr class="ticket-row">
+                    <td><a class="row-link ticket-number" href="{{ $ticketUrl }}">#{{ $ticket->number }}</a></td>
+                    <td><a class="row-link ticket-title-cell" href="{{ $ticketUrl }}"><strong>{{ $ticket->title }}</strong><small>{{ Str::limit($ticket->description,72) }}</small></a></td>
+                    <td><a class="row-link" href="{{ $ticketUrl }}"><span class="status" style="--status:{{ $ticket->status?->color ?? '#6d28d9' }}">{{ $ticket->status?->name ?? 'Sem status' }}</span></a></td>
+                    <td><a class="row-link" href="{{ $ticketUrl }}"><span class="priority-badge {{ $ticket->priority }}"><i></i>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</span></a></td>
+                    <td><a class="row-link" href="{{ $ticketUrl }}">{{ $ticket->department?->name ?? 'Sem departamento' }}</a></td>
+                    <td><a class="row-link" href="{{ $ticketUrl }}">{{ $ticket->assignee?->name ?? 'Não atribuído' }}</a></td>
+                    <td><a class="row-link {{ $ticket->due_at && $ticket->due_at->isPast() ? 'overdue' : '' }}" href="{{ $ticketUrl }}">{{ $ticket->due_at?->format('d/m/Y H:i') ?? 'Sem prazo' }}</a></td>
+                </tr>
+            @empty
+                <tr><td colspan="7"><div class="table-empty"><span>✓</span><strong>Nenhum ticket nesta caixa</strong><small>Ajuste os filtros ou aguarde novos tickets.</small></div></td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
+    @if($tickets->hasPages())<div class="pagination">{{ $tickets->links() }}</div>@endif
+</div>
 @endsection
