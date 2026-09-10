@@ -37,11 +37,29 @@ class Ticket extends Model
             return $query;
         }
 
-        return $query->where(fn ($q) => $q
-            ->where('creator_id', $user->id)
-            ->orWhere('assignee_id', $user->id)
-            ->orWhereHas('participants', fn ($p) => $p->where('users.id', $user->id))
-        );
+        return $query->where(function (Builder $q) use ($user) {
+            $q->where('assignee_id', $user->id)
+                ->orWhereHas('participants', fn (Builder $participants) => $participants->where('users.id', $user->id));
+
+            if ($user->department_id && $user->hasPermission('tickets.view_department')) {
+                $q->orWhere('department_id', $user->department_id);
+            }
+        });
+    }
+
+    public function scopeMyBox(Builder $query, User $user): Builder
+    {
+        return $query->where(function (Builder $q) use ($user) {
+            $q->where('assignee_id', $user->id)
+                ->orWhereHas('participants', fn (Builder $participants) => $participants->where('users.id', $user->id));
+        });
+    }
+
+    public function scopeActiveForBox(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('trashed_at')
+            ->whereHas('status', fn (Builder $status) => $status->whereNotIn('category', ['completed', 'cancelled']));
     }
 
     public static function nextNumber(): string

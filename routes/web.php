@@ -2,10 +2,11 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\TicketController;
 use App\Http\Controllers\PasswordResetController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TicketBoxController;
+use App\Http\Controllers\TicketController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
+use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
     Route::get('/entrar', [AuthController::class, 'login'])->name('login');
@@ -17,12 +18,21 @@ Route::middleware('guest')->group(function () {
     Route::get('/redefinir-senha/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
     Route::post('/redefinir-senha', [PasswordResetController::class, 'reset'])->name('password.update');
 });
-Route::get('/email/verificar', fn()=>view('auth.verify-email'))->middleware('auth')->name('verification.notice');
-Route::get('/email/verificar/{id}/{hash}', function(EmailVerificationRequest $request){$request->fulfill();return redirect()->route('dashboard');})->middleware(['auth','signed'])->name('verification.verify');
-Route::post('/email/reenviar', function(Illuminate\Http\Request $request){$request->user()->sendEmailVerificationNotification();return back()->with('success','Novo link enviado.');})->middleware(['auth','throttle:6,1'])->name('verification.send');
+
+Route::get('/email/verificar', fn () => view('auth.verify-email'))->middleware('auth')->name('verification.notice');
+Route::get('/email/verificar/{id}/{hash}', function (EmailVerificationRequest $request) {
+    $request->fulfill();
+    return redirect()->route('dashboard');
+})->middleware(['auth', 'signed'])->name('verification.verify');
+Route::post('/email/reenviar', function (Illuminate\Http\Request $request) {
+    $request->user()->sendEmailVerificationNotification();
+    return back()->with('success', 'Novo link enviado.');
+})->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');
+    Route::get('/minha-caixa', [TicketBoxController::class, 'mine'])->name('boxes.mine');
+    Route::get('/departamentos/{department}/tickets', [TicketBoxController::class, 'department'])->name('boxes.department');
     Route::resource('tickets', TicketController::class)->except(['destroy']);
     Route::post('/sair', [AuthController::class, 'logout'])->name('logout');
 });
