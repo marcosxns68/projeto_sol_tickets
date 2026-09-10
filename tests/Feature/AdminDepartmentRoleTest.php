@@ -13,6 +13,7 @@ class AdminDepartmentRoleTest extends TestCase
 {
     use RefreshDatabase;
 
+    // Regressão: as áreas administrativas devem existir e respeitar permissões específicas.
     public function test_department_manager_can_create_and_update_departments(): void
     {
         $permission = Permission::where('key', 'departments.manage')->firstOrFail();
