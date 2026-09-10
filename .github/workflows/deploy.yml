@@ -27,29 +27,20 @@ jobs:
           extensions: mbstring, intl, pdo_mysql, bcmath, gd, zip, imap
           coverage: none
 
-      - name: Instalar dependências de produção
+      - name: Preparar diretórios
         run: |
           mkdir -p bootstrap/cache storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
           chmod -R 775 storage bootstrap/cache
-          composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
 
-      - name: Preparar diretórios do Laravel
+      - name: Instalar dependências de produção
+        run: composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+
+      - name: Preparar publicação
         run: |
-          mkdir -p storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
-          chmod -R 775 storage bootstrap/cache
+          printf '%s\n' "${GITHUB_SHA}:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" > storage/framework/deploy-migrate
+          printf '%s\n' "${GITHUB_SHA}" > public/release-version.txt
 
-      - name: Compactar versão de produção
-        run: |
-          mkdir -p .deploy
-          zip -qr .deploy/release.zip . \
-            -x '.git/*' '.github/*' '.deploy/*' '.env' '.env.*' 'node_modules/*' 'tests/*' 'README.md' 'DEPLOY.md'
-          DEPLOY_TOKEN="$(openssl rand -hex 32)"
-          DEPLOY_HASH="$(printf '%s' "$DEPLOY_TOKEN" | sha256sum | cut -d' ' -f1)"
-          echo "::add-mask::$DEPLOY_TOKEN"
-          echo "DEPLOY_TOKEN=$DEPLOY_TOKEN" >> "$GITHUB_ENV"
-          sed "s/__DEPLOY_HASH__/$DEPLOY_HASH/" deploy/extract.php > .deploy/deploy.php
-
-      - name: Enviar para hospedagem
+      - name: Enviar aplicação diretamente para a hospedagem
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -57,15 +48,27 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          local-dir: ./.deploy/
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}public/
+          local-dir: ./
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
           dangerous-clean-slate: false
           exclude: |
             **/.git*
             **/.git*/**
-
-      - name: Extrair versão no servidor
-        run: |
-          curl --fail --silent --show-error --retry 5 --retry-delay 5 \
-            --data-urlencode "token=$DEPLOY_TOKEN" \
-            https://tickets.sutoorii.com/public/deploy.php
+            **/.github/**
+            **/node_modules/**
+            **/tests/**
+            docs/**
+            deploy/**
+            .env
+            .env.*
+            !.env.example
+            phpunit.xml
+            README.md
+            DEPLOY.md
+            composer.lock
+            storage/logs/**
+            storage/framework/cache/**
+            storage/framework/sessions/**
+            storage/framework/views/**
+            storage/app/private/**
+            storage/app/public/**
