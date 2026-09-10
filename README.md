@@ -20,6 +20,10 @@ Central unificada de tickets internos e de suporte, desenvolvida em Laravel e pr
 
 Credenciais nunca devem ser salvas no Git. O SMTP usa `mail.sutoorii.com:465` com SSL e o IMAP usa `mail.sutoorii.com:993` com SSL.
 
+## Desenvolvimento
+
+A branch `feature/finalizacao-sutoorii-tickets` possui CI próprio. Ela executa a suíte de testes em SQLite em memória antes de qualquer integração com `main`. A branch `main` continua sendo a única publicada automaticamente em produção.
+
 ## Estado atual
 
-A primeira fundação inclui autenticação restrita a `@sutoorii.com`, verificação de e-mail, modelo de permissões, empresas, sistemas, departamentos, status, tickets, participantes, etiquetas, checklist, comentários, anexos, tempo, recorrência, auditoria e interface PWA inicial. As telas administrativas e as rotinas operacionais serão implementadas nas próximas etapas.
+A base inclui autenticação, recuperação de senha, verificação de e-mail, empresas, sistemas, departamentos, status, tickets, participantes, etiquetas, checklist, comentários, anexos, recorrência, auditoria e PWA. A finalização funcional está sendo implementada de forma incremental e testada na branch de desenvolvimento.
