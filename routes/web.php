@@ -1,11 +1,15 @@
 <?php
 
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\TicketAssignmentController;
 use App\Http\Controllers\TicketBoxController;
+use App\Http\Controllers\TicketChecklistController;
+use App\Http\Controllers\TicketCommentController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TicketLifecycleController;
 use App\Http\Controllers\TicketParticipantController;
 use App\Http\Controllers\TicketRoutingController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
@@ -42,6 +46,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/tickets/{ticket}/encaminhar', [TicketRoutingController::class, 'forward'])->name('tickets.forward');
     Route::post('/tickets/{ticket}/participantes', [TicketParticipantController::class, 'store'])->name('tickets.participants.store');
     Route::delete('/tickets/{ticket}/participantes/{user}', [TicketParticipantController::class, 'destroy'])->name('tickets.participants.destroy');
+
+    Route::post('/tickets/{ticket}/comentarios', [TicketCommentController::class, 'store'])->name('tickets.comments.store');
+    Route::post('/tickets/{ticket}/checklist', [TicketChecklistController::class, 'store'])->name('tickets.checklist.store');
+    Route::patch('/tickets/{ticket}/checklist/{item}/alternar', [TicketChecklistController::class, 'toggle'])->name('tickets.checklist.toggle');
+    Route::delete('/tickets/{ticket}/checklist/{item}', [TicketChecklistController::class, 'destroy'])->name('tickets.checklist.destroy');
+
+    Route::post('/tickets/{ticket}/solicitar-conclusao', [TicketLifecycleController::class, 'requestCompletion'])->name('tickets.completion.request');
+    Route::post('/tickets/{ticket}/resolver', [TicketLifecycleController::class, 'resolve'])->name('tickets.resolve');
+    Route::post('/tickets/{ticket}/fechar', [TicketLifecycleController::class, 'close'])->name('tickets.close');
+    Route::post('/tickets/{ticket}/cancelar', [TicketLifecycleController::class, 'cancel'])->name('tickets.cancel');
+    Route::post('/tickets/{ticket}/reabrir', [TicketLifecycleController::class, 'reopen'])->name('tickets.reopen');
+
+    Route::get('/admin/usuarios', [AdminUserController::class, 'index'])->name('admin.users.index');
+    Route::get('/admin/usuarios/{user}/editar', [AdminUserController::class, 'edit'])->name('admin.users.edit');
+    Route::patch('/admin/usuarios/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
 
     Route::resource('tickets', TicketController::class)->except(['destroy']);
     Route::post('/sair', [AuthController::class, 'logout'])->name('logout');

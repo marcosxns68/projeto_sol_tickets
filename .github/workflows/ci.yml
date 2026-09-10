@@ -38,3 +38,8 @@ jobs:
 
       - name: Executar testes
         run: php artisan test
+
+      - name: Validar rotas e deploy
+        run: |
+          php artisan route:list >/dev/null
+          php -l deploy/extract.php
