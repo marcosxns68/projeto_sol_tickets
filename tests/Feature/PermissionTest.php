@@ -15,13 +15,9 @@ class PermissionTest extends TestCase
 
     private function userWithRolePermission(bool $roleAllows): array
     {
-        $permission = Permission::create([
-            'key' => 'tickets.reassign',
-            'name' => 'Reatribuir responsável',
-            'group' => 'tickets',
-        ]);
+        $permission = Permission::where('key', 'tickets.reassign')->firstOrFail();
 
-        $role = Role::create(['name' => 'Teste']);
+        $role = Role::create(['name' => 'Teste '.uniqid()]);
         if ($roleAllows) {
             $role->permissions()->attach($permission->id);
         }
