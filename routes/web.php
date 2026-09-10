@@ -3,8 +3,11 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\TicketAssignmentController;
 use App\Http\Controllers\TicketBoxController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TicketParticipantController;
+use App\Http\Controllers\TicketRoutingController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +36,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');
     Route::get('/minha-caixa', [TicketBoxController::class, 'mine'])->name('boxes.mine');
     Route::get('/departamentos/{department}/tickets', [TicketBoxController::class, 'department'])->name('boxes.department');
+
+    Route::post('/tickets/{ticket}/assumir', [TicketAssignmentController::class, 'assume'])->name('tickets.assume');
+    Route::patch('/tickets/{ticket}/responsavel', [TicketAssignmentController::class, 'reassign'])->name('tickets.reassign');
+    Route::post('/tickets/{ticket}/encaminhar', [TicketRoutingController::class, 'forward'])->name('tickets.forward');
+    Route::post('/tickets/{ticket}/participantes', [TicketParticipantController::class, 'store'])->name('tickets.participants.store');
+    Route::delete('/tickets/{ticket}/participantes/{user}', [TicketParticipantController::class, 'destroy'])->name('tickets.participants.destroy');
+
     Route::resource('tickets', TicketController::class)->except(['destroy']);
     Route::post('/sair', [AuthController::class, 'logout'])->name('logout');
 });
