@@ -42,13 +42,18 @@ jobs:
       - name: Validar rotas e estratégia de deploy
         run: |
           php artisan route:list >/dev/null
-          php -l app/Support/DeploymentMigration.php
-          php -l public/deployment-bootstrap.php
           php -l public/index.php
-          if grep -Eq 'curl .*deploy\.php|public/deploy\.php' .github/workflows/deploy.yml; then
-            echo 'O deploy ainda depende do endpoint HTTP bloqueado pela hospedagem.'
+          if grep -q 'DeploymentBootstrap::apply' public/index.php; then
+            echo 'O index ainda tenta extrair pacote durante a requisição.'
             exit 1
           fi
-          grep -q 'storage/app/private/' .github/workflows/deploy.yml
-          grep -q 'deployment-bootstrap.php' .github/workflows/deploy.yml
-          grep -q 'storage/framework/deploy-migrate' .github/workflows/deploy.yml
+          if grep -q 'DeploymentMigration::run' public/index.php; then
+            echo 'O index ainda tenta executar migrations durante a requisição.'
+            exit 1
+          fi
+          if grep -q 'deploy-release.zip' .github/workflows/deploy.yml; then
+            echo 'O deploy ainda depende do pacote ZIP aplicado por uma requisição web.'
+            exit 1
+          fi
+          grep -q '.deploy/direct/' .github/workflows/deploy.yml
+          grep -q 'Verificar produção' .github/workflows/deploy.yml
