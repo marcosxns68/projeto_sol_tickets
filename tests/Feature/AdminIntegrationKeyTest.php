@@ -38,7 +38,9 @@ class AdminIntegrationKeyTest extends TestCase
             ->get('/admin/integracoes')
             ->assertOk()
             ->assertSee('Integrações')
-            ->assertSee('Nova integração');
+            ->assertSee('Nova integração')
+            ->assertSee('Configurar webhook')
+            ->assertSee('Gerar segredo webhook');
     }
 
     public function test_authorized_user_can_create_integration_and_receives_api_key_once(): void
