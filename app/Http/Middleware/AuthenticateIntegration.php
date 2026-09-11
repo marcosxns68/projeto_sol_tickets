@@ -3,8 +3,10 @@
 namespace App\Http\Middleware;
 
 use App\Models\ConnectedSystem;
+use App\Services\IntegrationSettings;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateIntegration
@@ -39,6 +41,15 @@ class AuthenticateIntegration
         if (!in_array($role, ['user', 'manager'], true)) {
             return response()->json(['message' => 'Papel do usuário externo inválido.'], 422);
         }
+
+        $rateKey = 'integration-api:'.$integration->id;
+        if (RateLimiter::tooManyAttempts($rateKey, 120)) {
+            return response()->json(['message' => 'Limite de requisições excedido.'], 429)
+                ->header('Retry-After', (string) RateLimiter::availableIn($rateKey));
+        }
+
+        RateLimiter::hit($rateKey, 60);
+        app(IntegrationSettings::class)->touchApi($integration->id);
 
         $request->attributes->set('integration', $integration);
         $request->attributes->set('external_user_id', $externalUserId);
