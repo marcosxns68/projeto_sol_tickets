@@ -9,7 +9,7 @@ class MobileSidebarRegressionTest extends TestCase
     public function test_responsive_stylesheet_reenables_sidebar_on_mobile(): void
     {
         // A folha principal antiga esconde a sidebar no breakpoint móvel.
-        // A camada responsiva precisa reativá-la antes de aplicar o drawer.
+        // A camada responsiva precisa reativá-la antes de aplicar o drawer lateral.
         $css = file_get_contents(public_path('css/responsive-shell.css'));
 
         $this->assertMatchesRegularExpression(
