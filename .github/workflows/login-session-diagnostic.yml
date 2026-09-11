@@ -1,0 +1,39 @@
+name: Login Session Diagnostic
+
+on:
+  push:
+    branches:
+      - feature/hotfix-direct-deploy-20260911
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reproduzir fluxo CSRF do login em produção
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://tickets.sutoorii.com'
+          curl -fkLsS -c /tmp/cookies.txt "$base/entrar" -o /tmp/login.html
+          token=$(sed -n 's/.*name="_token" value="\([^"]*\)".*/\1/p' /tmp/login.html | head -n1)
+          echo "token_present=$([ -n "$token" ] && echo yes || echo no)"
+          echo 'cookies_after_get:'
+          awk '!/^#/ {print $6}' /tmp/cookies.txt | sort -u
+          test -n "$token"
+
+          status=$(curl -fkLsS -b /tmp/cookies.txt -c /tmp/cookies-after-post.txt \
+            -D /tmp/post-headers.txt -o /tmp/post-body.html \
+            -w '%{http_code}' \
+            -X POST "$base/entrar" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            -H "Referer: $base/entrar" \
+            --data-urlencode "_token=$token" \
+            --data-urlencode 'email=diagnostic@example.invalid' \
+            --data-urlencode 'password=senha-invalida')
+
+          echo "post_status=$status"
+          grep -Ei '^(HTTP/|location:|set-cookie:)' /tmp/post-headers.txt || true
+          echo 'body_preview:'
+          head -c 500 /tmp/post-body.html || true
+          echo
