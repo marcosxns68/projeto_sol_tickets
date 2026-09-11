@@ -35,18 +35,13 @@ jobs:
       - name: Instalar dependências de produção
         run: composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
 
-      - name: Montar pacote da nova versão
+      - name: Montar versão para envio direto
         run: |
-          printf '%s\n' "${GITHUB_SHA}:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" > storage/framework/deploy-migrate
           printf '%s\n' "${GITHUB_SHA}" > public/release-version.txt
-          mkdir -p .deploy/archive .deploy/bootstrap
-          zip -qr .deploy/archive/deploy-release.zip . \
-            -x '.git/*' '.github/*' '.deploy/*' '.env' '.env.*' 'node_modules/*' 'tests/*' 'docs/*' 'README.md' 'DEPLOY.md' \
-               'storage/logs/*' 'storage/framework/cache/*' 'storage/framework/sessions/*' 'storage/framework/views/*' \
-               'storage/app/private/*' 'storage/app/public/*'
-          cp public/index.php public/deployment-bootstrap.php .deploy/bootstrap/
+          mkdir -p .deploy/direct
+          rsync -a app bootstrap config database public resources routes vendor artisan composer.json .deploy/direct/
 
-      - name: Enviar pacote para área privada
+      - name: Publicar versão diretamente no servidor
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -54,46 +49,23 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          local-dir: ./.deploy/archive/
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}storage/app/private/
+          local-dir: ./.deploy/direct/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
           dangerous-clean-slate: false
 
-      - name: Ativar nova versão pelo bootstrap local
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          local-dir: ./.deploy/bootstrap/
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}public/
-          dangerous-clean-slate: false
-
-      - name: Diagnosticar HTTP de produção
+      - name: Verificar produção
         shell: bash
         run: |
-          set +e
           echo '=== DNS ==='
-          getent ahosts tickets.sutoorii.com || true
-          echo '=== release-version.txt ==='
-          curl -vkL --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/release-version.txt -o /tmp/release.txt
-          release_exit=$?
-          echo "curl release exit=${release_exit}"
-          test -f /tmp/release.txt && cat /tmp/release.txt || true
+          getent ahosts tickets.sutoorii.com
+          echo '=== versão publicada ==='
+          curl -fkLsS --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/release-version.txt
           echo
-          echo '=== /up ==='
-          curl -vkL --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/up -o /tmp/up.txt
-          up_exit=$?
-          echo "curl up exit=${up_exit}"
-          test -f /tmp/up.txt && head -c 1000 /tmp/up.txt || true
+          echo '=== health ==='
+          curl -fkLsS --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/up
           echo
-          echo '=== / ==='
-          curl -vkL --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/ -o /tmp/root.txt
-          root_exit=$?
-          echo "curl root exit=${root_exit}"
-          test -f /tmp/root.txt && head -c 1000 /tmp/root.txt || true
+          echo '=== página inicial ==='
+          curl -fkLsS --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/ -o /tmp/root.html
+          test -s /tmp/root.html
+          head -c 500 /tmp/root.html
           echo
-          if [ "$release_exit" -ne 0 ] || [ "$up_exit" -ne 0 ] || [ "$root_exit" -ne 0 ]; then
-            exit 1
-          fi
