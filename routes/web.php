@@ -79,6 +79,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/integracoes', [AdminIntegrationController::class, 'store'])->name('admin.integrations.store');
     Route::patch('/admin/integracoes/{integration}', [AdminIntegrationController::class, 'update'])->name('admin.integrations.update');
     Route::post('/admin/integracoes/{integration}/nova-chave', [AdminIntegrationController::class, 'rotateKey'])->name('admin.integrations.rotate-key');
+    Route::post('/admin/integracoes/{integration}/novo-segredo-webhook', [AdminIntegrationController::class, 'rotateWebhookSecret'])->name('admin.integrations.rotate-webhook-secret');
 
     Route::resource('tickets', TicketController::class)->except(['destroy']);
     Route::post('/sair', [AuthController::class, 'logout'])->name('logout');
