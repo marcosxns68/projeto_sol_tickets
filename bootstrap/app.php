@@ -4,8 +4,7 @@ use App\Http\Middleware\RequirePermission;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Request;
-use Illuminate\Session\TokenMismatchException;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -20,7 +19,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->render(function (TokenMismatchException $exception, Request $request) {
+        $exceptions->respond(function (Response $response) {
+            if ($response->getStatusCode() !== 419) {
+                return $response;
+            }
+
+            $request = request();
             if ($request->hasSession()) {
                 $request->session()->regenerateToken();
             }
