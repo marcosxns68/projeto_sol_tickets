@@ -197,9 +197,10 @@ class IntegrationApiV1SafeTest extends TestCase
             ->get('/api/v1/tickets/'.$ticket->number.'/attachments/'.$attachmentId)
             ->assertOk();
 
-        $this->withHeaders($this->headers('token-franca', '153'))->post('/api/v1/tickets/'.$ticket->number.'/attachments', [
-            'file' => UploadedFile::fake()->create('perigoso.exe', 4, 'application/octet-stream'),
-        ])->assertUnprocessable();
+        $this->withHeaders(array_merge($this->headers('token-franca', '153'), ['Accept' => 'application/json']))
+            ->post('/api/v1/tickets/'.$ticket->number.'/attachments', [
+                'file' => UploadedFile::fake()->create('perigoso.exe', 4, 'application/octet-stream'),
+            ])->assertUnprocessable();
 
         $activity = $this->withHeaders($this->headers('token-franca', '153'))->getJson('/api/v1/tickets/'.$ticket->number.'/activity');
         $activity->assertOk();
