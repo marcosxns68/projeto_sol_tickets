@@ -138,6 +138,7 @@
 
     .app-sidebar,
     .app-shell.sidebar-collapsed .app-sidebar {
+        display: flex;
         width: min(82vw, 310px);
         max-width: 310px;
         transform: translateX(-102%);
