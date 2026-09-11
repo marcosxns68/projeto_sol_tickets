@@ -121,6 +121,27 @@ class IntegrationWebhookSafeTest extends TestCase
         Queue::assertPushed(SendIntegrationWebhook::class, fn ($job) => $job->event === 'ticket.comment.created');
     }
 
+    public function test_internal_close_queues_webhook_for_integrated_ticket(): void
+    {
+        Queue::fake();
+        $integration = $this->integration();
+        $integration->issueWebhookSecret();
+        $user = $this->internalUser(['tickets.view_all', 'tickets.close']);
+        $ticket = $this->ticket($integration, $user);
+        Status::create([
+            'name' => 'Fechado',
+            'system_key' => 'closed',
+            'category' => 'completed',
+            'color' => '#15803D',
+            'position' => 8,
+            'active' => true,
+        ]);
+
+        $this->actingAs($user)->post('/tickets/'.$ticket->id.'/fechar')->assertRedirect();
+
+        Queue::assertPushed(SendIntegrationWebhook::class, fn ($job) => $job->event === 'ticket.closed');
+    }
+
     public function test_webhook_job_signs_payload_and_has_retry_policy(): void
     {
         Http::fake(['*' => Http::response(['ok' => true], 200)]);
