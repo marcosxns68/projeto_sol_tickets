@@ -4,32 +4,28 @@ Data: 2026-09-11
 
 ## Objetivo
 
-Criar a base definitiva para que sistemas externos abram e acompanhem tickets no Sutoorii Tickets sem precisar cadastrar empresas, usuários externos ou gestores dentro do Tickets.
-
-Cada integração cadastrada no Sutoorii Tickets representa uma origem isolada de tickets. A chave da integração identifica e isola essa origem.
-
-O Estúdio França será o primeiro consumidor/piloto, mas a base deve ser genérica para qualquer sistema futuro.
+Criar a base definitiva para sistemas externos abrirem e acompanharem tickets no Sutoorii Tickets sem cadastrar empresas, usuários externos ou gestores dentro do Tickets. Cada cadastro em **Integrações** representa uma origem isolada e a chave da integração determina essa origem. O Estúdio França será o primeiro consumidor, mas a base é genérica.
 
 ## Decisões aprovadas
 
 - Não haverá cadastro de empresa na lógica nova de integrações.
-- Cada cadastro em **Integrações** representa uma origem independente e possui uma chave própria.
-- O nome da integração é apenas administrativo; a chave determina a origem técnica.
-- Uma mesma empresa pode ter vários sistemas, cada um com sua própria chave e isolamento.
-- O mesmo software pode ser usado por várias empresas/bancos distintos; cada instalação recebe uma integração/chave diferente.
-- Usuário externo comum vê apenas tickets que ele próprio abriu dentro daquela chave.
-- Gestor do sistema vê todos os tickets pertencentes àquela chave, e somente àquela chave.
-- O Sutoorii Tickets confia no papel `manager` enviado pelo servidor autenticado da integração.
-- O navegador do usuário final nunca recebe a chave da API.
-- Notas internas, checklist interno, auditoria, colaboradores internos e demais conteúdo administrativo nunca são expostos à API externa nem aos webhooks.
-- O número público oficial do ticket permanece `AAMM0000`: ano com 2 dígitos + mês com 2 dígitos + 4 dígitos aleatórios, com verificação de unicidade.
-- `external_reference` é um identificador técnico opcional/oculto, usado para idempotência e correlação com o sistema externo. Ele não substitui o número oficial do ticket.
+- Uma integração = uma origem isolada = uma chave própria.
+- O nome da integração é apenas administrativo; a chave define a origem técnica.
+- Uma mesma empresa pode usar vários sistemas, cada um com integração/chave distinta.
+- O mesmo software pode ser usado por empresas/bancos diferentes; cada instalação recebe integração/chave distinta.
+- Usuário externo comum vê e interage somente com tickets que ele próprio abriu naquela chave.
+- Gestor do sistema vê e interage com todos os tickets daquela chave, e somente daquela chave.
+- O Tickets confia no papel `manager` enviado pelo servidor autenticado da integração.
+- A chave nunca vai para o navegador do usuário final.
+- Notas internas, checklist, auditoria, colaboradores e dados administrativos nunca saem pela API/webhook.
+- Número público oficial: `AAMM0000` (ano 2 dígitos + mês 2 dígitos + 4 dígitos aleatórios), com unicidade verificada.
+- `external_reference` é técnico, opcional e invisível ao usuário; serve para correlação/idempotência e não substitui o número oficial.
 
 ## Modelo de domínio
 
 ### Integração
 
-A tabela atual `systems` continua sendo a entidade técnica da integração. Ela será tratada na interface como **Integração**.
+A tabela atual `systems` continua como entidade técnica e será apresentada na interface como **Integração**.
 
 Campos principais:
 
@@ -39,191 +35,163 @@ Campos principais:
 - `department_id` padrão opcional
 - `api_token_hash`
 - `webhook_url` opcional
-- `webhook_secret`
+- `webhook_secret` criptografado em repouso
 - `active`
+- `last_api_activity_at`
+- campos de diagnóstico do último webhook
 - timestamps
 
-O `company_id` existente deixa de ser obrigatório e não participa da lógica nova. A tabela `companies` não será apagada nesta entrega para evitar migração destrutiva em produção. Ela passa a ser legado não utilizado pelo fluxo novo.
+O `company_id` existente passa a aceitar `null` e deixa de participar da lógica nova. A tabela `companies` permanece nesta entrega apenas para evitar migração destrutiva; não é usada no novo fluxo.
 
 ### Ticket externo
 
-Tickets criados por integração terão:
+Tickets criados pela API terão:
 
 - `origin = integration`
-- `system_id` obtido exclusivamente pela chave autenticada
+- `system_id` derivado exclusivamente da chave autenticada
 - `company_id = null`
-- `external_requester_id` vindo do contexto do usuário externo
-- `requester_name` e `requester_email` vindos do sistema externo
+- `external_requester_id` vindo do contexto externo
+- `requester_name` e `requester_email` fornecidos pelo servidor integrado
 - `external_reference` técnico opcional
-- departamento inicial definido pela integração, quando configurado
+- departamento inicial igual ao departamento padrão da integração, quando configurado
 
-A API nunca aceitará `system_id` ou `company_id` do cliente.
+A API nunca aceita `system_id` ou `company_id` enviados pelo cliente.
 
-## Autenticação e contexto do usuário externo
+## Autenticação e contexto externo
 
-### Autenticação da integração
+### Chave da integração
 
-Toda requisição da API v1 exige:
+Toda requisição v1 usa:
 
 `Authorization: Bearer <chave-da-integracao>`
 
-A chave real é gerada com entropia criptográfica e prefixo identificável, por exemplo `st_live_...`.
+A chave é gerada com entropia criptográfica e prefixo `st_live_`. Ela aparece somente na criação/regeneração. O banco guarda apenas SHA-256 em `api_token_hash`.
 
-A chave é mostrada apenas no momento da criação/regeneração. No banco permanece somente SHA-256 em `api_token_hash`.
-
-Integração inativa, chave inexistente ou chave revogada não acessa nenhum dado.
+Chave inexistente/revogada retorna `401`. Integração autenticada mas inativa retorna `403`.
 
 ### Contexto do usuário
 
-O servidor integrado informa em cada requisição autenticada:
+Cada requisição autenticada informa:
 
 - `X-External-User-Id`
 - `X-External-User-Role: user|manager`
 
-Nome e e-mail podem ser enviados no corpo quando necessários para criação/comentário.
+O papel é confiável porque vem do servidor que possui a chave. Isso não cria usuário ou privilégio interno no Sutoorii Tickets.
 
-O papel é confiável porque a requisição vem do servidor autenticado da integração. Isso não cria usuário nem privilégio permanente dentro do Sutoorii Tickets.
+Nome/e-mail são enviados no corpo quando necessários. Ausência/valor inválido de contexto retorna `422`.
 
-### Escopo obrigatório
+### Isolamento obrigatório
 
-Toda consulta parte obrigatoriamente de `system_id = integração autenticada`.
-
-Depois:
+Toda consulta começa por `system_id = integração autenticada`.
 
 - `user`: acrescenta `external_requester_id = X-External-User-Id`.
-- `manager`: não acrescenta filtro de solicitante, mas continua limitado ao mesmo `system_id`.
+- `manager`: não filtra solicitante, mas continua limitado ao mesmo `system_id`.
 
-Não existe operação da API externa que atravesse integrações.
+Ticket fora desse escopo responde como `404`, sem revelar se existe em outra integração.
 
 ## API v1
 
-Prefixo: `/api/v1`
+Prefixo: `/api/v1`.
 
 ### Criar ticket
 
 `POST /api/v1/tickets`
 
-Campos aceitos:
+Corpo:
 
 - `external_reference` opcional
-- `requester_name`
+- `requester_name` obrigatório
 - `requester_email` opcional
-- `title`
-- `description`
-- `priority`: `low|normal|high|urgent`
-- `metadata` opcional para contexto técnico seguro
+- `title` obrigatório
+- `description` obrigatório
+- `priority`: `low|normal|high|urgent` (padrão `normal`)
 
-`external_user_id` e papel vêm do contexto autenticado da requisição, não de IDs internos do Tickets.
+Se `external_reference` já existir na mesma integração, a API devolve o ticket existente e não duplica. A mesma referência pode existir em integrações diferentes.
 
-Se `external_reference` já existir para aquela integração, a API não cria duplicata e devolve o ticket existente.
+A combinação `(system_id, external_reference)` será única quando houver referência.
 
-A combinação `(system_id, external_reference)` deve ser única quando a referência estiver preenchida.
-
-### Listar tickets
+### Listar
 
 `GET /api/v1/tickets`
 
-Retorna somente dados públicos da integração.
+Usuário comum recebe os próprios; gestor recebe todos da integração. Filtros v1: status, prioridade e paginação.
 
-- usuário comum: próprios tickets;
-- gestor: todos os tickets da integração.
-
-Suporta filtros seguros por status, prioridade e paginação.
-
-### Consultar ticket
+### Consultar
 
 `GET /api/v1/tickets/{number}`
 
-O identificador público usado pela rota é o número oficial `AAMM0000`.
+A rota usa o número oficial `AAMM0000` e sempre aplica isolamento antes de retornar dados.
 
-A consulta aplica o mesmo isolamento de integração + usuário/gestor antes de retornar dados.
-
-### Criar comentário público
+### Comentário público
 
 `POST /api/v1/tickets/{number}/comments`
 
-Cria somente comentário `visibility=public` e `source=integration`.
+Cria somente `visibility=public` e `source=integration`. A API não possui endpoint de nota interna.
 
-Pode receber `external_message_id` opcional para evitar duplicação em retentativas. Internamente ele deve ser namespaced pela integração antes de usar o campo único `message_id` existente.
-
-A API não possui endpoint para nota interna.
+Aceita `external_message_id` opcional. Internamente o valor é namespaced pela integração antes de preencher o `message_id` único, impedindo colisões entre integrações e duplicação em retry.
 
 ### Anexos
 
 `POST /api/v1/tickets/{number}/attachments`
 
-Aceita anexos somente em ticket que o usuário/gestor possa acessar.
+`GET /api/v1/tickets/{number}/attachments/{attachment}`
 
-Deve reutilizar as regras internas de armazenamento, tamanho, MIME e expiração. O retorno externo nunca revela caminho físico de armazenamento.
+Somente tickets visíveis naquele contexto podem receber/baixar anexos. V1 aceita `jpg`, `jpeg`, `png`, `webp`, `pdf`, `txt`, `doc`, `docx`, `xls`, `xlsx` e `zip`, com máximo de 10 MB por arquivo. O armazenamento nunca é exposto; download passa por controlador autenticado e escopado.
 
-### Fechar e reabrir
+Novos anexos externos usam a política de expiração do Tickets e devem ser removidos/indisponibilizados conforme `expires_at`.
+
+### Fechar/reabrir
 
 `POST /api/v1/tickets/{number}/close`
 
 `POST /api/v1/tickets/{number}/reopen`
 
-A ação respeita as regras de ciclo de vida do Tickets. A API não poderá forçar transições inválidas.
+Usuário comum atua nos próprios tickets; gestor em qualquer ticket da integração. As transições respeitam o ciclo de vida do Tickets e não podem forçar estado inválido.
 
 ### Atividade pública
 
 `GET /api/v1/tickets/{number}/activity`
 
-Retorna apenas eventos que façam sentido ao usuário externo:
-
-- criação;
-- comentários públicos;
-- mudanças públicas de status;
-- resolução/fechamento/reabertura;
-- anexos públicos quando aplicável.
-
-Nunca retorna notas internas, checklist, auditoria ou movimentações administrativas confidenciais.
+Expõe apenas criação, comentários públicos, status público, resolução/fechamento/reabertura e anexos públicos aplicáveis. Nunca inclui notas internas, checklist, auditoria, responsáveis/participantes internos ou dados administrativos confidenciais.
 
 ## Webhooks de saída
 
-Cada integração pode cadastrar `webhook_url` e possui um `webhook_secret` próprio.
+Cada integração pode ter `webhook_url` e um `webhook_secret` próprio. O segredo precisa ser recuperável pelo servidor para assinatura, portanto será armazenado **criptografado em repouso**, nunca em texto puro nem em hash irreversível.
 
-Eventos iniciais:
+Eventos v1:
 
-- `ticket.created`
 - `ticket.comment.created`
 - `ticket.status.changed`
 - `ticket.resolved`
 - `ticket.closed`
 - `ticket.reopened`
 
-Somente eventos públicos originam webhook. Nota interna nunca origina entrega externa.
+`ticket.created` não precisa ser enviado de volta quando a própria API acabou de criar o ticket, pois a resposta da criação já confirma o evento.
+
+### Regra antiecho
+
+Eventos recebidos pela API da própria integração não são enviados imediatamente de volta para ela. Webhooks servem para mudanças públicas ocorridas no Sutoorii Tickets depois da chamada externa, evitando loops e mensagens duplicadas.
+
+Nota interna nunca cria webhook.
 
 ### Assinatura
 
-Cada POST de webhook inclui timestamp e assinatura HMAC-SHA256 baseada no corpo bruto e no segredo da integração.
-
-Cabeçalhos previstos:
+Cada POST inclui:
 
 - `X-Sutoorii-Event`
 - `X-Sutoorii-Delivery`
 - `X-Sutoorii-Timestamp`
 - `X-Sutoorii-Signature`
 
-O sistema receptor consegue validar origem e integridade sem conhecer a chave da API.
+A assinatura é HMAC-SHA256 do timestamp + `.` + corpo JSON bruto, usando o segredo da integração. O identificador de entrega é UUID.
 
 ### Entrega e retry
 
-Criar persistência de entregas de webhook com:
+Persistir cada entrega antes do envio com integração, evento, payload, UUID, tentativas, estado, último status HTTP, último erro, próxima tentativa e data de entrega.
 
-- integração
-- evento
-- payload
-- identificador de entrega
-- número de tentativas
-- status
-- último HTTP status
-- último erro
-- próxima tentativa
-- entregue em
+Primeira tentativa é imediata. Em falha, serão feitas até 5 tentativas totais, com atrasos de aproximadamente 1, 5, 15 e 60 minutos entre as tentativas seguintes. Após a quinta falha, fica como `failed` e pode ser reenviada manualmente.
 
-A primeira tentativa pode ser disparada imediatamente. Falhas entram em retry com atraso progressivo e limite definido.
-
-Como a hospedagem atual não deve depender de daemon permanente, a implementação deve oferecer uma rotina/command idempotente de processamento de webhooks pendentes, compatível com execução por cron. O painel também terá ação de reenvio manual de entrega falha.
+A hospedagem não dependerá de daemon permanente. Haverá command idempotente `integrations:webhooks:process` para processar pendências por cron, além de reenvio manual no painel.
 
 ## Painel administrativo
 
@@ -232,11 +200,11 @@ Nova área **Integrações**, protegida por `integrations.manage`.
 Lista:
 
 - nome
-- status
+- ativa/inativa
 - departamento padrão
 - webhook configurado ou não
-- última comunicação da API
-- último webhook/estado
+- última atividade da API
+- último estado de webhook
 
 Cadastro/edição:
 
@@ -246,114 +214,115 @@ Cadastro/edição:
 - webhook URL opcional
 - ativa/inativa
 
-Ações sensíveis:
+Ao criar uma integração, o sistema gera uma chave API e a exibe uma única vez. O segredo do webhook é gerado quando configurado/solicitado. Ações:
 
-- gerar chave;
-- regenerar chave;
-- gerar/regenerar segredo do webhook;
-- desativar integração;
-- reenviar webhook falho.
+- regenerar chave (invalida a anterior imediatamente);
+- gerar/regenerar segredo;
+- ativar/desativar;
+- visualizar entregas recentes;
+- reenviar entrega falha.
 
-A chave API é exibida somente uma vez. Regenerar invalida imediatamente a anterior.
-
-O segredo do webhook também deve ser protegido e não aparecer integralmente depois da geração.
+Nem a chave nem o segredo aparecem integralmente depois da geração.
 
 ## Observabilidade e auditoria
 
-Registrar na auditoria administrativa:
+Auditar:
 
-- integração criada/editada;
-- ativada/desativada;
-- chave gerada/regenerada;
-- segredo de webhook regenerado.
+- criação/edição da integração;
+- ativação/desativação;
+- geração/regeneração de chave;
+- geração/regeneração do segredo.
 
-Nunca gravar a chave API em texto puro no audit log.
+Nunca gravar chave ou segredo em texto puro no audit log.
 
-Atualizar `last_api_activity_at` em chamadas autenticadas e `last_webhook_*` conforme entregas para diagnóstico no painel.
+Atualizar `last_api_activity_at` após autenticação válida e indicadores do último webhook após cada tentativa.
 
 ## Migração segura
 
-Esta entrega deve ser aditiva e compatível com produção:
+A entrega será aditiva:
 
 1. tornar `systems.company_id` nullable;
-2. adicionar `department_id` e campos de observabilidade necessários em `systems`;
-3. criar tabela de entregas de webhook;
-4. adicionar índice/constraint para correlação externa por integração;
-5. preservar `companies` e dados existentes sem exclusão destrutiva;
-6. tickets internos existentes permanecem inalterados.
+2. adicionar `department_id`, observabilidade e campos necessários a `systems`;
+3. armazenar `webhook_secret` com cast criptografado no modelo;
+4. criar tabela `webhook_deliveries`;
+5. criar unicidade/correlação por `(system_id, external_reference)`;
+6. preservar `companies` e todos os dados existentes;
+7. manter tickets internos inalterados.
 
-Nenhuma migração deve exigir recriar tabelas existentes ou apagar dados de produção.
+Nenhuma migração apaga dados ou recria tabelas de produção.
 
-## Tratamento de erros
+## Erros e rate limit
 
-Padrão JSON consistente:
+JSON consistente:
 
 - `401`: chave ausente/inválida;
-- `403`: integração inativa ou ação sem escopo;
-- `404`: ticket inexistente ou não visível para aquele contexto — sem revelar se existe em outra integração;
-- `409`: conflito/idempotência não recuperável;
-- `422`: validação;
-- `429`: reservado para rate limiting.
+- `403`: integração inativa;
+- `404`: ticket inexistente ou fora do escopo;
+- `409`: conflito não recuperável;
+- `422`: validação/contexto externo;
+- `429`: limite excedido.
 
-Erros não devem incluir stack trace, SQL, paths internos ou dados de outra integração.
+Rate limit inicial: 120 requisições por minuto por integração. O valor fica configurável sem alterar o contrato da API.
 
-## Segurança adicional
+Nunca retornar stack trace, SQL, paths internos ou dados de outra integração.
 
-- Chave API nunca armazenada em texto puro.
-- Comparação de tokens por hash.
-- Rate limiting por integração na API v1.
-- Webhook somente para HTTPS em produção, salvo ambiente explicitamente local/teste.
-- URLs de webhook validadas para evitar destinos inválidos; a implementação deve impedir abuso óbvio de SSRF contra endereços locais/metadata quando estiver em produção.
-- Payloads externos passam por validação e limites de tamanho.
-- `metadata` é armazenado/retornado somente se aprovado pelo schema da API; não deve virar depósito irrestrito de dados sensíveis.
+## Segurança de webhook
 
-## Testes obrigatórios
+- HTTPS obrigatório em produção.
+- Host do webhook deve resolver para endereço público em produção; bloquear loopback, link-local, redes privadas e metadata endpoints para reduzir SSRF.
+- Redirecionamentos HTTP não podem contornar essa validação.
+- Timeout curto e tamanho de resposta limitado; o corpo da resposta do destino não é armazenado integralmente.
 
-Aplicar TDD. Antes de produção, cobrir pelo menos:
+## Testes obrigatórios — TDD
+
+Antes da produção, cobrir ao menos:
 
 1. chave válida autentica a integração correta;
-2. chave inválida/revogada/inativa falha;
+2. chave inválida/revogada/inativa falha corretamente;
 3. duas chaves nunca enxergam tickets uma da outra;
 4. usuário comum vê somente tickets do próprio `external_user_id`;
 5. gestor vê todos e somente os tickets daquela chave;
-6. criação gera número no padrão `AAMM0000`;
-7. `external_reference` repetida na mesma integração não duplica ticket;
-8. mesma `external_reference` em integrações diferentes é permitida;
-9. comentário externo só pode ser público;
+6. criação gera `AAMM0000`;
+7. `external_reference` repetida na mesma integração não duplica;
+8. mesma referência em integrações diferentes é permitida;
+9. comentário externo é sempre público e idempotente quando houver `external_message_id`;
 10. nota interna não aparece na API nem gera webhook;
 11. comentário público interno gera webhook para a integração correta;
-12. mudança de status pública gera webhook;
-13. assinatura HMAC valida corretamente;
-14. falha de webhook cria retry e registra erro;
-15. retry bem-sucedido encerra pendência;
-16. integração sem webhook não falha o fluxo de ticket;
-17. regenerar chave invalida a anterior;
-18. endpoints de administração exigem `integrations.manage`;
-19. anexos respeitam isolamento e validações;
-20. fechar/reabrir respeita ciclo de vida e isolamento;
-21. nenhuma resposta externa contém campos internos proibidos.
+12. mudança pública de status gera webhook;
+13. evento originado pela própria API não ecoa para a integração;
+14. HMAC valida com corpo/timestamp corretos;
+15. falha cria retry e registra diagnóstico;
+16. retry bem-sucedido encerra pendência;
+17. quinta falha deixa entrega como `failed` e reenvio manual funciona;
+18. integração sem webhook não quebra fluxo do ticket;
+19. regenerar chave invalida a antiga;
+20. administração exige `integrations.manage`;
+21. anexos respeitam escopo, MIME e 10 MB;
+22. fechar/reabrir respeita ciclo e isolamento;
+23. nenhuma resposta externa contém campos internos proibidos;
+24. webhook bloqueia destinos privados/inseguros em produção.
 
-Executar a suíte completa existente além dos novos testes para garantir que Minha Caixa, departamentos, permissões, lifecycle, login e deploy não regrediram.
+Além dos novos testes, executar toda a suíte existente para evitar regressões em caixas, departamentos, permissões, lifecycle, login e deploy.
 
 ## Fora do escopo desta base
 
-- Interface de suporte dentro do Estúdio França/Projeto Terra. Essa será a primeira integração consumidora em uma etapa posterior.
-- Migração/remoção definitiva da tabela `companies`.
-- Cadastro de usuários externos dentro do Sutoorii Tickets.
-- Login de clientes externos diretamente no Sutoorii Tickets.
+- Interface de suporte dentro do Estúdio França/Projeto Terra; será o primeiro consumidor em etapa posterior.
+- Remoção definitiva da tabela `companies`.
+- Cadastro de usuários externos no Tickets.
+- Login de clientes externos diretamente no Tickets.
 - E-mail criando ticket.
 
 ## Critério de pronto
 
-A base estará pronta quando for possível, a partir de um sistema externo de teste:
+A base está pronta quando um sistema externo de teste consegue:
 
-1. autenticar com uma chave de integração;
+1. autenticar por chave;
 2. abrir ticket;
-3. listar/consultar respeitando usuário versus gestor;
+3. listar/consultar com regra usuário versus gestor;
 4. comentar e anexar;
 5. fechar/reabrir quando permitido;
-6. receber respostas/status por webhook assinado;
-7. observar e reenviar falhas pelo painel;
-8. confirmar isolamento total entre duas chaves;
-9. gerenciar integrações pelo painel administrativo;
-10. passar a suíte completa e o fluxo de deploy existente sem regressões.
+6. receber mudanças internas públicas por webhook assinado;
+7. observar/reprocessar falhas no painel;
+8. comprovar isolamento total entre duas chaves;
+9. administrar integrações no painel;
+10. passar suíte completa e fluxo de deploy sem regressões.
