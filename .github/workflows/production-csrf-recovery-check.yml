@@ -1,0 +1,40 @@
+name: Production CSRF Recovery Check
+
+on:
+  push:
+    branches:
+      - feature/fix-login-419-20260911
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirmar que CSRF expirado não exibe 419
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://tickets.sutoorii.com'
+
+          curl -fkLsS -c /tmp/cookies.txt "$base/entrar" -o /tmp/login.html
+
+          status=$(curl -fkSs -b /tmp/cookies.txt -c /tmp/cookies-after.txt \
+            -D /tmp/headers.txt -o /tmp/body.html \
+            -w '%{http_code}' \
+            -X POST "$base/entrar" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            -H "Referer: $base/entrar" \
+            --data-urlencode '_token=token-expirado-de-proposito' \
+            --data-urlencode 'email=diagnostic@example.invalid' \
+            --data-urlencode 'password=senha-invalida')
+
+          echo "stale_post_status=$status"
+          location=$(awk 'BEGIN{IGNORECASE=1} /^location:/ {gsub(/\r/, ""); print $2}' /tmp/headers.txt | tail -n1)
+          echo "location=$location"
+          test "$status" = '302'
+          test "$location" = "$base/entrar"
+
+          curl -fkLsS -b /tmp/cookies-after.txt -c /tmp/cookies-after.txt "$base/entrar" -o /tmp/recovered-login.html
+          grep -Fq 'Sua sessão expirou. Tente entrar novamente.' /tmp/recovered-login.html
+          grep -Fq 'Entrar' /tmp/recovered-login.html
+          echo 'csrf_recovery=ok'
