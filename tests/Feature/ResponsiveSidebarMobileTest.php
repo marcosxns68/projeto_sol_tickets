@@ -68,7 +68,8 @@ class ResponsiveSidebarMobileTest extends TestCase
         $response = $this->actingAs($user)->get('/minha-caixa');
 
         $response->assertOk()
-            ->assertSee('class="tickets-table desktop-ticket-table"', false)
+            ->assertSee('class="tickets-table"', false)
+            ->assertSee('class="responsive-table desktop-table-wrap"', false)
             ->assertSee('class="mobile-ticket-list"', false)
             ->assertSee('class="mobile-filters"', false);
     }
@@ -81,7 +82,7 @@ class ResponsiveSidebarMobileTest extends TestCase
         $this->assertStringContainsString('.app-shell.sidebar-collapsed', $css);
         $this->assertStringContainsString('@media (max-width: 900px)', $css);
         $this->assertStringContainsString('.mobile-ticket-list', $css);
-        $this->assertStringContainsString('.desktop-ticket-table', $css);
+        $this->assertStringContainsString('.desktop-table-wrap', $css);
         $this->assertStringContainsString('overflow-x: hidden', $css);
         $this->assertStringContainsString('localStorage', $js);
         $this->assertStringContainsString('sidebar-open', $js);
