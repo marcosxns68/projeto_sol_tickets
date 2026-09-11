@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuthenticateIntegration;
 use App\Http\Middleware\RequirePermission;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'permission' => RequirePermission::class,
+            'integration' => AuthenticateIntegration::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {})
