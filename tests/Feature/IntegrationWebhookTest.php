@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\WebhookDelivery;
 use App\Services\WebhookDeliveryProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -127,5 +128,11 @@ class IntegrationWebhookTest extends TestCase
         $this->assertNull($delivery->next_attempt_at);
 
         $this->artisan('tickets:webhooks-process')->assertSuccessful();
+    }
+
+    public function test_webhook_retry_command_is_scheduled_automatically(): void
+    {
+        Artisan::call('schedule:list');
+        $this->assertStringContainsString('tickets:webhooks-process', Artisan::output());
     }
 }
