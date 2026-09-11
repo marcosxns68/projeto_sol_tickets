@@ -20,7 +20,7 @@ class TicketLifecycleController extends Controller
         $isCollaborator = $ticket->participants()->where('users.id', $actor->id)->wherePivot('type', 'collaborator')->exists();
         abort_unless($ticket->assignee_id === $actor->id || $isCollaborator, 403);
 
-        return $this->transition($ticket, $actor, 'completion_requested', 'completion.requested', $events, $webhooks, 'Ticket aguardando aprovação.', 'Conclusão solicitada.');
+        return $this->transition($ticket, $actor, 'completion_requested', 'completion.requested', $events, $webhooks, 'ticket.status.changed', 'Conclusão solicitada.');
     }
 
     public function resolve(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks)
