@@ -142,6 +142,60 @@ class IntegrationWebhookSafeTest extends TestCase
         Queue::assertPushed(SendIntegrationWebhook::class, fn ($job) => $job->event === 'ticket.closed');
     }
 
+    public function test_generic_internal_status_change_queues_status_webhook(): void
+    {
+        Queue::fake();
+        $integration = $this->integration();
+        $integration->issueWebhookSecret();
+        $user = $this->internalUser(['tickets.view_all', 'tickets.change_status']);
+        $ticket = $this->ticket($integration, $user);
+        $next = Status::create([
+            'name' => 'Em andamento',
+            'system_key' => 'in_progress',
+            'category' => 'in_progress',
+            'color' => '#0891B2',
+            'position' => 2,
+            'active' => true,
+        ]);
+
+        $this->actingAs($user)->patch('/tickets/'.$ticket->id, [
+            'title' => $ticket->title,
+            'description' => $ticket->description,
+            'priority' => $ticket->priority,
+            'status_id' => $next->id,
+            'due_at' => null,
+        ])->assertRedirect();
+
+        Queue::assertPushed(SendIntegrationWebhook::class, fn ($job) => $job->event === 'ticket.status.changed');
+    }
+
+    public function test_completion_request_uses_status_changed_webhook_event(): void
+    {
+        Queue::fake();
+        $integration = $this->integration();
+        $integration->issueWebhookSecret();
+        $user = $this->internalUser(['tickets.view_all', 'tickets.request_completion']);
+        $ticket = $this->ticket($integration, $user);
+        Status::create([
+            'name' => 'Aguardando aprovação',
+            'system_key' => 'completion_requested',
+            'category' => 'completion_requested',
+            'color' => '#9333EA',
+            'position' => 6,
+            'active' => true,
+        ]);
+
+        $this->actingAs($user)->post('/tickets/'.$ticket->id.'/solicitar-conclusao')->assertRedirect();
+
+        Queue::assertPushed(SendIntegrationWebhook::class, fn ($job) => $job->event === 'ticket.status.changed');
+    }
+
+    public function test_scheduler_processes_database_webhook_queue(): void
+    {
+        $schedule = file_get_contents(base_path('routes/console.php'));
+        $this->assertStringContainsString('queue:work --stop-when-empty --tries=5 --timeout=30', $schedule);
+    }
+
     public function test_webhook_job_signs_payload_and_has_retry_policy(): void
     {
         Http::fake(['*' => Http::response(['ok' => true], 200)]);
