@@ -69,6 +69,7 @@
 
         <main class="workspace-content">
             @if(session('success'))<div class="notice">{{ session('success') }}</div>@endif
+            @if(session('error'))<div class="notice">{{ session('error') }}</div>@endif
             @yield('content')
         </main>
         <footer class="site-footer">Desenvolvido por Sutoorii Labs</footer>
@@ -78,6 +79,7 @@
 <div class="guest-shell">
     <main class="guest-container">
         @if(session('success'))<div class="notice">{{ session('success') }}</div>@endif
+        @if(session('error'))<div class="notice">{{ session('error') }}</div>@endif
         @yield('content')
     </main>
     <footer class="site-footer guest-footer">Desenvolvido por Sutoorii Labs</footer>
