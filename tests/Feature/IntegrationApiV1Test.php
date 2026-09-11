@@ -14,7 +14,7 @@ class IntegrationApiV1Test extends TestCase
 {
     use RefreshDatabase;
 
-    private function status(string $key, string $name, string $category = 'open'): Status
+    private function ticketStatus(string $key, string $name, string $category = 'open'): Status
     {
         return Status::firstOrCreate(
             ['system_key' => $key],
@@ -46,7 +46,7 @@ class IntegrationApiV1Test extends TestCase
 
     public function test_valid_key_creates_ticket_with_public_number_and_is_idempotent(): void
     {
-        $this->status('new', 'Novo');
+        $this->ticketStatus('new', 'Novo');
         $department = Department::create(['name' => 'Suporte', 'active' => true]);
         $integration = $this->integration('Estúdio França', 'token-franca', $department);
 
@@ -80,7 +80,7 @@ class IntegrationApiV1Test extends TestCase
 
     public function test_user_sees_only_own_tickets_manager_sees_all_for_same_key_and_never_another_key(): void
     {
-        $status = $this->status('new', 'Novo');
+        $status = $this->ticketStatus('new', 'Novo');
         $a = $this->integration('A', 'token-a');
         $b = $this->integration('B', 'token-b');
 
@@ -106,7 +106,7 @@ class IntegrationApiV1Test extends TestCase
 
     public function test_public_comment_and_activity_never_expose_internal_note(): void
     {
-        $status = $this->status('new', 'Novo');
+        $status = $this->ticketStatus('new', 'Novo');
         $integration = $this->integration('França', 'token-franca');
         $ticket = Ticket::create(['number' => Ticket::nextNumber(), 'origin' => 'integration', 'title' => 'Ticket', 'description' => 'x', 'priority' => 'normal', 'status_id' => $status->id, 'system_id' => $integration->id, 'external_requester_id' => '153']);
         $ticket->comments()->create(['visibility' => 'internal', 'body' => 'segredo interno', 'source' => 'web']);
