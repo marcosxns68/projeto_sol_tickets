@@ -57,6 +57,7 @@ class ResponsiveSidebarMobileTest extends TestCase
             ->assertSee('data-sidebar-toggle', false)
             ->assertSee('id="sidebarBackdrop"', false)
             ->assertSee('css/responsive-shell.css?v=', false)
+            ->assertSee('css/responsive-admin.css?v=', false)
             ->assertSee('js/responsive-shell.js?v=', false)
             ->assertDontSee('<details class="mobile-menu">', false);
     }
@@ -81,21 +82,24 @@ class ResponsiveSidebarMobileTest extends TestCase
         foreach (['/admin/usuarios', '/admin/departamentos', '/admin/cargos'] as $path) {
             $this->actingAs($user)->get($path)
                 ->assertOk()
-                ->assertSee('class="mobile-admin-list"', false);
+                ->assertSee('class="mobile-admin-list"', false)
+                ->assertSee('desktop-admin-table', false);
         }
     }
 
     public function test_responsive_assets_define_compact_mobile_layout_and_collapsed_desktop_sidebar(): void
     {
         $css = file_get_contents(public_path('css/responsive-shell.css'));
+        $adminCss = file_get_contents(public_path('css/responsive-admin.css'));
         $js = file_get_contents(public_path('js/responsive-shell.js'));
 
         $this->assertStringContainsString('.app-shell.sidebar-collapsed', $css);
         $this->assertStringContainsString('@media (max-width: 900px)', $css);
         $this->assertStringContainsString('.mobile-ticket-list', $css);
-        $this->assertStringContainsString('.mobile-admin-list', $css);
         $this->assertStringContainsString('.desktop-table-wrap', $css);
         $this->assertStringContainsString('overflow-x: hidden', $css);
+        $this->assertStringContainsString('.mobile-admin-list', $adminCss);
+        $this->assertStringContainsString('.desktop-admin-table', $adminCss);
         $this->assertStringContainsString('localStorage', $js);
         $this->assertStringContainsString('sidebar-open', $js);
     }
