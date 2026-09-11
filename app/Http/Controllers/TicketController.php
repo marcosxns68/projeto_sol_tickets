@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Status;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\IntegrationWebhookDispatcher;
 use App\Services\TicketEventRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -84,7 +85,7 @@ class TicketController extends Controller
         return redirect()->route('tickets.show', $ticket);
     }
 
-    public function update(Request $request, Ticket $ticket, TicketEventRecorder $events)
+    public function update(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks)
     {
         $this->ensureVisible($request, $ticket);
 
@@ -141,6 +142,13 @@ class TicketController extends Controller
                 $events->record($ticket, $actor, 'ticket.updated', ['changes' => $changes]);
             }
         });
+
+        if (isset($changes['status'])) {
+            $ticket->refresh()->load('status');
+            $webhooks->dispatch($ticket, 'ticket.status.changed', [
+                'previous_status' => $changes['status']['old'],
+            ]);
+        }
 
         return redirect()->route('tickets.show', $ticket)->with('success', 'Ticket atualizado.');
     }
