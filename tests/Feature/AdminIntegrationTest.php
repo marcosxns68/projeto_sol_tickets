@@ -52,6 +52,10 @@ class AdminIntegrationTest extends TestCase
         $this->actingAs($admin)->get('/admin/integracoes')
             ->assertOk()
             ->assertSee('Integrações')
+            ->assertSee($token);
+
+        $this->actingAs($admin)->get('/admin/integracoes')
+            ->assertOk()
             ->assertDontSee($token);
     }
 
