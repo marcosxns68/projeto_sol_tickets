@@ -69,3 +69,31 @@ jobs:
           local-dir: ./.deploy/bootstrap/
           server-dir: ${{ secrets.FTP_SERVER_DIR }}public/
           dangerous-clean-slate: false
+
+      - name: Diagnosticar HTTP de produção
+        shell: bash
+        run: |
+          set +e
+          echo '=== DNS ==='
+          getent ahosts tickets.sutoorii.com || true
+          echo '=== release-version.txt ==='
+          curl -vkL --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/release-version.txt -o /tmp/release.txt
+          release_exit=$?
+          echo "curl release exit=${release_exit}"
+          test -f /tmp/release.txt && cat /tmp/release.txt || true
+          echo
+          echo '=== /up ==='
+          curl -vkL --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/up -o /tmp/up.txt
+          up_exit=$?
+          echo "curl up exit=${up_exit}"
+          test -f /tmp/up.txt && head -c 1000 /tmp/up.txt || true
+          echo
+          echo '=== / ==='
+          curl -vkL --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/ -o /tmp/root.txt
+          root_exit=$?
+          echo "curl root exit=${root_exit}"
+          test -f /tmp/root.txt && head -c 1000 /tmp/root.txt || true
+          echo
+          if [ "$release_exit" -ne 0 ] || [ "$up_exit" -ne 0 ] || [ "$root_exit" -ne 0 ]; then
+            exit 1
+          fi
