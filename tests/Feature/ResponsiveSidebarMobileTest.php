@@ -74,6 +74,17 @@ class ResponsiveSidebarMobileTest extends TestCase
             ->assertSee('class="mobile-filters"', false);
     }
 
+    public function test_admin_indexes_have_mobile_card_lists_instead_of_relying_on_wide_tables(): void
+    {
+        $user = $this->userWithVisualPermissions();
+
+        foreach (['/admin/usuarios', '/admin/departamentos', '/admin/cargos'] as $path) {
+            $this->actingAs($user)->get($path)
+                ->assertOk()
+                ->assertSee('class="mobile-admin-list"', false);
+        }
+    }
+
     public function test_responsive_assets_define_compact_mobile_layout_and_collapsed_desktop_sidebar(): void
     {
         $css = file_get_contents(public_path('css/responsive-shell.css'));
@@ -82,6 +93,7 @@ class ResponsiveSidebarMobileTest extends TestCase
         $this->assertStringContainsString('.app-shell.sidebar-collapsed', $css);
         $this->assertStringContainsString('@media (max-width: 900px)', $css);
         $this->assertStringContainsString('.mobile-ticket-list', $css);
+        $this->assertStringContainsString('.mobile-admin-list', $css);
         $this->assertStringContainsString('.desktop-table-wrap', $css);
         $this->assertStringContainsString('overflow-x: hidden', $css);
         $this->assertStringContainsString('localStorage', $js);
