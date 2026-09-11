@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
+use App\Http\Controllers\Admin\IntegrationController as AdminIntegrationController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
@@ -73,6 +74,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/cargos', [AdminRoleController::class, 'store'])->name('admin.roles.store');
     Route::get('/admin/cargos/{role}/editar', [AdminRoleController::class, 'edit'])->name('admin.roles.edit');
     Route::patch('/admin/cargos/{role}', [AdminRoleController::class, 'update'])->name('admin.roles.update');
+
+    Route::get('/admin/integracoes', [AdminIntegrationController::class, 'index'])->name('admin.integrations.index');
+    Route::post('/admin/integracoes', [AdminIntegrationController::class, 'store'])->name('admin.integrations.store');
+    Route::patch('/admin/integracoes/{integration}', [AdminIntegrationController::class, 'update'])->name('admin.integrations.update');
+    Route::post('/admin/integracoes/{integration}/nova-chave', [AdminIntegrationController::class, 'rotateKey'])->name('admin.integrations.rotate-key');
 
     Route::resource('tickets', TicketController::class)->except(['destroy']);
     Route::post('/sair', [AuthController::class, 'logout'])->name('logout');
