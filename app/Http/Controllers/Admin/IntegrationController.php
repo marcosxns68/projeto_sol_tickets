@@ -7,7 +7,6 @@ use App\Models\Company;
 use App\Models\ConnectedSystem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class IntegrationController extends Controller
 {
@@ -21,6 +20,8 @@ class IntegrationController extends Controller
             'integrations' => ConnectedSystem::query()->orderBy('name')->orderBy('id')->get(),
             'generatedToken' => session('generated_api_token'),
             'generatedFor' => session('generated_api_token_for'),
+            'generatedWebhookSecret' => session('generated_webhook_secret'),
+            'generatedWebhookSecretFor' => session('generated_webhook_secret_for'),
         ]);
     }
 
@@ -104,6 +105,22 @@ class IntegrationController extends Controller
             ->with('success', 'Nova chave gerada. A chave anterior deixou de ser válida.')
             ->with('generated_api_token', $token)
             ->with('generated_api_token_for', $integration->id);
+    }
+
+    public function rotateWebhookSecret(Request $request, ConnectedSystem $integration)
+    {
+        $this->authorizeAccess($request);
+
+        $secret = $integration->issueWebhookSecret();
+
+        $this->audit($request, $integration, 'integration.webhook_secret_rotated', null, [
+            'integration_id' => $integration->id,
+        ]);
+
+        return redirect()->route('admin.integrations.index')
+            ->with('success', 'Novo segredo de webhook gerado. Copie agora: ele não será exibido novamente.')
+            ->with('generated_webhook_secret', $secret)
+            ->with('generated_webhook_secret_for', $integration->id);
     }
 
     private function authorizeAccess(Request $request): void
