@@ -11,12 +11,17 @@ class Ticket extends Model
         'number', 'origin', 'title', 'description', 'priority', 'status_id', 'creator_id',
         'assignee_id', 'department_id', 'company_id', 'system_id', 'requester_name',
         'requester_email', 'external_requester_id', 'due_at', 'completed_at', 'trashed_at',
-        'external_reference',
+        'external_reference', 'external_metadata',
     ];
 
     protected function casts(): array
     {
-        return ['due_at' => 'datetime', 'completed_at' => 'datetime', 'trashed_at' => 'datetime'];
+        return [
+            'due_at' => 'datetime',
+            'completed_at' => 'datetime',
+            'trashed_at' => 'datetime',
+            'external_metadata' => 'array',
+        ];
     }
 
     public function status() { return $this->belongsTo(Status::class); }
@@ -45,6 +50,17 @@ class Ticket extends Model
                 $q->orWhere('department_id', $user->department_id);
             }
         });
+    }
+
+    public function scopeForExternalActor(Builder $query, ConnectedSystem $integration, string $externalUserId, string $role): Builder
+    {
+        $query->where('system_id', $integration->id)->where('origin', 'integration');
+
+        if ($role !== 'manager') {
+            $query->where('external_requester_id', $externalUserId);
+        }
+
+        return $query;
     }
 
     public function scopeMyBox(Builder $query, User $user): Builder
