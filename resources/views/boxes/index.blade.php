@@ -99,7 +99,7 @@
     <div class="table-summary"><strong>{{ $tickets->total() }}</strong> {{ $tickets->total() === 1 ? 'ticket' : 'tickets' }}</div>
 
     <div class="responsive-table desktop-table-wrap">
-        <table class="tickets-table desktop-ticket-table">
+        <table class="tickets-table">
             <thead>
                 <tr>
                     <th>Número</th>
