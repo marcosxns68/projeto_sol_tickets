@@ -34,7 +34,7 @@
                 <a href="{{ route('boxes.department',$me->department_id) }}" class="sidebar-link {{ request()->routeIs('boxes.department') ? 'active' : '' }}">Meu Departamento</a>
             @endif
 
-            @if($me->hasPermission('users.manage') || $me->hasPermission('departments.manage') || $me->hasPermission('roles.manage'))
+            @if($me->hasPermission('users.manage') || $me->hasPermission('departments.manage') || $me->hasPermission('roles.manage') || $me->hasPermission('integrations.manage'))
                 <p class="sidebar-label admin-label">ADMINISTRAÇÃO</p>
             @endif
             @if($me->hasPermission('users.manage'))
@@ -45,6 +45,9 @@
             @endif
             @if($me->hasPermission('roles.manage'))
                 <a href="{{ route('admin.roles.index') }}" class="sidebar-link {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">Cargos</a>
+            @endif
+            @if($me->hasPermission('integrations.manage'))
+                <a href="{{ route('admin.integrations.index') }}" class="sidebar-link {{ request()->routeIs('admin.integrations.*') ? 'active' : '' }}">Integrações</a>
             @endif
         </nav>
 
