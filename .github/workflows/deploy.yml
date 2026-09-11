@@ -20,6 +20,34 @@ jobs:
       - name: Baixar código
         uses: actions/checkout@v4
 
+      - name: Preparar recuperação imediata do index
+        run: |
+          mkdir -p .deploy/recovery-public
+          cp public/index.php .deploy/recovery-public/index.php
+
+      - name: Desbloquear requisições PHP primeiro
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: ./.deploy/recovery-public/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}public/
+          dangerous-clean-slate: false
+
+      - name: Diagnóstico após desbloqueio do index
+        shell: bash
+        run: |
+          set +e
+          curl -fkLsS --connect-timeout 5 --max-time 10 https://tickets.sutoorii.com/up -o /tmp/early-up.txt
+          code=$?
+          echo "health após index: curl exit=${code}"
+          test -f /tmp/early-up.txt && head -c 500 /tmp/early-up.txt || true
+          echo
+          exit 0
+
       - name: Preparar PHP
         uses: shivammathur/setup-php@v2
         with:
