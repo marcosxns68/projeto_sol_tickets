@@ -15,6 +15,18 @@ class IntegrationApiV1SafeTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function status(string $key = 'new', string $name = 'Novo', string $category = 'open'): Status
+    {
+        return Status::create([
+            'name' => $name,
+            'system_key' => $key,
+            'category' => $category,
+            'color' => '#6D28D9',
+            'position' => 0,
+            'active' => true,
+        ]);
+    }
+
     private function integration(string $name, string $token, bool $active = true): ConnectedSystem
     {
         $company = Company::create(['name' => 'Interna '.uniqid(), 'active' => false]);
@@ -39,7 +51,7 @@ class IntegrationApiV1SafeTest extends TestCase
 
     public function test_valid_key_creates_ticket_idempotently_with_aamm0000_number(): void
     {
-        Status::where('system_key', 'new')->firstOrFail();
+        $this->status();
         $integration = $this->integration('Estúdio França', 'token-franca');
 
         $payload = [
@@ -63,7 +75,7 @@ class IntegrationApiV1SafeTest extends TestCase
 
     public function test_user_sees_only_own_tickets_and_manager_sees_all_only_for_same_key(): void
     {
-        $status = Status::where('system_key', 'new')->firstOrFail();
+        $status = $this->status();
         $a = $this->integration('A', 'token-a');
         $b = $this->integration('B', 'token-b');
 
@@ -89,7 +101,8 @@ class IntegrationApiV1SafeTest extends TestCase
     public function test_public_comments_activity_lifecycle_and_attachments_work_without_exposing_internal_notes(): void
     {
         Storage::fake('local');
-        $status = Status::where('system_key', 'new')->firstOrFail();
+        $status = $this->status();
+        $this->status('closed', 'Fechado', 'completed');
         $integration = $this->integration('França', 'token-franca');
         $ticket = Ticket::create(['number' => Ticket::nextNumber(), 'origin' => 'integration', 'title' => 'Ticket', 'description' => 'x', 'priority' => 'normal', 'status_id' => $status->id, 'system_id' => $integration->id, 'external_requester_id' => '153']);
         $ticket->comments()->create(['visibility' => 'internal', 'body' => 'segredo interno', 'source' => 'web']);
