@@ -7,17 +7,19 @@
 <title>@yield('title','Sutoorii Tickets')</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
+<link rel="stylesheet" href="{{ asset('css/responsive-shell.css') }}?v={{ filemtime(public_path('css/responsive-shell.css')) }}">
 </head>
 <body>
 @auth
 @php($me = auth()->user())
-<div class="app-shell">
-    <aside class="app-sidebar">
+<div class="app-shell" id="appShell">
+    <aside class="app-sidebar" id="appSidebar" aria-label="Menu principal">
         <div class="sidebar-brand-row">
             <a class="sidebar-brand" href="{{ route('dashboard') }}">
                 <span class="brand-mark">S</span>
-                <span><strong>Sutoorii</strong><small>Tickets</small></span>
+                <span class="sidebar-brand-copy"><strong>Sutoorii</strong><small>Tickets</small></span>
             </a>
+            <button type="button" class="sidebar-collapse-button" data-sidebar-toggle aria-controls="appSidebar" aria-expanded="true" aria-label="Recolher ou abrir menu">‹</button>
         </div>
 
         @if($me->hasPermission('tickets.create'))
@@ -52,18 +54,11 @@
         </div>
     </aside>
 
+    <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Fechar menu"></button>
+
     <section class="workspace-main">
         <header class="workspace-topbar">
-            <details class="mobile-menu">
-                <summary aria-label="Abrir menu">Menu</summary>
-                <div class="mobile-menu-panel">
-                    <a href="{{ route('boxes.mine') }}">Minha Caixa</a>
-                    @if($me->department_id && $me->hasPermission('tickets.view_department'))<a href="{{ route('boxes.department',$me->department_id) }}">Meu Departamento</a>@endif
-                    @if($me->hasPermission('users.manage'))<a href="{{ route('admin.users.index') }}">Usuários</a>@endif
-                    @if($me->hasPermission('departments.manage'))<a href="{{ route('admin.departments.index') }}">Departamentos</a>@endif
-                    @if($me->hasPermission('roles.manage'))<a href="{{ route('admin.roles.index') }}">Cargos</a>@endif
-                </div>
-            </details>
+            <button type="button" class="mobile-sidebar-button" data-sidebar-toggle aria-controls="appSidebar" aria-expanded="false">Menu</button>
             <div class="mobile-brand"><span class="brand-mark small">S</span><b>Sutoorii Tickets</b></div>
             <form class="global-search" method="get" action="{{ route('boxes.mine') }}">
                 <input name="q" value="{{ request()->routeIs('boxes.mine') ? request('q') : '' }}" placeholder="Buscar ticket por número, título ou descrição" aria-label="Buscar tickets">
@@ -88,5 +83,8 @@
 </div>
 @endauth
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/service-worker.js',{updateViaCache:'none'}).then(function(reg){reg.update();});}</script>
+@auth
+<script src="{{ asset('js/responsive-shell.js') }}?v={{ filemtime(public_path('js/responsive-shell.js')) }}" defer></script>
+@endauth
 </body>
 </html>
