@@ -203,7 +203,7 @@ class LabelsFeatureTest extends TestCase
         $admin = $this->userWithPermissions(['labels.manage']);
 
         $this->actingAs($admin)
-            ->get('/')
+            ->get('/admin/etiquetas')
             ->assertOk()
             ->assertSee('>Etiquetas</a>', false);
     }
