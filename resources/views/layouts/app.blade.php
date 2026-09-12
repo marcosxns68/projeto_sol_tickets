@@ -30,6 +30,9 @@
         <nav class="sidebar-nav" aria-label="Navegação principal">
             <p class="sidebar-label">CAIXAS</p>
             <a href="{{ route('boxes.mine') }}" class="sidebar-link {{ request()->routeIs('boxes.mine') ? 'active' : '' }}">Minha Caixa</a>
+            @if($me->hasPermission('tickets.view_all'))
+                <a href="{{ route('boxes.all') }}" class="sidebar-link {{ request()->routeIs('boxes.all') ? 'active' : '' }}">Todos os tickets</a>
+            @endif
             @if($me->department_id && $me->hasPermission('tickets.view_department'))
                 <a href="{{ route('boxes.department',$me->department_id) }}" class="sidebar-link {{ request()->routeIs('boxes.department') ? 'active' : '' }}">Meu Departamento</a>
             @endif
