@@ -42,6 +42,7 @@ Route::post('/email/reenviar', function (Illuminate\Http\Request $request) {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');
     Route::get('/minha-caixa', [TicketBoxController::class, 'mine'])->name('boxes.mine');
+    Route::get('/todos-os-tickets', [TicketBoxController::class, 'all'])->name('boxes.all');
     Route::get('/departamentos/{department}/tickets', [TicketBoxController::class, 'department'])->name('boxes.department');
 
     Route::post('/tickets/{ticket}/assumir', [TicketAssignmentController::class, 'assume'])->name('tickets.assume');
