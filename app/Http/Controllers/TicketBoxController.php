@@ -24,6 +24,22 @@ class TicketBoxController extends Controller
         ]);
     }
 
+    public function all(Request $request)
+    {
+        abort_unless($request->user()->hasPermission('tickets.view_all'), 403);
+
+        $query = Ticket::query();
+        $this->applyFilters($query, $request, false);
+
+        return view('boxes.index', [
+            'tickets' => $query->with(['status', 'assignee', 'department', 'labels'])->latest()->paginate(20)->withQueryString(),
+            'statuses' => Status::orderBy('position')->get(),
+            'boxTitle' => 'Todos os tickets',
+            'boxKind' => 'all',
+            'department' => null,
+        ]);
+    }
+
     public function department(Request $request, Department $department)
     {
         $user = $request->user();
