@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\ConnectedSystem;
+use App\Models\Department;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class AdminIntegrationKeyTest extends TestCase
@@ -32,13 +34,22 @@ class AdminIntegrationKeyTest extends TestCase
         ]);
     }
 
+    private function department(string $name = 'Triagem'): Department
+    {
+        return Department::create(['name' => $name, 'active' => true]);
+    }
+
     public function test_authorized_user_can_open_integrations_page(): void
     {
+        $department = $this->department();
+
         $this->actingAs($this->admin())
             ->get('/admin/integracoes')
             ->assertOk()
             ->assertSee('Integrações')
             ->assertSee('Nova integração')
+            ->assertSee('Departamento padrão')
+            ->assertSee($department->name)
             ->assertSee('Configurar webhook')
             ->assertSee('Gerar segredo webhook');
     }
@@ -46,10 +57,12 @@ class AdminIntegrationKeyTest extends TestCase
     public function test_authorized_user_can_create_integration_and_receives_api_key_once(): void
     {
         $admin = $this->admin();
+        $department = $this->department();
 
         $response = $this->actingAs($admin)->post('/admin/integracoes', [
             'name' => 'Estúdio França',
             'base_url' => 'https://estudiofranca.example',
+            'department_id' => $department->id,
             'active' => '1',
         ]);
 
@@ -62,6 +75,10 @@ class AdminIntegrationKeyTest extends TestCase
         $integration = ConnectedSystem::where('name', 'Estúdio França')->firstOrFail();
         $this->assertSame(hash('sha256', $token), $integration->api_token_hash);
         $this->assertNotSame($token, $integration->api_token_hash);
+        $this->assertSame(
+            (string) $department->id,
+            DB::table('settings')->where('key', 'integration.'.$integration->id.'.department_id')->value('value')
+        );
 
         $this->actingAs($admin)->get('/admin/integracoes')
             ->assertOk()
@@ -72,12 +89,40 @@ class AdminIntegrationKeyTest extends TestCase
             ->assertDontSee($token);
     }
 
-    public function test_authorized_user_can_rotate_integration_key(): void
+    public function test_authorized_user_can_change_default_department(): void
     {
         $admin = $this->admin();
+        $triage = $this->department('Triagem');
+        $development = $this->department('Desenvolvimento');
 
         $this->actingAs($admin)->post('/admin/integracoes', [
             'name' => 'Sistema Teste',
+            'department_id' => $triage->id,
+            'active' => '1',
+        ])->assertRedirect('/admin/integracoes');
+
+        $integration = ConnectedSystem::where('name', 'Sistema Teste')->firstOrFail();
+
+        $this->actingAs($admin)->patch('/admin/integracoes/'.$integration->id, [
+            'name' => 'Sistema Teste',
+            'department_id' => $development->id,
+            'active' => '1',
+        ])->assertRedirect('/admin/integracoes');
+
+        $this->assertSame(
+            (string) $development->id,
+            DB::table('settings')->where('key', 'integration.'.$integration->id.'.department_id')->value('value')
+        );
+    }
+
+    public function test_authorized_user_can_rotate_integration_key(): void
+    {
+        $admin = $this->admin();
+        $department = $this->department();
+
+        $this->actingAs($admin)->post('/admin/integracoes', [
+            'name' => 'Sistema Teste',
+            'department_id' => $department->id,
             'active' => '1',
         ])->assertRedirect('/admin/integracoes');
 
