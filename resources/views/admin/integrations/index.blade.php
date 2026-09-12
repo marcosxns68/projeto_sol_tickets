@@ -48,6 +48,15 @@
         <label>Webhook de retorno <small class="muted">opcional</small>
             <input name="webhook_url" value="{{ old('webhook_url') }}" placeholder="https://.../webhook">
         </label>
+        <label>Departamento padrão
+            <select name="department_id" required>
+                <option value="">Selecione o departamento</option>
+                @foreach($departments as $department)
+                    <option value="{{ $department->id }}" @selected((string) old('department_id') === (string) $department->id)>{{ $department->name }}</option>
+                @endforeach
+            </select>
+            <small class="muted">Todo novo ticket recebido por esta integração entra neste departamento.</small>
+        </label>
         <label class="toggle-card">
             <input type="checkbox" name="active" value="1" @checked(old('active',true))>
             <span><b>Integração ativa</b><small>A chave pode ser usada pelo sistema externo.</small></span>
@@ -64,11 +73,13 @@
 <article class="panel table-panel mobile-card-panel">
     <div class="responsive-table desktop-admin-table">
         <table class="admin-table">
-            <thead><tr><th>Integração</th><th>Status</th><th>Chave</th><th>Webhook</th><th></th></tr></thead>
+            <thead><tr><th>Integração</th><th>Departamento padrão</th><th>Status</th><th>Chave</th><th>Webhook</th><th></th></tr></thead>
             <tbody>
             @forelse($integrations as $integration)
+                @php($defaultDepartment = $departments->firstWhere('id', $integrationDepartmentIds[$integration->id] ?? null))
                 <tr>
                     <td><b>{{ $integration->name }}</b>@if($integration->base_url)<div class="muted">{{ $integration->base_url }}</div>@endif</td>
+                    <td><span class="muted">{{ $defaultDepartment?->name ?? 'Não definido' }}</span></td>
                     <td><span class="pill {{ $integration->active?'ok':'off' }}">{{ $integration->active?'Ativa':'Inativa' }}</span></td>
                     <td><span class="muted">{{ $integration->api_token_hash ? 'Configurada' : 'Não gerada' }}</span></td>
                     <td><span class="muted">{{ $integration->webhook_url ? 'Configurado' : 'Não configurado' }}</span></td>
@@ -80,6 +91,14 @@
                                 <label>Nome<input name="name" value="{{ $integration->name }}" required></label>
                                 <label>Endereço do sistema<input name="base_url" value="{{ $integration->base_url }}" placeholder="https://..."></label>
                                 <label>Webhook de retorno<input name="webhook_url" value="{{ $integration->webhook_url }}" placeholder="https://.../webhook"></label>
+                                <label>Departamento padrão
+                                    <select name="department_id" required>
+                                        <option value="">Selecione o departamento</option>
+                                        @foreach($departments as $department)
+                                            <option value="{{ $department->id }}" @selected((string) ($integrationDepartmentIds[$integration->id] ?? '') === (string) $department->id)>{{ $department->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
                                 <label class="toggle-card"><input type="checkbox" name="active" value="1" @checked($integration->active)><span><b>Integração ativa</b></span></label>
                                 <button class="button compact" type="submit">Salvar configuração</button>
                             </form>
@@ -97,7 +116,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="empty">Nenhuma integração cadastrada.</td></tr>
+                <tr><td colspan="6" class="empty">Nenhuma integração cadastrada.</td></tr>
             @endforelse
             </tbody>
         </table>
@@ -105,9 +124,10 @@
 
     <div class="mobile-admin-list">
     @forelse($integrations as $integration)
+        @php($defaultDepartment = $departments->firstWhere('id', $integrationDepartmentIds[$integration->id] ?? null))
         <article class="mobile-admin-card">
             <div class="mobile-admin-card-head">
-                <div><h3>{{ $integration->name }}</h3><span class="mobile-admin-sub">Chave {{ $integration->api_token_hash ? 'configurada' : 'não gerada' }} · Webhook {{ $integration->webhook_url ? 'configurado' : 'não configurado' }}</span></div>
+                <div><h3>{{ $integration->name }}</h3><span class="mobile-admin-sub">Departamento {{ $defaultDepartment?->name ?? 'não definido' }} · Chave {{ $integration->api_token_hash ? 'configurada' : 'não gerada' }} · Webhook {{ $integration->webhook_url ? 'configurado' : 'não configurado' }}</span></div>
                 <span class="pill {{ $integration->active?'ok':'off' }}">{{ $integration->active?'Ativa':'Inativa' }}</span>
             </div>
             <details style="margin-top:10px;">
@@ -117,6 +137,14 @@
                     <label>Nome<input name="name" value="{{ $integration->name }}" required></label>
                     <label>Endereço do sistema<input name="base_url" value="{{ $integration->base_url }}" placeholder="https://..."></label>
                     <label>Webhook de retorno<input name="webhook_url" value="{{ $integration->webhook_url }}" placeholder="https://.../webhook"></label>
+                    <label>Departamento padrão
+                        <select name="department_id" required>
+                            <option value="">Selecione o departamento</option>
+                            @foreach($departments as $department)
+                                <option value="{{ $department->id }}" @selected((string) ($integrationDepartmentIds[$integration->id] ?? '') === (string) $department->id)>{{ $department->name }}</option>
+                            @endforeach
+                        </select>
+                    </label>
                     <label class="toggle-card"><input type="checkbox" name="active" value="1" @checked($integration->active)><span><b>Integração ativa</b></span></label>
                     <button class="button compact" type="submit">Salvar configuração</button>
                 </form>
