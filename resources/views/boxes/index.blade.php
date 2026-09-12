@@ -3,9 +3,15 @@
 @section('title', $boxTitle.' — Sutoorii Tickets')
 
 @section('content')
+@php
+    $boxBaseRoute = $boxKind === 'mine'
+        ? route('boxes.mine')
+        : ($boxKind === 'all' ? route('boxes.all') : route('boxes.department', $department));
+    $boxEyebrow = $boxKind === 'mine' ? 'MINHA CAIXA' : ($boxKind === 'all' ? 'TODOS OS TICKETS' : 'DEPARTAMENTO');
+@endphp
 <div class="page-head helpdesk-head">
     <div>
-        <p class="eyebrow">{{ $boxKind === 'mine' ? 'MINHA CAIXA' : 'DEPARTAMENTO' }}</p>
+        <p class="eyebrow">{{ $boxEyebrow }}</p>
         <h1>{{ $boxTitle }}</h1>
         <p class="muted head-sub">Acompanhe e organize os tickets que precisam da sua atenção.</p>
     </div>
@@ -21,10 +27,17 @@
         <a class="box-tab {{ request('relation')==='collaborator' ? 'active' : '' }}" href="{{ route('boxes.mine', ['relation'=>'collaborator']) }}">Colaborador</a>
         <a class="box-tab {{ request('relation')==='follower' ? 'active' : '' }}" href="{{ route('boxes.mine', ['relation'=>'follower']) }}">Seguidor</a>
     @else
-        <span class="box-tab active">Abertos</span>
+        <a class="box-tab {{ !request('status') ? 'active' : '' }}" href="{{ $boxBaseRoute }}">Abertos</a>
     @endif
     @foreach($statuses->whereIn('system_key',['resolved','closed','cancelled']) as $status)
-        <a class="box-tab {{ request('status')===$status->system_key ? 'active' : '' }}" href="{{ $boxKind === 'mine' ? route('boxes.mine',['status'=>$status->system_key]) : route('boxes.department',[$department,'status'=>$status->system_key]) }}">{{ $status->name }}</a>
+        @php
+            $statusRoute = $boxKind === 'mine'
+                ? route('boxes.mine', ['status' => $status->system_key])
+                : ($boxKind === 'all'
+                    ? route('boxes.all', ['status' => $status->system_key])
+                    : route('boxes.department', [$department, 'status' => $status->system_key]));
+        @endphp
+        <a class="box-tab {{ request('status')===$status->system_key ? 'active' : '' }}" href="{{ $statusRoute }}">{{ $status->name }}</a>
     @endforeach
 </div>
 
@@ -54,7 +67,7 @@
     <label class="toolbar-check"><input type="checkbox" name="unassigned" value="1" @checked(request()->boolean('unassigned'))> Não atribuídos</label>
     <label class="toolbar-check"><input type="checkbox" name="overdue" value="1" @checked(request()->boolean('overdue'))> Atrasados</label>
     <button class="button compact" type="submit">Filtrar</button>
-    <a class="subtle-link" href="{{ $boxKind === 'mine' ? route('boxes.mine') : route('boxes.department', $department) }}">Limpar</a>
+    <a class="subtle-link" href="{{ $boxBaseRoute }}">Limpar</a>
 </form>
 
 <form class="mobile-filter-form" method="get">
@@ -88,7 +101,7 @@
                 <label class="toolbar-check"><input type="checkbox" name="overdue" value="1" @checked(request()->boolean('overdue'))> Atrasados</label>
             </div>
             <div class="mobile-filter-actions">
-                <a class="subtle-link" href="{{ $boxKind === 'mine' ? route('boxes.mine') : route('boxes.department', $department) }}">Limpar</a>
+                <a class="subtle-link" href="{{ $boxBaseRoute }}">Limpar</a>
                 <button class="button compact" type="submit">Aplicar filtros</button>
             </div>
         </div>
