@@ -54,7 +54,7 @@ class InternalIntegrationTicketsTest extends TestCase
         ]);
     }
 
-    private function integration(bool $active = true): ConnectedSystem
+    private function integration(bool $active = true, ?string $apiToken = null): ConnectedSystem
     {
         $company = Company::create(['name' => 'Cliente '.uniqid(), 'active' => true]);
         $integration = ConnectedSystem::create([
@@ -65,7 +65,19 @@ class InternalIntegrationTicketsTest extends TestCase
             'active' => $active,
         ]);
         $integration->issueWebhookSecret();
+        if ($apiToken !== null) {
+            $integration->forceFill(['api_token_hash' => hash('sha256', $apiToken)])->save();
+        }
         return $integration;
+    }
+
+    private function externalHeaders(string $token, string $userId, string $role = 'user'): array
+    {
+        return [
+            'Authorization' => 'Bearer '.$token,
+            'X-External-User-Id' => $userId,
+            'X-External-User-Role' => $role,
+        ];
     }
 
     private function ticketPayload(ConnectedSystem $integration, array $extra = []): array
@@ -96,6 +108,25 @@ class InternalIntegrationTicketsTest extends TestCase
         $this->assertNull($ticket->external_requester_id);
         $this->assertNull($ticket->requester_name);
         $this->assertNull($ticket->requester_email);
+    }
+
+    public function test_general_internal_integration_ticket_is_visible_to_external_manager_but_not_regular_user(): void
+    {
+        $operator = $this->operator();
+        $this->initialStatus();
+        $integration = $this->integration(true, 'token-franca');
+        $this->actingAs($operator)->post('/tickets', $this->ticketPayload($integration))->assertRedirect();
+
+        $this->withHeaders($this->externalHeaders('token-franca', 'estudio-franca-153'))
+            ->getJson('/api/v1/tickets')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->withHeaders($this->externalHeaders('token-franca', 'gestor-1', 'manager'))
+            ->getJson('/api/v1/tickets')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.title', 'Chamado criado pela equipe');
     }
 
     public function test_integration_defaults_apply_to_internal_integrated_ticket(): void
@@ -170,6 +201,40 @@ class InternalIntegrationTicketsTest extends TestCase
         $this->assertSame('estudio-franca-153', $ticket->external_requester_id);
         $this->assertSame('Maria França', $ticket->requester_name);
         $this->assertSame('maria@example.com', $ticket->requester_email);
+    }
+
+    public function test_targeted_internal_integration_ticket_is_visible_only_to_target_user_and_manager(): void
+    {
+        $operator = $this->operator();
+        $this->initialStatus();
+        $integration = $this->integration(true, 'token-franca');
+        Http::fake([
+            '*' => Http::response(['data' => [[
+                'id' => 'estudio-franca-153',
+                'name' => 'Maria França',
+                'email' => 'maria@example.com',
+            ]]], 200),
+        ]);
+
+        $this->actingAs($operator)->post('/tickets', $this->ticketPayload($integration, [
+            'integration_target' => 'external_user',
+            'external_requester_id' => 'estudio-franca-153',
+        ]))->assertRedirect();
+
+        $this->withHeaders($this->externalHeaders('token-franca', 'estudio-franca-153'))
+            ->getJson('/api/v1/tickets')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+
+        $this->withHeaders($this->externalHeaders('token-franca', 'estudio-franca-999'))
+            ->getJson('/api/v1/tickets')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->withHeaders($this->externalHeaders('token-franca', 'gestor-1', 'manager'))
+            ->getJson('/api/v1/tickets')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
     }
 
     public function test_inactive_integration_cannot_be_used_for_internal_ticket(): void
