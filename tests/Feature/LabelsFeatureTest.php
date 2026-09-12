@@ -197,4 +197,40 @@ class LabelsFeatureTest extends TestCase
         $ticket = Ticket::query()->where('external_reference', 'labels-default-1')->firstOrFail();
         $this->assertTrue($ticket->labels()->whereKey($label->id)->exists());
     }
+
+    public function test_label_manager_sees_labels_link_in_sidebar(): void
+    {
+        $admin = $this->userWithPermissions(['labels.manage']);
+
+        $this->actingAs($admin)
+            ->get('/')
+            ->assertOk()
+            ->assertSee('>Etiquetas</a>', false);
+    }
+
+    public function test_ticket_label_manager_sees_label_picker_inside_ticket(): void
+    {
+        $user = $this->userWithPermissions(['tickets.manage_labels']);
+        $ticket = $this->ticket($user, 'Ticket com gerenciador de etiquetas');
+        Label::create(['name' => 'Financeiro', 'color' => '#6d28d9']);
+
+        $this->actingAs($user)
+            ->get('/tickets/'.$ticket->id)
+            ->assertOk()
+            ->assertSee('Gerenciar etiquetas')
+            ->assertSee('Financeiro');
+    }
+
+    public function test_integrations_page_allows_selecting_default_labels(): void
+    {
+        $admin = $this->userWithPermissions(['integrations.manage']);
+        Department::create(['name' => 'Suporte', 'active' => true]);
+        Label::create(['name' => 'Financeiro', 'color' => '#6d28d9']);
+
+        $this->actingAs($admin)
+            ->get('/admin/integracoes')
+            ->assertOk()
+            ->assertSee('name="default_label_ids[]"', false)
+            ->assertSee('Financeiro');
+    }
 }
