@@ -31,7 +31,7 @@ class LabelController extends Controller
 
         $label = Label::create([
             'name' => $data['name'],
-            'color' => strtoupper($data['color']),
+            'color' => $data['color'],
             'system' => false,
         ]);
 
@@ -53,7 +53,7 @@ class LabelController extends Controller
         $old = $label->only(['name', 'color']);
         $label->update([
             'name' => $data['name'],
-            'color' => strtoupper($data['color']),
+            'color' => $data['color'],
         ]);
 
         $this->audit($request, $label, 'label.updated', $old, $label->fresh()->only(['name', 'color']));
