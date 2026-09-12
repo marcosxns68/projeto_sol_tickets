@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\ConnectedSystem;
 use App\Models\Department;
+use App\Models\Label;
 use App\Services\IntegrationSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,8 +25,12 @@ class IntegrationController extends Controller
         return view('admin.integrations.index', [
             'integrations' => $integrations,
             'departments' => Department::query()->where('active', true)->orderBy('name')->get(),
+            'labels' => Label::query()->orderBy('name')->get(),
             'integrationDepartmentIds' => $integrations->mapWithKeys(
                 fn (ConnectedSystem $integration) => [$integration->id => $settings->departmentId($integration->id)]
+            ),
+            'integrationLabelIds' => $integrations->mapWithKeys(
+                fn (ConnectedSystem $integration) => [$integration->id => $settings->labelIds($integration->id)]
             ),
             'generatedToken' => session('generated_api_token'),
             'generatedFor' => session('generated_api_token_for'),
@@ -47,6 +52,8 @@ class IntegrationController extends Controller
                 'integer',
                 Rule::exists('departments', 'id')->where(fn ($query) => $query->where('active', true)),
             ],
+            'default_label_ids' => ['nullable', 'array'],
+            'default_label_ids.*' => ['integer', 'distinct', 'exists:labels,id'],
             'active' => ['nullable', 'boolean'],
         ]);
 
@@ -63,7 +70,9 @@ class IntegrationController extends Controller
             'active' => $request->boolean('active'),
         ]);
 
+        $labelIds = $data['default_label_ids'] ?? [];
         $settings->put($integration->id, 'department_id', (int) $data['department_id']);
+        $settings->putLabelIds($integration->id, $labelIds);
         $token = $integration->issueApiToken();
 
         $this->audit($request, $integration, 'integration.created', null, [
@@ -71,6 +80,7 @@ class IntegrationController extends Controller
             'base_url' => $integration->base_url,
             'webhook_url' => $integration->webhook_url,
             'department_id' => (int) $data['department_id'],
+            'default_label_ids' => array_map('intval', $labelIds),
             'active' => $integration->active,
         ]);
 
@@ -93,12 +103,16 @@ class IntegrationController extends Controller
                 'integer',
                 Rule::exists('departments', 'id')->where(fn ($query) => $query->where('active', true)),
             ],
+            'default_label_ids' => ['nullable', 'array'],
+            'default_label_ids.*' => ['integer', 'distinct', 'exists:labels,id'],
             'active' => ['nullable', 'boolean'],
         ]);
 
         $old = $integration->only(['name', 'base_url', 'webhook_url', 'active']);
         $old['department_id'] = $settings->departmentId($integration->id);
+        $old['default_label_ids'] = $settings->labelIds($integration->id);
 
+        $labelIds = $data['default_label_ids'] ?? [];
         $integration->update([
             'name' => trim($data['name']),
             'base_url' => $data['base_url'] ?? null,
@@ -106,9 +120,11 @@ class IntegrationController extends Controller
             'active' => $request->boolean('active'),
         ]);
         $settings->put($integration->id, 'department_id', (int) $data['department_id']);
+        $settings->putLabelIds($integration->id, $labelIds);
 
         $new = $integration->fresh()->only(['name', 'base_url', 'webhook_url', 'active']);
         $new['department_id'] = (int) $data['department_id'];
+        $new['default_label_ids'] = array_map('intval', $labelIds);
 
         $this->audit($request, $integration, 'integration.updated', $old, $new);
 

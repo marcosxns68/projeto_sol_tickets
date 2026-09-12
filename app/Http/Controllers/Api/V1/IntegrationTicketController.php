@@ -25,7 +25,7 @@ class IntegrationTicketController extends Controller
             'page' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $query = $this->visibleQuery($request)->with('status');
+        $query = $this->visibleQuery($request)->with(['status', 'labels']);
 
         if (!empty($filters['priority'])) {
             $query->where('priority', $filters['priority']);
@@ -73,7 +73,7 @@ class IntegrationTicketController extends Controller
             $existing = Ticket::query()
                 ->where('system_id', $integration->id)
                 ->where('external_reference', $externalReference)
-                ->with('status')
+                ->with(['status', 'labels'])
                 ->first();
 
             if ($existing) {
@@ -118,6 +118,7 @@ class IntegrationTicketController extends Controller
             ]);
         };
 
+        $created = true;
         if ($externalReference === null) {
             $ticket = $create();
         } else {
@@ -163,7 +164,7 @@ class IntegrationTicketController extends Controller
 
             [$ticket, $created] = $result;
             if (!$created) {
-                $ticket->load('status');
+                $ticket->load(['status', 'labels']);
                 if (!$this->canAccess($request, $ticket)) {
                     return response()->json(['message' => 'Referência externa já utilizada.'], 409);
                 }
@@ -171,7 +172,14 @@ class IntegrationTicketController extends Controller
             }
         }
 
-        $ticket->load('status');
+        if ($created) {
+            $labelIds = $settings->labelIds($integration->id);
+            if ($labelIds !== []) {
+                $ticket->labels()->syncWithoutDetaching($labelIds);
+            }
+        }
+
+        $ticket->load(['status', 'labels']);
 
         return response()->json(['ticket' => $this->serializeTicket($ticket)], 201);
     }
@@ -327,7 +335,7 @@ class IntegrationTicketController extends Controller
             'status_id' => $status->id,
             'completed_at' => now(),
         ]);
-        $ticket->load('status');
+        $ticket->load(['status', 'labels']);
 
         return response()->json(['ticket' => $this->serializeTicket($ticket)]);
     }
@@ -345,7 +353,7 @@ class IntegrationTicketController extends Controller
             'status_id' => $status->id,
             'completed_at' => null,
         ]);
-        $ticket->load('status');
+        $ticket->load(['status', 'labels']);
 
         return response()->json(['ticket' => $this->serializeTicket($ticket)]);
     }
@@ -367,7 +375,7 @@ class IntegrationTicketController extends Controller
             ->where(function (Builder $query) use ($reference) {
                 $query->where('number', $reference)->orWhere('external_reference', $reference);
             })
-            ->with('status')
+            ->with(['status', 'labels'])
             ->firstOrFail();
     }
 
@@ -394,8 +402,8 @@ class IntegrationTicketController extends Controller
 
     private function serializeTicket(Ticket $ticket): array
     {
-        if (!$ticket->relationLoaded('status')) {
-            $ticket->load('status');
+        if (!$ticket->relationLoaded('status') || !$ticket->relationLoaded('labels')) {
+            $ticket->loadMissing(['status', 'labels']);
         }
 
         return [
@@ -406,6 +414,11 @@ class IntegrationTicketController extends Controller
             'priority' => $ticket->priority,
             'status' => $ticket->status?->name,
             'status_key' => $ticket->status?->system_key,
+            'labels' => $ticket->labels->sortBy('name')->values()->map(fn ($label) => [
+                'id' => $label->id,
+                'name' => $label->name,
+                'color' => $label->color,
+            ])->all(),
             'requester_name' => $ticket->requester_name,
             'requester_email' => $ticket->requester_email,
             'created_at' => $ticket->created_at?->toIso8601String(),
