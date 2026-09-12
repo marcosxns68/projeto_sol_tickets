@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
 use App\Http\Controllers\Admin\IntegrationController as AdminIntegrationController;
+use App\Http\Controllers\Admin\LabelController as AdminLabelController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\TicketBoxController;
 use App\Http\Controllers\TicketChecklistController;
 use App\Http\Controllers\TicketCommentController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TicketLabelController;
 use App\Http\Controllers\TicketLifecycleController;
 use App\Http\Controllers\TicketParticipantController;
 use App\Http\Controllers\TicketRoutingController;
@@ -50,6 +52,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/tickets/{ticket}/encaminhar', [TicketRoutingController::class, 'forward'])->name('tickets.forward');
     Route::post('/tickets/{ticket}/participantes', [TicketParticipantController::class, 'store'])->name('tickets.participants.store');
     Route::delete('/tickets/{ticket}/participantes/{user}', [TicketParticipantController::class, 'destroy'])->name('tickets.participants.destroy');
+    Route::post('/tickets/{ticket}/etiquetas', [TicketLabelController::class, 'store'])->name('tickets.labels.store');
+    Route::delete('/tickets/{ticket}/etiquetas/{label}', [TicketLabelController::class, 'destroy'])->name('tickets.labels.destroy');
 
     Route::post('/tickets/{ticket}/comentarios', [TicketCommentController::class, 'store'])->name('tickets.comments.store');
     Route::post('/tickets/{ticket}/checklist', [TicketChecklistController::class, 'store'])->name('tickets.checklist.store');
@@ -70,6 +74,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/departamentos', [AdminDepartmentController::class, 'store'])->name('admin.departments.store');
     Route::get('/admin/departamentos/{department}/editar', [AdminDepartmentController::class, 'edit'])->name('admin.departments.edit');
     Route::patch('/admin/departamentos/{department}', [AdminDepartmentController::class, 'update'])->name('admin.departments.update');
+
+    Route::get('/admin/etiquetas', [AdminLabelController::class, 'index'])->name('admin.labels.index');
+    Route::post('/admin/etiquetas', [AdminLabelController::class, 'store'])->name('admin.labels.store');
+    Route::patch('/admin/etiquetas/{label}', [AdminLabelController::class, 'update'])->name('admin.labels.update');
+    Route::delete('/admin/etiquetas/{label}', [AdminLabelController::class, 'destroy'])->name('admin.labels.destroy');
 
     Route::get('/admin/cargos', [AdminRoleController::class, 'index'])->name('admin.roles.index');
     Route::post('/admin/cargos', [AdminRoleController::class, 'store'])->name('admin.roles.store');

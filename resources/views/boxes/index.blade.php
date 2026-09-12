@@ -63,6 +63,14 @@
             <option value="urgent" @selected(request('priority')==='urgent')>Urgente</option>
         </select>
     </label>
+    <label class="toolbar-field">Etiqueta
+        <select name="label">
+            <option value="">Todas</option>
+            @foreach($labels as $label)
+                <option value="{{ $label->id }}" @selected((string)request('label') === (string)$label->id)>{{ $label->name }}</option>
+            @endforeach
+        </select>
+    </label>
     @if($boxKind === 'mine' && request('relation'))<input type="hidden" name="relation" value="{{ request('relation') }}">@endif
     <label class="toolbar-check"><input type="checkbox" name="unassigned" value="1" @checked(request()->boolean('unassigned'))> Não atribuídos</label>
     <label class="toolbar-check"><input type="checkbox" name="overdue" value="1" @checked(request()->boolean('overdue'))> Atrasados</label>
@@ -76,7 +84,7 @@
         <input name="q" value="{{ request('q') }}" placeholder="Buscar nesta caixa..." aria-label="Buscar nesta caixa">
         <button class="button compact" type="submit">Buscar</button>
     </div>
-    <details class="mobile-filters" @if(request('status') || request('priority') || request()->boolean('unassigned') || request()->boolean('overdue')) open @endif>
+    <details class="mobile-filters" @if(request('status') || request('priority') || request('label') || request()->boolean('unassigned') || request()->boolean('overdue')) open @endif>
         <summary>Filtros</summary>
         <div class="mobile-filter-grid">
             <label class="toolbar-field">Status
@@ -94,6 +102,14 @@
                     <option value="normal" @selected(request('priority')==='normal')>Normal</option>
                     <option value="high" @selected(request('priority')==='high')>Alta</option>
                     <option value="urgent" @selected(request('priority')==='urgent')>Urgente</option>
+                </select>
+            </label>
+            <label class="toolbar-field">Etiqueta
+                <select name="label">
+                    <option value="">Todas</option>
+                    @foreach($labels as $label)
+                        <option value="{{ $label->id }}" @selected((string)request('label') === (string)$label->id)>{{ $label->name }}</option>
+                    @endforeach
                 </select>
             </label>
             <div class="mobile-filter-checks">
@@ -129,7 +145,7 @@
                 @php($ticketUrl = route('tickets.show',$ticket))
                 <tr class="ticket-row">
                     <td><a class="row-link ticket-number" href="{{ $ticketUrl }}">#{{ $ticket->number }}</a></td>
-                    <td><a class="row-link ticket-title-cell" href="{{ $ticketUrl }}"><strong>{{ $ticket->title }}</strong><small>{{ Str::limit($ticket->description,72) }}</small></a></td>
+                    <td><a class="row-link ticket-title-cell" href="{{ $ticketUrl }}"><strong>{{ $ticket->title }}</strong><small>{{ Str::limit($ticket->description,72) }}</small>@if($ticket->labels->isNotEmpty())<span class="ticket-labels">@foreach($ticket->labels as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</span>@endif</a></td>
                     <td><a class="row-link" href="{{ $ticketUrl }}"><span class="status" style="--status:{{ $ticket->status?->color ?? '#6d28d9' }}">{{ $ticket->status?->name ?? 'Sem status' }}</span></a></td>
                     <td><a class="row-link" href="{{ $ticketUrl }}"><span class="priority-badge {{ $ticket->priority }}"><i></i>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</span></a></td>
                     <td><a class="row-link" href="{{ $ticketUrl }}">{{ $ticket->department?->name ?? 'Sem departamento' }}</a></td>
@@ -152,6 +168,7 @@
                     <span class="status" style="--status:{{ $ticket->status?->color ?? '#6d28d9' }}">{{ $ticket->status?->name ?? 'Sem status' }}</span>
                 </div>
                 <strong class="mobile-ticket-card-title">{{ $ticket->title }}</strong>
+                @if($ticket->labels->isNotEmpty())<div class="ticket-labels">@foreach($ticket->labels as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</div>@endif
                 <div class="mobile-ticket-card-meta">
                     <span class="priority-badge {{ $ticket->priority }}"><i></i>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</span>
                     @if($ticket->due_at)<span class="{{ $ticket->due_at->isPast() ? 'overdue' : 'muted' }}">Prazo {{ $ticket->due_at->format('d/m H:i') }}</span>@endif

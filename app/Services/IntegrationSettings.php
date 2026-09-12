@@ -44,6 +44,34 @@ class IntegrationSettings
         return is_numeric($value) ? (int) $value : null;
     }
 
+    public function labelIds(int $integrationId): array
+    {
+        $decoded = json_decode((string) $this->get($integrationId, 'default_label_ids', '[]'), true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $decoded),
+            fn (int $id) => $id > 0
+        )));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $existing = DB::table('labels')->whereIn('id', $ids)->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        return array_values(array_filter($ids, fn (int $id) => in_array($id, $existing, true)));
+    }
+
+    public function putLabelIds(int $integrationId, array $ids): void
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $valid = DB::table('labels')->whereIn('id', $ids)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $this->put($integrationId, 'default_label_ids', json_encode($valid, JSON_UNESCAPED_UNICODE));
+    }
+
     public function touchApi(int $integrationId): void
     {
         $this->put($integrationId, 'last_api_activity_at', now()->toIso8601String());

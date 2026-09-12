@@ -57,6 +57,17 @@
             </select>
             <small class="muted">Todo novo ticket recebido por esta integração entra neste departamento.</small>
         </label>
+        <div class="integration-label-field">
+            <span class="field-caption">Etiquetas padrão</span>
+            <small class="muted">As etiquetas selecionadas serão aplicadas automaticamente aos novos tickets desta integração.</small>
+            <div class="label-choice-grid">
+                @forelse($labels as $label)
+                    <label class="label-choice"><input type="checkbox" name="default_label_ids[]" value="{{ $label->id }}" @checked(in_array($label->id, old('default_label_ids', [])))><span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span></label>
+                @empty
+                    <span class="muted">Nenhuma etiqueta cadastrada. Crie etiquetas na área de Administração para usá-las automaticamente.</span>
+                @endforelse
+            </div>
+        </div>
         <label class="toggle-card">
             <input type="checkbox" name="active" value="1" @checked(old('active',true))>
             <span><b>Integração ativa</b><small>A chave pode ser usada pelo sistema externo.</small></span>
@@ -73,18 +84,23 @@
 <article class="panel table-panel mobile-card-panel">
     <div class="responsive-table desktop-admin-table">
         <table class="admin-table">
-            <thead><tr><th>Integração</th><th>Departamento padrão</th><th>Status</th><th>Chave</th><th>Webhook</th><th></th></tr></thead>
+            <thead><tr><th>Integração</th><th>Departamento padrão</th><th>Etiquetas padrão</th><th>Status</th><th>Chave</th><th>Webhook</th><th></th></tr></thead>
             <tbody>
             @forelse($integrations as $integration)
-                @php($defaultDepartment = $departments->firstWhere('id', $integrationDepartmentIds[$integration->id] ?? null))
+                @php
+                    $defaultDepartment = $departments->firstWhere('id', $integrationDepartmentIds[$integration->id] ?? null);
+                    $defaultLabelIds = $integrationLabelIds[$integration->id] ?? [];
+                    $defaultLabels = $labels->whereIn('id', $defaultLabelIds);
+                @endphp
                 <tr>
                     <td><b>{{ $integration->name }}</b>@if($integration->base_url)<div class="muted">{{ $integration->base_url }}</div>@endif</td>
                     <td><span class="muted">{{ $defaultDepartment?->name ?? 'Não definido' }}</span></td>
+                    <td>@if($defaultLabels->isNotEmpty())<div class="integration-default-labels">@foreach($defaultLabels as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</div>@else<span class="muted">Nenhuma</span>@endif</td>
                     <td><span class="pill {{ $integration->active?'ok':'off' }}">{{ $integration->active?'Ativa':'Inativa' }}</span></td>
                     <td><span class="muted">{{ $integration->api_token_hash ? 'Configurada' : 'Não gerada' }}</span></td>
                     <td><span class="muted">{{ $integration->webhook_url ? 'Configurado' : 'Não configurado' }}</span></td>
                     <td class="right">
-                        <details style="text-align:left;min-width:260px;">
+                        <details style="text-align:left;min-width:280px;">
                             <summary class="secondary-button compact" style="display:inline-block;cursor:pointer;">Configurar</summary>
                             <form action="{{ route('admin.integrations.update',$integration) }}" method="post" class="grid" style="gap:8px;margin-top:12px;">
                                 @csrf @method('PATCH')
@@ -99,6 +115,14 @@
                                         @endforeach
                                     </select>
                                 </label>
+                                <div>
+                                    <span class="field-caption">Etiquetas padrão</span>
+                                    <div class="label-choice-grid">
+                                        @forelse($labels as $label)
+                                            <label class="label-choice"><input type="checkbox" name="default_label_ids[]" value="{{ $label->id }}" @checked(in_array($label->id, $defaultLabelIds))><span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span></label>
+                                        @empty<span class="muted">Nenhuma etiqueta cadastrada.</span>@endforelse
+                                    </div>
+                                </div>
                                 <label class="toggle-card"><input type="checkbox" name="active" value="1" @checked($integration->active)><span><b>Integração ativa</b></span></label>
                                 <button class="button compact" type="submit">Salvar configuração</button>
                             </form>
@@ -116,7 +140,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="empty">Nenhuma integração cadastrada.</td></tr>
+                <tr><td colspan="7" class="empty">Nenhuma integração cadastrada.</td></tr>
             @endforelse
             </tbody>
         </table>
@@ -124,10 +148,14 @@
 
     <div class="mobile-admin-list">
     @forelse($integrations as $integration)
-        @php($defaultDepartment = $departments->firstWhere('id', $integrationDepartmentIds[$integration->id] ?? null))
+        @php
+            $defaultDepartment = $departments->firstWhere('id', $integrationDepartmentIds[$integration->id] ?? null);
+            $defaultLabelIds = $integrationLabelIds[$integration->id] ?? [];
+            $defaultLabels = $labels->whereIn('id', $defaultLabelIds);
+        @endphp
         <article class="mobile-admin-card">
             <div class="mobile-admin-card-head">
-                <div><h3>{{ $integration->name }}</h3><span class="mobile-admin-sub">Departamento {{ $defaultDepartment?->name ?? 'não definido' }} · Chave {{ $integration->api_token_hash ? 'configurada' : 'não gerada' }} · Webhook {{ $integration->webhook_url ? 'configurado' : 'não configurado' }}</span></div>
+                <div><h3>{{ $integration->name }}</h3><span class="mobile-admin-sub">Departamento {{ $defaultDepartment?->name ?? 'não definido' }} · Chave {{ $integration->api_token_hash ? 'configurada' : 'não gerada' }} · Webhook {{ $integration->webhook_url ? 'configurado' : 'não configurado' }}</span>@if($defaultLabels->isNotEmpty())<div class="integration-default-labels">@foreach($defaultLabels as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</div>@endif</div>
                 <span class="pill {{ $integration->active?'ok':'off' }}">{{ $integration->active?'Ativa':'Inativa' }}</span>
             </div>
             <details style="margin-top:10px;">
@@ -145,6 +173,10 @@
                             @endforeach
                         </select>
                     </label>
+                    <div>
+                        <span class="field-caption">Etiquetas padrão</span>
+                        <div class="label-choice-grid">@forelse($labels as $label)<label class="label-choice"><input type="checkbox" name="default_label_ids[]" value="{{ $label->id }}" @checked(in_array($label->id, $defaultLabelIds))><span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span></label>@empty<span class="muted">Nenhuma etiqueta cadastrada.</span>@endforelse</div>
+                    </div>
                     <label class="toggle-card"><input type="checkbox" name="active" value="1" @checked($integration->active)><span><b>Integração ativa</b></span></label>
                     <button class="button compact" type="submit">Salvar configuração</button>
                 </form>

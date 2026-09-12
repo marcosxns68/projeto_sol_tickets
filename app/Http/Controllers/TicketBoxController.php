@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Models\Label;
 use App\Models\Status;
 use App\Models\Ticket;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,6 +19,7 @@ class TicketBoxController extends Controller
         return view('boxes.index', [
             'tickets' => $query->with(['status', 'assignee', 'department', 'labels'])->latest()->paginate(20)->withQueryString(),
             'statuses' => Status::orderBy('position')->get(),
+            'labels' => Label::query()->orderBy('name')->get(),
             'boxTitle' => 'Minha Caixa',
             'boxKind' => 'mine',
             'department' => null,
@@ -34,6 +36,7 @@ class TicketBoxController extends Controller
         return view('boxes.index', [
             'tickets' => $query->with(['status', 'assignee', 'department', 'labels'])->latest()->paginate(20)->withQueryString(),
             'statuses' => Status::orderBy('position')->get(),
+            'labels' => Label::query()->orderBy('name')->get(),
             'boxTitle' => 'Todos os tickets',
             'boxKind' => 'all',
             'department' => null,
@@ -55,6 +58,7 @@ class TicketBoxController extends Controller
         return view('boxes.index', [
             'tickets' => $query->with(['status', 'assignee', 'department', 'labels'])->latest()->paginate(20)->withQueryString(),
             'statuses' => Status::orderBy('position')->get(),
+            'labels' => Label::query()->orderBy('name')->get(),
             'boxTitle' => 'Caixa: '.$department->name,
             'boxKind' => 'department',
             'department' => $department,
@@ -86,6 +90,11 @@ class TicketBoxController extends Controller
 
         if ($request->filled('priority')) {
             $query->where('priority', $request->string('priority')->toString());
+        }
+
+        if ($request->filled('label')) {
+            $labelId = (int) $request->input('label');
+            $query->whereHas('labels', fn (Builder $labels) => $labels->where('labels.id', $labelId));
         }
 
         if ($request->boolean('unassigned')) {
