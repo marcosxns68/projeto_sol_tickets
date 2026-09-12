@@ -35,7 +35,7 @@ class LabelsFeatureTest extends TestCase
         ]);
     }
 
-    private function status(): Status
+    private function initialStatus(): Status
     {
         return Status::system('new') ?? Status::create([
             'name' => 'Novo',
@@ -55,7 +55,7 @@ class LabelsFeatureTest extends TestCase
             'title' => $title,
             'description' => 'Descrição do teste',
             'priority' => 'normal',
-            'status_id' => $this->status()->id,
+            'status_id' => $this->initialStatus()->id,
             'creator_id' => $user->id,
             'assignee_id' => $user->id,
             'due_at' => now()->addDay(),
