@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\IntegrationUserDirectoryController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\TicketAssignmentController;
 use App\Http\Controllers\TicketBoxController;
@@ -46,6 +47,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/minha-caixa', [TicketBoxController::class, 'mine'])->name('boxes.mine');
     Route::get('/todos-os-tickets', [TicketBoxController::class, 'all'])->name('boxes.all');
     Route::get('/departamentos/{department}/tickets', [TicketBoxController::class, 'department'])->name('boxes.department');
+    Route::get('/integracoes/{integration}/usuarios', IntegrationUserDirectoryController::class)->name('integrations.users.search');
 
     Route::post('/tickets/{ticket}/assumir', [TicketAssignmentController::class, 'assume'])->name('tickets.assume');
     Route::patch('/tickets/{ticket}/responsavel', [TicketAssignmentController::class, 'reassign'])->name('tickets.reassign');

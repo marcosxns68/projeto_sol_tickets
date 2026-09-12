@@ -9,7 +9,7 @@ class IntegrationWebhookDispatcher
 {
     public function dispatch(Ticket $ticket, string $event, array $details = []): void
     {
-        if ($ticket->origin !== 'integration' || !$ticket->system_id) {
+        if (!$ticket->system_id) {
             return;
         }
 
