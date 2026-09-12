@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Models\Label;
 use App\Models\Status;
 use App\Models\Ticket;
 use App\Models\User;
@@ -76,6 +77,7 @@ class TicketController extends Controller
             'statuses' => Status::where('active', true)->orderBy('position')->get(),
             'departments' => Department::where('active', true)->orderBy('name')->get(),
             'users' => User::where('active', true)->orderBy('name')->get(),
+            'labels' => Label::query()->orderBy('name')->get(),
         ]);
     }
 

@@ -10,17 +10,28 @@
     $canUpdate = $canContent || $canPriority || $canStatus || $canDue;
     $canComment = $me->hasPermission('tickets.comment');
     $canInternal = $me->hasPermission('tickets.internal_note');
+    $canLabels = $me->hasPermission('tickets.manage_labels');
     $eventLabels = [
         'created'=>'Ticket criado','assumed'=>'Ticket assumido','reassigned'=>'Responsável alterado','forwarded'=>'Ticket encaminhado',
         'participant.added'=>'Participante adicionado','participant.removed'=>'Participante removido','ticket.updated'=>'Ticket atualizado',
         'checklist.added'=>'Item de checklist adicionado','checklist.toggled'=>'Checklist atualizado','checklist.removed'=>'Item de checklist removido',
         'comment.public'=>'Comentário público adicionado','comment.internal'=>'Nota interna adicionada','completion.requested'=>'Conclusão solicitada',
+        'label.added'=>'Etiqueta adicionada','label.removed'=>'Etiqueta removida',
         'resolved'=>'Ticket resolvido','closed'=>'Ticket fechado','cancelled'=>'Ticket cancelado','reopened'=>'Ticket reaberto'
     ];
+    $attachedLabelIds = $ticket->labels->pluck('id')->all();
+    $availableLabels = $labels->whereNotIn('id', $attachedLabelIds);
 @endphp
 
 <div class="page-head ticket-head">
-    <div><p class="eyebrow">TICKET #{{ $ticket->number }}</p><h1>{{ $ticket->title }}</h1><p class="muted head-sub">{{ $ticket->department?->name ?? 'Sem departamento' }} · {{ $ticket->assignee?->name ?? 'Sem responsável' }}</p></div>
+    <div>
+        <p class="eyebrow">TICKET #{{ $ticket->number }}</p>
+        <h1>{{ $ticket->title }}</h1>
+        <p class="muted head-sub">{{ $ticket->department?->name ?? 'Sem departamento' }} · {{ $ticket->assignee?->name ?? 'Sem responsável' }}</p>
+        @if($ticket->labels->isNotEmpty())
+            <div class="ticket-labels">@foreach($ticket->labels->sortBy('name') as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</div>
+        @endif
+    </div>
     <span class="status large" style="--status:{{ $ticket->status?->color ?? '#6d28d9' }}">{{ $ticket->status?->name ?? 'Sem status' }}</span>
 </div>
 
@@ -87,6 +98,7 @@
             <div class="timeline-item"><span class="timeline-dot"></span><div><b>{{ $eventLabels[$event->event] ?? $event->event }}</b><p class="muted">{{ $event->actor?->name ?? 'Sistema' }} · {{ $event->created_at?->format('d/m/Y H:i') }}</p>
                 @if($event->event==='forwarded' && is_array($event->data))<small>{{ $event->data['old_department_name'] ?? 'Origem' }} → {{ $event->data['new_department_name'] ?? 'Destino' }}</small>@endif
                 @if($event->event==='reassigned' && is_array($event->data))<small>{{ $event->data['old_assignee_name'] ?? 'Sem responsável' }} → {{ $event->data['new_assignee_name'] ?? 'Novo responsável' }}</small>@endif
+                @if(in_array($event->event,['label.added','label.removed'],true) && is_array($event->data))<small>{{ $event->data['label_name'] ?? 'Etiqueta' }}</small>@endif
             </div></div>
         @empty<p class="muted">O histórico começará a aparecer conforme o ticket for movimentado.</p>@endforelse
         </div>
@@ -108,6 +120,37 @@
 
         @if($me->hasPermission('tickets.forward'))
         <form method="post" action="{{ route('tickets.forward',$ticket) }}" class="mini-form">@csrf<label>Encaminhar para<select name="department_id" required><option value="">Selecione...</option>@foreach($departments as $department)@if($department->id!==$ticket->department_id)<option value="{{ $department->id }}">{{ $department->name }}</option>@endif @endforeach</select></label><input type="text" name="reason" placeholder="Motivo (opcional)"><button class="secondary-button full" type="submit">Encaminhar</button></form>
+        @endif
+    </article>
+
+    <article class="panel ticket-label-panel">
+        <div class="section-title"><h2>Etiquetas</h2><span class="counter">{{ $ticket->labels->count() }}</span></div>
+        <div class="ticket-labels ticket-labels-large">
+            @forelse($ticket->labels->sortBy('name') as $label)
+                <span class="ticket-label-token" style="--label-color:{{ $label->color }}">
+                    <span>{{ $label->name }}</span>
+                    @if($canLabels)
+                        <form method="post" action="{{ route('tickets.labels.destroy',[$ticket,$label]) }}">@csrf @method('DELETE')<button class="label-remove-button" type="submit" title="Remover {{ $label->name }}" aria-label="Remover etiqueta {{ $label->name }}">×</button></form>
+                    @endif
+                </span>
+            @empty
+                <span class="muted">Nenhuma etiqueta.</span>
+            @endforelse
+        </div>
+        @if($canLabels)
+            <div class="label-manager">
+                <h3>Gerenciar etiquetas</h3>
+                @if($availableLabels->isNotEmpty())
+                    <form method="post" action="{{ route('tickets.labels.store',$ticket) }}" class="mini-form">@csrf
+                        <select name="label_id" required><option value="">Adicionar etiqueta...</option>@foreach($availableLabels as $label)<option value="{{ $label->id }}">{{ $label->name }}</option>@endforeach</select>
+                        <button class="secondary-button full" type="submit">Adicionar etiqueta</button>
+                    </form>
+                @elseif($labels->isEmpty())
+                    <p class="muted">Nenhuma etiqueta foi cadastrada pela administração.</p>
+                @else
+                    <p class="muted">Todas as etiquetas disponíveis já estão neste ticket.</p>
+                @endif
+            </div>
         @endif
     </article>
 
