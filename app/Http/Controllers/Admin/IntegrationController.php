@@ -5,19 +5,28 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\ConnectedSystem;
+use App\Models\Department;
+use App\Services\IntegrationSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class IntegrationController extends Controller
 {
     private const TECHNICAL_COMPANY = 'Sutoorii Integrações — interno';
 
-    public function index(Request $request)
+    public function index(Request $request, IntegrationSettings $settings)
     {
         $this->authorizeAccess($request);
 
+        $integrations = ConnectedSystem::query()->orderBy('name')->orderBy('id')->get();
+
         return view('admin.integrations.index', [
-            'integrations' => ConnectedSystem::query()->orderBy('name')->orderBy('id')->get(),
+            'integrations' => $integrations,
+            'departments' => Department::query()->where('active', true)->orderBy('name')->get(),
+            'integrationDepartmentIds' => $integrations->mapWithKeys(
+                fn (ConnectedSystem $integration) => [$integration->id => $settings->departmentId($integration->id)]
+            ),
             'generatedToken' => session('generated_api_token'),
             'generatedFor' => session('generated_api_token_for'),
             'generatedWebhookSecret' => session('generated_webhook_secret'),
@@ -25,7 +34,7 @@ class IntegrationController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, IntegrationSettings $settings)
     {
         $this->authorizeAccess($request);
 
@@ -33,6 +42,11 @@ class IntegrationController extends Controller
             'name' => ['required', 'string', 'max:160'],
             'base_url' => ['nullable', 'url', 'max:255'],
             'webhook_url' => ['nullable', 'url', 'max:255'],
+            'department_id' => [
+                'required',
+                'integer',
+                Rule::exists('departments', 'id')->where(fn ($query) => $query->where('active', true)),
+            ],
             'active' => ['nullable', 'boolean'],
         ]);
 
@@ -49,12 +63,14 @@ class IntegrationController extends Controller
             'active' => $request->boolean('active'),
         ]);
 
+        $settings->put($integration->id, 'department_id', (int) $data['department_id']);
         $token = $integration->issueApiToken();
 
         $this->audit($request, $integration, 'integration.created', null, [
             'name' => $integration->name,
             'base_url' => $integration->base_url,
             'webhook_url' => $integration->webhook_url,
+            'department_id' => (int) $data['department_id'],
             'active' => $integration->active,
         ]);
 
@@ -64,7 +80,7 @@ class IntegrationController extends Controller
             ->with('generated_api_token_for', $integration->id);
     }
 
-    public function update(Request $request, ConnectedSystem $integration)
+    public function update(Request $request, ConnectedSystem $integration, IntegrationSettings $settings)
     {
         $this->authorizeAccess($request);
 
@@ -72,10 +88,16 @@ class IntegrationController extends Controller
             'name' => ['required', 'string', 'max:160'],
             'base_url' => ['nullable', 'url', 'max:255'],
             'webhook_url' => ['nullable', 'url', 'max:255'],
+            'department_id' => [
+                'required',
+                'integer',
+                Rule::exists('departments', 'id')->where(fn ($query) => $query->where('active', true)),
+            ],
             'active' => ['nullable', 'boolean'],
         ]);
 
         $old = $integration->only(['name', 'base_url', 'webhook_url', 'active']);
+        $old['department_id'] = $settings->departmentId($integration->id);
 
         $integration->update([
             'name' => trim($data['name']),
@@ -83,10 +105,12 @@ class IntegrationController extends Controller
             'webhook_url' => $data['webhook_url'] ?? null,
             'active' => $request->boolean('active'),
         ]);
+        $settings->put($integration->id, 'department_id', (int) $data['department_id']);
 
-        $this->audit($request, $integration, 'integration.updated', $old, $integration->fresh()->only([
-            'name', 'base_url', 'webhook_url', 'active',
-        ]));
+        $new = $integration->fresh()->only(['name', 'base_url', 'webhook_url', 'active']);
+        $new['department_id'] = (int) $data['department_id'];
+
+        $this->audit($request, $integration, 'integration.updated', $old, $new);
 
         return redirect()->route('admin.integrations.index')->with('success', 'Integração atualizada.');
     }
