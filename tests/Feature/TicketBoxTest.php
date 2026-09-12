@@ -38,6 +38,22 @@ class TicketBoxTest extends TestCase
         ]);
     }
 
+    private function viewAllUser(): User
+    {
+        $role = Role::create(['name' => 'Gestor geral '.uniqid(), 'active' => true]);
+        $role->permissions()->sync(Permission::where('key', 'tickets.view_all')->pluck('id'));
+
+        return User::create([
+            'name' => 'Gestor geral',
+            'email' => uniqid('gestor').'@sutoorii.com',
+            'email_verified_at' => now(),
+            'password' => 'SenhaTeste123',
+            'role_id' => $role->id,
+            'department_id' => null,
+            'active' => true,
+        ]);
+    }
+
     private function ticket(Department $department, string $title, string $statusKey, ?User $assignee = null, ?User $creator = null): Ticket
     {
         return Ticket::create([
@@ -104,5 +120,30 @@ class TicketBoxTest extends TestCase
             ->get('/departamentos/'.$department->id.'/tickets')
             ->assertOk()
             ->assertSee($ticket->number);
+    }
+
+    public function test_view_all_user_has_a_general_box_for_unassigned_internal_and_integration_tickets(): void
+    {
+        $department = Department::create(['name' => 'Suporte geral']);
+        $user = $this->viewAllUser();
+
+        $internal = $this->ticket($department, 'Aberto pelo painel', 'new');
+        $integration = $this->ticket($department, 'Aberto pelo Estúdio França', 'new');
+        $integration->update(['origin' => 'integration']);
+
+        $response = $this->actingAs($user)->get('/todos-os-tickets');
+
+        $response->assertOk()
+            ->assertSee($internal->number)
+            ->assertSee($integration->number)
+            ->assertSee('Todos os tickets');
+    }
+
+    public function test_user_without_view_all_cannot_open_general_box(): void
+    {
+        $department = Department::create(['name' => 'Suporte restrito']);
+        $user = $this->user($department);
+
+        $this->actingAs($user)->get('/todos-os-tickets')->assertForbidden();
     }
 }
