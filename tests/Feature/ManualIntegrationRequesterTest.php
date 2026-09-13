@@ -88,4 +88,13 @@ class ManualIntegrationRequesterTest extends TestCase
         $this->assertNull($ticket->external_requester_id);
         $this->assertNull($ticket->requester_email);
     }
+
+    public function test_ticket_detail_template_displays_integration_and_manual_requester(): void
+    {
+        $template = file_get_contents(resource_path('views/tickets/show.blade.php'));
+
+        $this->assertStringContainsString('Solicitante', $template);
+        $this->assertStringContainsString('$ticket->requester_name', $template);
+        $this->assertStringContainsString('$ticket->system', $template);
+    }
 }
