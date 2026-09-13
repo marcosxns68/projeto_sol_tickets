@@ -17,7 +17,7 @@
             </label>
             <label class="integration-mode-option">
                 <input type="radio" name="source_mode" value="integration" {{ old('source_mode') === 'integration' ? 'checked' : '' }}>
-                <span><b>Integração</b><small>O chamado também aparecerá no painel do sistema escolhido.</small></span>
+                <span><b>Integração</b><small>O chamado também aparecerá no painel geral do sistema escolhido.</small></span>
             </label>
         </div>
 
@@ -31,26 +31,10 @@
                 </select>
             </label>
 
-            <div class="integration-target-grid">
-                <label class="integration-mode-option">
-                    <input type="radio" name="integration_target" value="integration" {{ old('integration_target','integration') === 'integration' ? 'checked' : '' }}>
-                    <span><b>Chamado geral da integração</b><small>Visível para os gestores do sistema integrado.</small></span>
-                </label>
-                <label class="integration-mode-option">
-                    <input type="radio" name="integration_target" value="external_user" {{ old('integration_target') === 'external_user' ? 'checked' : '' }}>
-                    <span><b>Usuário específico</b><small>Também aparecerá em “Meus chamados” da pessoa escolhida.</small></span>
-                </label>
-            </div>
-
-            <div id="externalUserFields" {{ old('integration_target') === 'external_user' ? '' : 'hidden' }}>
-                <label>Buscar usuário
-                    <input type="search" id="externalUserSearch" autocomplete="off" placeholder="Digite pelo menos 2 letras do nome ou e-mail">
-                </label>
-                <input type="hidden" name="external_requester_id" id="externalRequesterId" value="{{ old('external_requester_id') }}">
-                <div id="externalUserSelected" class="external-user-selected" hidden></div>
-                <div id="externalUserResults" class="external-user-results" aria-live="polite"></div>
-                <small class="muted">A busca consulta diretamente o sistema integrado e traz no máximo 20 resultados.</small>
-            </div>
+            <label>Nome do solicitante
+                <input type="text" name="requester_name" id="requesterName" value="{{ old('requester_name') }}" maxlength="160" placeholder="Ex.: Maria da Silva">
+                <small class="muted">O nome será registrado no chamado, sem vincular o ticket a um usuário específico do sistema integrado.</small>
+            </label>
         </div>
     </div>
 
@@ -82,89 +66,25 @@
 </form>
 
 <style>
-.integration-create-card{border:1px solid #e7e2ec;border-radius:16px;padding:18px;display:grid;gap:14px;background:#fbfafc}.integration-mode-grid,.integration-target-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.integration-mode-option{display:flex!important;align-items:flex-start;gap:10px;border:1px solid #e4deea;border-radius:12px;padding:13px;background:#fff;cursor:pointer}.integration-mode-option input{width:auto;margin-top:3px}.integration-mode-option span{display:grid;gap:3px}.integration-mode-option small,.muted{color:#716978;font-size:.82rem}.integration-fields{display:grid;gap:14px;border-top:1px solid #e8e2ed;padding-top:14px}.external-user-results{display:grid;gap:6px;margin-top:8px}.external-user-result{width:100%;border:1px solid #e2dce8;background:#fff;border-radius:10px;padding:10px 12px;text-align:left;cursor:pointer}.external-user-result:hover{border-color:#7c3aed}.external-user-result strong,.external-user-result small{display:block}.external-user-selected{border:1px solid #c9b7e8;background:#f5f0ff;border-radius:10px;padding:10px 12px;margin-top:8px}@media(max-width:700px){.integration-mode-grid,.integration-target-grid{grid-template-columns:1fr}.integration-create-card{padding:14px}}
+.integration-create-card{border:1px solid #e7e2ec;border-radius:16px;padding:18px;display:grid;gap:14px;background:#fbfafc}.integration-mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.integration-mode-option{display:flex!important;align-items:flex-start;gap:10px;border:1px solid #e4deea;border-radius:12px;padding:13px;background:#fff;cursor:pointer}.integration-mode-option input{width:auto;margin-top:3px}.integration-mode-option span{display:grid;gap:3px}.integration-mode-option small,.muted{color:#716978;font-size:.82rem}.integration-fields{display:grid;gap:14px;border-top:1px solid #e8e2ed;padding-top:14px}@media(max-width:700px){.integration-mode-grid{grid-template-columns:1fr}.integration-create-card{padding:14px}}
 </style>
 
 <script>
 (() => {
     const integrationFields = document.getElementById('integrationFields');
-    const externalFields = document.getElementById('externalUserFields');
     const integrationSelect = document.getElementById('integrationSelect');
-    const search = document.getElementById('externalUserSearch');
-    const results = document.getElementById('externalUserResults');
-    const selectedId = document.getElementById('externalRequesterId');
-    const selectedBox = document.getElementById('externalUserSelected');
-    let timer = null;
-    let controller = null;
-
+    const requesterName = document.getElementById('requesterName');
     const sourceMode = () => document.querySelector('input[name="source_mode"]:checked')?.value;
-    const targetMode = () => document.querySelector('input[name="integration_target"]:checked')?.value;
-
-    function clearUser() {
-        selectedId.value = '';
-        selectedBox.hidden = true;
-        selectedBox.textContent = '';
-        results.innerHTML = '';
-    }
 
     function syncVisibility() {
-        integrationFields.hidden = sourceMode() !== 'integration';
-        externalFields.hidden = targetMode() !== 'external_user' || integrationFields.hidden;
-        if (externalFields.hidden) clearUser();
+        const integrated = sourceMode() === 'integration';
+        integrationFields.hidden = !integrated;
+        integrationSelect.required = integrated;
+        requesterName.required = integrated;
+        if (!integrated) requesterName.value = '';
     }
 
-    document.querySelectorAll('input[name="source_mode"],input[name="integration_target"]').forEach(el => el.addEventListener('change', syncVisibility));
-    integrationSelect.addEventListener('change', clearUser);
-
-    search.addEventListener('input', () => {
-        clearTimeout(timer);
-        results.innerHTML = '';
-        const query = search.value.trim();
-        const integrationId = integrationSelect.value;
-        if (query.length < 2 || !integrationId) return;
-
-        timer = setTimeout(async () => {
-            if (controller) controller.abort();
-            controller = new AbortController();
-            results.textContent = 'Buscando…';
-            try {
-                const response = await fetch(`/integracoes/${encodeURIComponent(integrationId)}/usuarios?search=${encodeURIComponent(query)}`, {
-                    headers: {'Accept':'application/json'}, signal: controller.signal
-                });
-                const payload = await response.json();
-                results.innerHTML = '';
-                if (!response.ok) {
-                    results.textContent = payload.message || 'Não foi possível consultar os usuários.';
-                    return;
-                }
-                if (!payload.data?.length) {
-                    results.textContent = 'Nenhum usuário encontrado.';
-                    return;
-                }
-                payload.data.forEach(user => {
-                    const button = document.createElement('button');
-                    button.type = 'button';
-                    button.className = 'external-user-result';
-                    const name = document.createElement('strong');
-                    name.textContent = user.name;
-                    const email = document.createElement('small');
-                    email.textContent = user.email || 'Sem e-mail cadastrado';
-                    button.append(name, email);
-                    button.addEventListener('click', () => {
-                        selectedId.value = user.id;
-                        selectedBox.textContent = `${user.name}${user.email ? ' — '+user.email : ''}`;
-                        selectedBox.hidden = false;
-                        results.innerHTML = '';
-                        search.value = user.name;
-                    });
-                    results.appendChild(button);
-                });
-            } catch (error) {
-                if (error.name !== 'AbortError') results.textContent = 'Não foi possível consultar os usuários.';
-            }
-        }, 300);
-    });
-
+    document.querySelectorAll('input[name="source_mode"]').forEach(el => el.addEventListener('change', syncVisibility));
     syncVisibility();
 })();
 </script>
