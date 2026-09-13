@@ -52,6 +52,7 @@ class TicketController extends Controller
             'department_id' => ['nullable', 'exists:departments,id'],
             'source_mode' => ['nullable', Rule::in(['internal', 'integration'])],
             'system_id' => ['nullable', 'integer'],
+            'requester_name' => ['nullable', 'string', 'max:160'],
             'integration_target' => ['nullable', Rule::in(['integration', 'external_user'])],
             'external_requester_id' => ['nullable', 'string', 'max:190'],
         ]);
@@ -60,6 +61,7 @@ class TicketController extends Controller
         $integration = null;
         $externalUser = null;
         $target = null;
+        $manualRequesterName = null;
 
         if ($sourceMode === 'integration') {
             if (empty($data['system_id'])) {
@@ -75,29 +77,35 @@ class TicketController extends Controller
                 throw ValidationException::withMessages(['system_id' => 'A integração selecionada não está disponível.']);
             }
 
-            $target = $data['integration_target'] ?? null;
-            if (!in_array($target, ['integration', 'external_user'], true)) {
-                throw ValidationException::withMessages(['integration_target' => 'Escolha quem receberá este ticket.']);
-            }
+            $manualRequesterName = trim((string) ($data['requester_name'] ?? '')) ?: null;
 
-            if ($target === 'external_user') {
-                $externalId = trim((string) ($data['external_requester_id'] ?? ''));
-                if ($externalId === '') {
-                    throw ValidationException::withMessages(['external_requester_id' => 'Selecione um usuário da integração.']);
+            if ($manualRequesterName !== null) {
+                $target = 'integration';
+            } else {
+                $target = $data['integration_target'] ?? 'integration';
+                if (!in_array($target, ['integration', 'external_user'], true)) {
+                    throw ValidationException::withMessages(['integration_target' => 'Escolha quem receberá este ticket.']);
                 }
 
-                try {
-                    $externalUser = $directory->find($integration, $externalId);
-                } catch (RuntimeException) {
-                    throw ValidationException::withMessages([
-                        'external_requester_id' => 'Não foi possível validar o usuário da integração agora.',
-                    ]);
-                }
+                if ($target === 'external_user') {
+                    $externalId = trim((string) ($data['external_requester_id'] ?? ''));
+                    if ($externalId === '') {
+                        throw ValidationException::withMessages(['external_requester_id' => 'Selecione um usuário da integração.']);
+                    }
 
-                if (!$externalUser) {
-                    throw ValidationException::withMessages([
-                        'external_requester_id' => 'O usuário selecionado não está disponível nesta integração.',
-                    ]);
+                    try {
+                        $externalUser = $directory->find($integration, $externalId);
+                    } catch (RuntimeException) {
+                        throw ValidationException::withMessages([
+                            'external_requester_id' => 'Não foi possível validar o usuário da integração agora.',
+                        ]);
+                    }
+
+                    if (!$externalUser) {
+                        throw ValidationException::withMessages([
+                            'external_requester_id' => 'O usuário selecionado não está disponível nesta integração.',
+                        ]);
+                    }
                 }
             }
         }
@@ -116,6 +124,8 @@ class TicketController extends Controller
             $departmentId = $request->user()->department_id;
         }
 
+        $requesterName = $manualRequesterName ?? ($externalUser['name'] ?? null);
+
         $ticket = Ticket::create([
             'number' => Ticket::nextNumber(),
             'origin' => 'internal',
@@ -126,9 +136,9 @@ class TicketController extends Controller
             'creator_id' => $request->user()->id,
             'department_id' => $departmentId,
             'system_id' => $integration?->id,
-            'requester_name' => $externalUser['name'] ?? null,
-            'requester_email' => $externalUser['email'] ?? null,
-            'external_requester_id' => $externalUser['id'] ?? null,
+            'requester_name' => $requesterName,
+            'requester_email' => $manualRequesterName !== null ? null : ($externalUser['email'] ?? null),
+            'external_requester_id' => $manualRequesterName !== null ? null : ($externalUser['id'] ?? null),
             'due_at' => $data['due_at'],
         ]);
 
@@ -145,8 +155,8 @@ class TicketController extends Controller
             'integration_id' => $integration?->id,
             'integration_name' => $integration?->name,
             'integration_target' => $target,
-            'external_requester_id' => $externalUser['id'] ?? null,
-            'external_requester_name' => $externalUser['name'] ?? null,
+            'external_requester_id' => $ticket->external_requester_id,
+            'external_requester_name' => $requesterName,
         ]);
 
         return redirect()->route('tickets.show', $ticket)->with('success', 'Ticket criado com sucesso.');
