@@ -108,7 +108,19 @@
 <aside class="sidebar-stack">
     <article class="panel details">
         <div class="section-title"><h2>Detalhes</h2></div>
-        <dl><dt>Prioridade</dt><dd>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</dd><dt>Departamento</dt><dd>{{ $ticket->department?->name ?? 'Não definido' }}</dd><dt>Responsável</dt><dd>{{ $ticket->assignee?->name ?? 'Não atribuído' }}</dd><dt>Prazo</dt><dd>{{ $ticket->due_at?->format('d/m/Y H:i') ?? 'Sem prazo' }}</dd><dt>Origem</dt><dd>{{ $ticket->origin==='internal'?'Interno':'Integração' }}</dd></dl>
+        <dl>
+            <dt>Prioridade</dt><dd>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</dd>
+            <dt>Departamento</dt><dd>{{ $ticket->department?->name ?? 'Não definido' }}</dd>
+            <dt>Responsável</dt><dd>{{ $ticket->assignee?->name ?? 'Não atribuído' }}</dd>
+            <dt>Prazo</dt><dd>{{ $ticket->due_at?->format('d/m/Y H:i') ?? 'Sem prazo' }}</dd>
+            <dt>Origem</dt><dd>{{ $ticket->origin==='internal'?'Interno':'Integração' }}</dd>
+            @if($ticket->system)
+                <dt>Integração</dt><dd>{{ $ticket->system->name }}</dd>
+            @endif
+            @if($ticket->requester_name)
+                <dt>Solicitante</dt><dd>{{ $ticket->requester_name }}</dd>
+            @endif
+        </dl>
 
         @if(!$ticket->assignee && $ticket->department_id && $me->department_id===$ticket->department_id && $me->hasPermission('tickets.assume'))
         <form method="post" action="{{ route('tickets.assume',$ticket) }}">@csrf<button class="button full" type="submit">Assumir ticket</button></form>
