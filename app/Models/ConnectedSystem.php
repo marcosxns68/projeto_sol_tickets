@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\IntegrationSettings;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Crypt;
@@ -51,24 +52,32 @@ class ConnectedSystem extends Model
     {
         $secret = 'whsec_'.Str::random(48);
 
-        $this->forceFill([
-            'webhook_secret' => Crypt::encryptString($secret),
-        ])->save();
+        app(IntegrationSettings::class)->put(
+            $this->getKey(),
+            'webhook_secret',
+            Crypt::encryptString($secret)
+        );
 
         return $secret;
     }
 
     public function webhookSigningSecret(): ?string
     {
-        if (!$this->webhook_secret) {
+        $encrypted = app(IntegrationSettings::class)->get(
+            $this->getKey(),
+            'webhook_secret',
+            $this->getAttribute('webhook_secret')
+        );
+
+        if (!$encrypted) {
             return null;
         }
 
         try {
-            return Crypt::decryptString($this->webhook_secret);
+            return Crypt::decryptString($encrypted);
         } catch (DecryptException) {
             // Compatibilidade defensiva com algum valor legado anterior à criptografia.
-            return $this->webhook_secret;
+            return $encrypted;
         }
     }
 }
