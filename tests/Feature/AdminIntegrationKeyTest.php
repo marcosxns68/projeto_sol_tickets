@@ -8,7 +8,9 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class AdminIntegrationKeyTest extends TestCase
@@ -138,6 +140,40 @@ class AdminIntegrationKeyTest extends TestCase
         $this->assertStringStartsWith('st_live_', $newToken);
         $this->assertNotSame($oldHash, $integration->fresh()->api_token_hash);
         $this->assertSame(hash('sha256', $newToken), $integration->fresh()->api_token_hash);
+    }
+
+
+    public function test_webhook_secret_can_be_generated_when_legacy_systems_table_has_no_webhook_secret_column(): void
+    {
+        $admin = $this->admin();
+        $department = $this->department();
+
+        $this->actingAs($admin)->post('/admin/integracoes', [
+            'name' => 'Sistema legado',
+            'department_id' => $department->id,
+            'active' => '1',
+        ])->assertRedirect('/admin/integracoes');
+
+        $integration = ConnectedSystem::where('name', 'Sistema legado')->firstOrFail();
+
+        Schema::table('systems', function ($table): void {
+            $table->dropColumn('webhook_secret');
+        });
+
+        $this->actingAs($admin)
+            ->post('/admin/integracoes/'.$integration->id.'/novo-segredo-webhook')
+            ->assertRedirect('/admin/integracoes');
+
+        $secret = session('generated_webhook_secret');
+        $this->assertIsString($secret);
+        $this->assertStringStartsWith('whsec_', $secret);
+
+        $encrypted = DB::table('settings')
+            ->where('key', 'integration.'.$integration->id.'.webhook_secret')
+            ->value('value');
+
+        $this->assertIsString($encrypted);
+        $this->assertSame($secret, Crypt::decryptString($encrypted));
     }
 
     public function test_user_without_permission_cannot_manage_integrations(): void
