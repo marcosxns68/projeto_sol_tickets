@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
 use App\Http\Controllers\Admin\IntegrationController as AdminIntegrationController;
 use App\Http\Controllers\Admin\LabelController as AdminLabelController;
+use App\Http\Controllers\Admin\MailSettingsController as AdminMailSettingsController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
@@ -74,6 +75,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/usuarios/{user}/reenviar-confirmacao', [AdminUserController::class, 'resendVerification'])
         ->middleware('throttle:3,1')
         ->name('admin.users.resend-verification');
+
+    Route::get('/admin/configuracoes/email', [AdminMailSettingsController::class, 'edit'])->name('admin.settings.mail.edit');
+    Route::patch('/admin/configuracoes/email', [AdminMailSettingsController::class, 'update'])->name('admin.settings.mail.update');
+    Route::post('/admin/configuracoes/email/testar', [AdminMailSettingsController::class, 'test'])
+        ->middleware('throttle:3,1')
+        ->name('admin.settings.mail.test');
 
     Route::get('/admin/departamentos', [AdminDepartmentController::class, 'index'])->name('admin.departments.index');
     Route::post('/admin/departamentos', [AdminDepartmentController::class, 'store'])->name('admin.departments.store');

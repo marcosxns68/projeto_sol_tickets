@@ -44,6 +44,9 @@
             @if($me->hasPermission('users.manage'))
                 <a href="{{ route('admin.users.index') }}" class="sidebar-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Usuários</a>
             @endif
+            @if($me->hasPermission('users.manage') && $me->hasPermission('permissions.manage'))
+                <a href="{{ route('admin.settings.mail.edit') }}" class="sidebar-link {{ request()->routeIs('admin.settings.mail.*') ? 'active' : '' }}">Configurações de e-mail</a>
+            @endif
             @if($me->hasPermission('departments.manage'))
                 <a href="{{ route('admin.departments.index') }}" class="sidebar-link {{ request()->routeIs('admin.departments.*') ? 'active' : '' }}">Departamentos</a>
             @endif
