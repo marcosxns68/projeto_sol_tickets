@@ -71,6 +71,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/admin/usuarios', [AdminUserController::class, 'index'])->name('admin.users.index');
     Route::get('/admin/usuarios/{user}/editar', [AdminUserController::class, 'edit'])->name('admin.users.edit');
     Route::patch('/admin/usuarios/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
+    Route::post('/admin/usuarios/{user}/reenviar-confirmacao', [AdminUserController::class, 'resendVerification'])
+        ->middleware('throttle:3,1')
+        ->name('admin.users.resend-verification');
 
     Route::get('/admin/departamentos', [AdminDepartmentController::class, 'index'])->name('admin.departments.index');
     Route::post('/admin/departamentos', [AdminDepartmentController::class, 'store'])->name('admin.departments.store');

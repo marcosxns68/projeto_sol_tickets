@@ -101,6 +101,42 @@ class UserController extends Controller
         return redirect()->route('admin.users.edit', $user)->with('success', 'Usuário atualizado.');
     }
 
+    public function resendVerification(Request $request, User $user)
+    {
+        $actor = $request->user();
+        abort_unless(
+            $actor->hasPermission('users.manage') && $actor->hasPermission('permissions.manage'),
+            403
+        );
+
+        if ($user->hasVerifiedEmail()) {
+            return redirect()
+                ->route('admin.users.edit', $user)
+                ->withErrors(['verification' => 'Esta conta já teve o e-mail confirmado.']);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        DB::table('audit_logs')->insert([
+            'user_id' => $actor->id,
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'event' => 'user.verification_resent',
+            'old_values' => null,
+            'new_values' => json_encode([
+                'email' => $user->email,
+                'resent_at' => now()->toIso8601String(),
+            ], JSON_UNESCAPED_UNICODE),
+            'ip_address' => $request->ip(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()
+            ->route('admin.users.edit', $user)
+            ->with('success', 'E-mail de confirmação reenviado para '.$user->email.'.');
+    }
+
     private function hasAnotherAdministrator(User $user): bool
     {
         return User::where('active', true)->whereKeyNot($user->id)->get()->contains(
