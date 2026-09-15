@@ -143,6 +143,7 @@ class AdminIntegrationKeyTest extends TestCase
     }
 
 
+    /** Reproduz o esquema que está atualmente em produção. */
     public function test_webhook_secret_can_be_generated_when_legacy_systems_table_has_no_webhook_secret_column(): void
     {
         $admin = $this->admin();
