@@ -59,7 +59,7 @@ class ManualIntegrationRequesterTest extends TestCase
             ->assertSee('Usuário específico')
             ->assertSee('integration_target', false)
             ->assertSee('external_requester_id', false)
-            ->assertSee('integrations.users.search', false);
+            ->assertSee('/usuarios', false);
     }
 
     public function test_internal_integration_ticket_saves_manual_requester_without_external_user_link(): void
