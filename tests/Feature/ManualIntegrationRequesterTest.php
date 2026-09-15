@@ -46,17 +46,20 @@ class ManualIntegrationRequesterTest extends TestCase
         ]);
     }
 
-    public function test_create_form_uses_manual_requester_name_instead_of_external_user_search(): void
+    public function test_create_form_offers_general_requester_and_specific_external_user(): void
     {
         $user = $this->operator();
         $this->integration();
 
-        $this->actingAs($user)
-            ->get('/tickets/create')
-            ->assertOk()
+        $response = $this->actingAs($user)->get('/tickets/create');
+
+        $response->assertOk()
             ->assertSee('Nome do solicitante')
-            ->assertDontSee('Usuário específico')
-            ->assertDontSee('Buscar usuário');
+            ->assertSee('Chamado geral')
+            ->assertSee('Usuário específico')
+            ->assertSee('integration_target', false)
+            ->assertSee('external_requester_id', false)
+            ->assertSee('/usuarios', false);
     }
 
     public function test_internal_integration_ticket_saves_manual_requester_without_external_user_link(): void
