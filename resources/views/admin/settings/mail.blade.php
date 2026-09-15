@@ -10,7 +10,7 @@
 </div>
 
 @if($errors->any())
-<div class="alert error-box"><strong>Não foi possível salvar.</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+<div class="alert error-box"><strong>Não foi possível concluir a ação.</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
 @endif
 
 <form action="{{ route('admin.settings.mail.update') }}" method="post" class="admin-editor">
@@ -74,4 +74,25 @@
         <button class="button" type="submit">Salvar configuração</button>
     </div>
 </form>
+
+<article class="panel">
+    <div class="section-title">
+        <div>
+            <p class="eyebrow">TESTE</p>
+            <h2>Enviar e-mail de teste</h2>
+            <p class="muted">Salve a configuração acima e envie uma mensagem de teste para confirmar a conexão com o servidor SMTP.</p>
+        </div>
+    </div>
+    <form action="{{ route('admin.settings.mail.test') }}" method="post">
+        @csrf
+        <div class="grid form-grid">
+            <label>E-mail de destino
+                <input type="email" name="test_email" value="{{ old('test_email',auth()->user()->email) }}" required>
+            </label>
+        </div>
+        <div class="sticky-actions">
+            <button class="secondary-button" type="submit">Enviar e-mail de teste</button>
+        </div>
+    </form>
+</article>
 @endsection
