@@ -78,6 +78,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/admin/configuracoes/email', [AdminMailSettingsController::class, 'edit'])->name('admin.settings.mail.edit');
     Route::patch('/admin/configuracoes/email', [AdminMailSettingsController::class, 'update'])->name('admin.settings.mail.update');
+    Route::post('/admin/configuracoes/email/testar', [AdminMailSettingsController::class, 'test'])
+        ->middleware('throttle:3,1')
+        ->name('admin.settings.mail.test');
 
     Route::get('/admin/departamentos', [AdminDepartmentController::class, 'index'])->name('admin.departments.index');
     Route::post('/admin/departamentos', [AdminDepartmentController::class, 'store'])->name('admin.departments.store');
