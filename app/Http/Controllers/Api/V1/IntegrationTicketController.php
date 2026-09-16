@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Status;
 use App\Models\Ticket;
 use App\Services\IntegrationSettings;
+use App\Services\TicketNotifier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,7 +54,7 @@ class IntegrationTicketController extends Controller
         ]);
     }
 
-    public function store(Request $request, IntegrationSettings $settings): JsonResponse
+    public function store(Request $request, IntegrationSettings $settings, TicketNotifier $notifier): JsonResponse
     {
         $data = $request->validate([
             'external_reference' => ['nullable', 'string', 'max:255'],
@@ -181,6 +182,10 @@ class IntegrationTicketController extends Controller
 
         $ticket->load(['status', 'labels']);
 
+        if ($created) {
+            $notifier->opened($ticket, null);
+        }
+
         return response()->json(['ticket' => $this->serializeTicket($ticket)], 201);
     }
 
@@ -191,7 +196,7 @@ class IntegrationTicketController extends Controller
         return response()->json(['ticket' => $this->serializeTicket($ticket)]);
     }
 
-    public function comment(Request $request, string $reference): JsonResponse
+    public function comment(Request $request, string $reference, TicketNotifier $notifier): JsonResponse
     {
         $ticket = $this->findVisibleTicket($request, $reference);
         $data = $request->validate([
@@ -221,6 +226,13 @@ class IntegrationTicketController extends Controller
             'source' => 'integration',
             'message_id' => $messageId,
         ]);
+
+        $notifier->publicComment($ticket, null, [
+            'requester' => false,
+            'responsible' => true,
+            'collaborators' => true,
+            'followers' => true,
+        ], $ticket->requester_email);
 
         return response()->json([
             'comment' => [
