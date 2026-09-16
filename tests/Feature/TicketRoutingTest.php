@@ -28,6 +28,10 @@ class TicketRoutingTest extends TestCase
     {
         $source=Department::create(['name'=>'Suporte']); $target=Department::create(['name'=>'Desenvolvimento']);
         $actor=$this->user($source,['tickets.forward','tickets.view_department']);
+        $actor->departments()->syncWithoutDetaching([
+            $source->id => ['access_level'=>'edit','follow_department'=>false],
+            $target->id => ['access_level'=>'send','follow_department'=>false],
+        ]);
         $assignee=$this->user($source,[]);
         $ticket=Ticket::create(['number'=>Ticket::nextNumber(),'origin'=>'internal','title'=>'Erro','description'=>'Descrição','priority'=>'normal','status_id'=>Status::system('in_progress')->id,'creator_id'=>$actor->id,'assignee_id'=>$assignee->id,'department_id'=>$source->id]);
 
