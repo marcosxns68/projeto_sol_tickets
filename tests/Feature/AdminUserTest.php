@@ -6,7 +6,7 @@ use App\Models\Department;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Auth\Notifications\VerifyEmail;
+use App\Notifications\VerifyEmailPtBrNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -134,7 +134,7 @@ class AdminUserTest extends TestCase
             ->post('/admin/usuarios/'.$target->id.'/reenviar-confirmacao')
             ->assertRedirect('/admin/usuarios/'.$target->id.'/editar');
 
-        Notification::assertSentTo($target, VerifyEmail::class);
+        Notification::assertSentTo($target, VerifyEmailPtBrNotification::class);
         $this->assertDatabaseHas('audit_logs', [
             'user_id'=>$admin->id,
             'auditable_type'=>User::class,
