@@ -9,6 +9,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\IntegrationSettings;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -123,6 +124,28 @@ class TicketCreationV2Test extends TestCase
 
         $this->actingAs($user)->post('/tickets', $this->payload($department))
             ->assertForbidden();
+        $this->assertDatabaseCount('tickets', 0);
+    }
+
+    public function test_integration_default_department_still_requires_send_access(): void
+    {
+        $user = $this->user('Criador Integração Restrito');
+        $department = Department::create(['name' => 'Destino padrão restrito', 'active' => true]);
+        $company = Company::create(['name' => 'Empresa Restrita', 'active' => true]);
+        $integration = ConnectedSystem::create([
+            'company_id' => $company->id,
+            'name' => 'Sistema Restrito',
+            'base_url' => 'https://93.184.216.34',
+            'active' => true,
+        ]);
+        app(IntegrationSettings::class)->put($integration->id, 'department_id', $department->id);
+
+        $this->actingAs($user)->post('/tickets', $this->payload($department, [
+            'source_mode' => 'integration',
+            'system_id' => $integration->id,
+            'integration_target' => 'integration',
+        ]))->assertForbidden();
+
         $this->assertDatabaseCount('tickets', 0);
     }
 
