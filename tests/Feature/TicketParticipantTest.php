@@ -28,6 +28,9 @@ class TicketParticipantTest extends TestCase
     {
         $department=Department::create(['name'=>'Operações']);
         $actor=$this->user($department,['tickets.manage_participants','tickets.view_department']);
+        $actor->departments()->syncWithoutDetaching([
+            $department->id => ['access_level'=>'edit','follow_department'=>false],
+        ]);
         $collaborator=$this->user($department); $follower=$this->user($department);
         $ticket=Ticket::create(['number'=>Ticket::nextNumber(),'origin'=>'internal','title'=>'Ticket','description'=>'Descrição','priority'=>'normal','status_id'=>Status::system('new')->id,'department_id'=>$department->id]);
 

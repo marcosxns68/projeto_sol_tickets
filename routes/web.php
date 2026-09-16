@@ -10,6 +10,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntegrationUserDirectoryController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\RequesterPortalController;
 use App\Http\Controllers\TicketAssignmentController;
 use App\Http\Controllers\TicketBoxController;
 use App\Http\Controllers\TicketChecklistController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\TicketLabelController;
 use App\Http\Controllers\TicketLifecycleController;
 use App\Http\Controllers\TicketParticipantController;
 use App\Http\Controllers\TicketRoutingController;
+use App\Http\Controllers\UserDirectoryController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +34,16 @@ Route::middleware('guest')->group(function () {
     Route::get('/redefinir-senha/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
     Route::post('/redefinir-senha', [PasswordResetController::class, 'reset'])->name('password.update');
 });
+
+Route::get('/minhas-solicitacoes', [RequesterPortalController::class, 'index'])
+    ->middleware('signed')
+    ->name('requester.index');
+Route::get('/minhas-solicitacoes/{ticket}', [RequesterPortalController::class, 'show'])
+    ->middleware('signed')
+    ->name('requester.show');
+Route::post('/minhas-solicitacoes/{ticket}/comentarios', [RequesterPortalController::class, 'comment'])
+    ->middleware(['signed', 'throttle:10,1'])
+    ->name('requester.comments.store');
 
 Route::get('/email/verificar', fn () => view('auth.verify-email'))->middleware('auth')->name('verification.notice');
 Route::get('/email/verificar/{id}/{hash}', function (EmailVerificationRequest $request) {
@@ -48,6 +60,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/minha-caixa', [TicketBoxController::class, 'mine'])->name('boxes.mine');
     Route::get('/todos-os-tickets', [TicketBoxController::class, 'all'])->name('boxes.all');
     Route::get('/departamentos/{department}/tickets', [TicketBoxController::class, 'department'])->name('boxes.department');
+    Route::get('/departamentos', [AdminDepartmentController::class, 'index'])->name('departments.index');
+    Route::patch('/departamentos/{department}/acompanhar', [AdminDepartmentController::class, 'follow'])->name('departments.follow');
+    Route::get('/usuarios/buscar', UserDirectoryController::class)->name('users.search');
     Route::get('/integracoes/{integration}/usuarios', IntegrationUserDirectoryController::class)->name('integrations.users.search');
 
     Route::post('/tickets/{ticket}/assumir', [TicketAssignmentController::class, 'assume'])->name('tickets.assume');
@@ -89,6 +104,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/departamentos', [AdminDepartmentController::class, 'store'])->name('admin.departments.store');
     Route::get('/admin/departamentos/{department}/editar', [AdminDepartmentController::class, 'edit'])->name('admin.departments.edit');
     Route::patch('/admin/departamentos/{department}', [AdminDepartmentController::class, 'update'])->name('admin.departments.update');
+    Route::post('/admin/departamentos/{department}/usuarios', [AdminDepartmentController::class, 'addUser'])->name('admin.departments.users.store');
+    Route::patch('/admin/departamentos/{department}/usuarios/{user}', [AdminDepartmentController::class, 'updateUser'])->name('admin.departments.users.update');
+    Route::delete('/admin/departamentos/{department}/usuarios/{user}', [AdminDepartmentController::class, 'removeUser'])->name('admin.departments.users.destroy');
 
     Route::get('/admin/etiquetas', [AdminLabelController::class, 'index'])->name('admin.labels.index');
     Route::post('/admin/etiquetas', [AdminLabelController::class, 'store'])->name('admin.labels.store');

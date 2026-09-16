@@ -5,22 +5,33 @@ namespace App\Http\Controllers;
 use App\Models\Ticket;
 use App\Services\IntegrationWebhookDispatcher;
 use App\Services\TicketEventRecorder;
+use App\Services\TicketNotifier;
 use Illuminate\Http\Request;
 
 class TicketCommentController extends Controller
 {
-    public function store(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks)
-    {
+    public function store(
+        Request $request,
+        Ticket $ticket,
+        TicketEventRecorder $events,
+        IntegrationWebhookDispatcher $webhooks,
+        TicketNotifier $notifier,
+    ) {
         $actor = $request->user();
         abort_unless(Ticket::visibleTo($actor)->whereKey($ticket->id)->exists(), 403);
 
         $data = $request->validate([
             'visibility' => ['required', 'in:public,internal'],
             'body' => ['required', 'string', 'max:10000'],
+            'notify_requester' => ['nullable', 'boolean'],
+            'notify_responsible' => ['nullable', 'boolean'],
+            'notify_collaborators' => ['nullable', 'boolean'],
+            'notify_followers' => ['nullable', 'boolean'],
         ]);
 
+        $isRequester = (int) $ticket->requester_user_id === (int) $actor->id;
         $permission = $data['visibility'] === 'public' ? 'tickets.comment' : 'tickets.internal_note';
-        abort_unless($actor->hasPermission($permission), 403);
+        abort_unless($actor->hasPermission($permission) || ($data['visibility'] === 'public' && $isRequester), 403);
 
         $comment = $ticket->comments()->create([
             'user_id' => $actor->id,
@@ -39,6 +50,13 @@ class TicketCommentController extends Controller
                     'body' => $comment->body,
                     'created_at' => $comment->created_at?->toIso8601String(),
                 ],
+            ]);
+
+            $notifier->publicComment($ticket, $actor, [
+                'requester' => $request->boolean('notify_requester'),
+                'responsible' => $request->boolean('notify_responsible'),
+                'collaborators' => $request->boolean('notify_collaborators'),
+                'followers' => $request->boolean('notify_followers'),
             ]);
         }
 

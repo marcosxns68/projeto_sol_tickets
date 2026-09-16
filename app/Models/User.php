@@ -33,6 +33,13 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Department::class);
     }
 
+    public function departments()
+    {
+        return $this->belongsToMany(Department::class, 'department_user_access')
+            ->withPivot(['access_level', 'follow_department'])
+            ->withTimestamps();
+    }
+
     public function permissionOverrides()
     {
         return $this->hasMany(UserPermissionOverride::class);

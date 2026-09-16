@@ -46,6 +46,16 @@
         <span>⌕</span>
         <input name="q" value="{{ request('q') }}" placeholder="Buscar nesta caixa...">
     </div>
+    @if($boxKind === 'mine' && $departments->isNotEmpty())
+    <label class="toolbar-field">Filtrar departamento
+        <select name="department">
+            <option value="">Todos</option>
+            @foreach($departments as $filterDepartment)
+                <option value="{{ $filterDepartment->id }}" @selected((string)request('department') === (string)$filterDepartment->id)>{{ $filterDepartment->name }}</option>
+            @endforeach
+        </select>
+    </label>
+    @endif
     <label class="toolbar-field">Status
         <select name="status">
             <option value="">Ativos</option>
@@ -84,9 +94,19 @@
         <input name="q" value="{{ request('q') }}" placeholder="Buscar nesta caixa..." aria-label="Buscar nesta caixa">
         <button class="button compact" type="submit">Buscar</button>
     </div>
-    <details class="mobile-filters" @if(request('status') || request('priority') || request('label') || request()->boolean('unassigned') || request()->boolean('overdue')) open @endif>
+    <details class="mobile-filters" @if(request('department') || request('status') || request('priority') || request('label') || request()->boolean('unassigned') || request()->boolean('overdue')) open @endif>
         <summary>Filtros</summary>
         <div class="mobile-filter-grid">
+            @if($boxKind === 'mine' && $departments->isNotEmpty())
+            <label class="toolbar-field">Filtrar departamento
+                <select name="department">
+                    <option value="">Todos</option>
+                    @foreach($departments as $filterDepartment)
+                        <option value="{{ $filterDepartment->id }}" @selected((string)request('department') === (string)$filterDepartment->id)>{{ $filterDepartment->name }}</option>
+                    @endforeach
+                </select>
+            </label>
+            @endif
             <label class="toolbar-field">Status
                 <select name="status">
                     <option value="">Ativos</option>

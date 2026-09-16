@@ -51,7 +51,6 @@ class VisualShellTest extends TestCase
             ->assertSee('class="workspace-main"', false)
             ->assertSee('class="tickets-table"', false)
             ->assertSee('Minha Caixa')
-            ->assertSee('Meu Departamento')
             ->assertSee('Usuários')
             ->assertSee('Departamentos')
             ->assertSee('Cargos')

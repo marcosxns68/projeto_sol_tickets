@@ -62,6 +62,9 @@ class TicketAssignmentTest extends TestCase
         $this->actingAs($without)->patch('/tickets/'.$ticket->id.'/responsavel',['user_id'=>$target->id])->assertForbidden();
 
         $manager=$this->user($department,['tickets.reassign']);
+        $manager->departments()->syncWithoutDetaching([
+            $department->id => ['access_level'=>'edit','follow_department'=>false],
+        ]);
         $this->actingAs($manager)->patch('/tickets/'.$ticket->id.'/responsavel',['user_id'=>$target->id])->assertRedirect();
         $this->assertSame($target->id,$ticket->fresh()->assignee_id);
         $this->assertDatabaseHas('ticket_events',['ticket_id'=>$ticket->id,'event'=>'reassigned','actor_id'=>$manager->id]);

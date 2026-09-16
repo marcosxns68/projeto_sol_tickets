@@ -5,17 +5,24 @@ namespace App\Http\Controllers;
 use App\Models\Status;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\DepartmentAccess;
 use App\Services\TicketEventRecorder;
+use App\Services\TicketNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class TicketAssignmentController extends Controller
 {
-    public function assume(Request $request, Ticket $ticket, TicketEventRecorder $events)
-    {
+    public function assume(
+        Request $request,
+        Ticket $ticket,
+        TicketEventRecorder $events,
+        DepartmentAccess $departmentAccess,
+        TicketNotifier $notifier,
+    ) {
         $user = $request->user();
         abort_unless($user->hasPermission('tickets.assume'), 403);
-        abort_unless($ticket->department_id && $user->department_id === $ticket->department_id, 403);
+        abort_unless($ticket->department_id && $departmentAccess->canView($user, $ticket->department_id), 403);
         abort_if($ticket->assignee_id !== null, 409, 'Este ticket já possui responsável.');
 
         DB::transaction(function () use ($ticket, $user, $events) {
@@ -36,13 +43,24 @@ class TicketAssignmentController extends Controller
             ]);
         });
 
+        $notifier->reassigned($ticket, null, $user, $user);
+
         return redirect()->route('tickets.show', $ticket)->with('success', 'Ticket assumido por você.');
     }
 
-    public function reassign(Request $request, Ticket $ticket, TicketEventRecorder $events)
-    {
+    public function reassign(
+        Request $request,
+        Ticket $ticket,
+        TicketEventRecorder $events,
+        DepartmentAccess $departmentAccess,
+        TicketNotifier $notifier,
+    ) {
         $actor = $request->user();
         abort_unless($actor->hasPermission('tickets.reassign'), 403);
+        abort_unless(Ticket::visibleTo($actor)->whereKey($ticket->id)->exists(), 403);
+        if ($ticket->department_id && !$actor->hasPermission('tickets.view_all')) {
+            abort_unless($departmentAccess->canEdit($actor, $ticket->department_id), 403);
+        }
 
         $data = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
@@ -61,6 +79,8 @@ class TicketAssignmentController extends Controller
                 'new_assignee_name' => $target->name,
             ]);
         });
+
+        $notifier->reassigned($ticket, $old, $target, $actor);
 
         return redirect()->route('tickets.show', $ticket)->with('success', 'Responsável atualizado.');
     }

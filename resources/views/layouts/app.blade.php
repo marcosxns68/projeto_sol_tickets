@@ -14,6 +14,7 @@
 <body>
 @auth
 @php($me = auth()->user())
+@php($departmentMenuIds = app(\App\Services\DepartmentAccess::class)->sendableIds($me))
 <div class="app-shell" id="appShell">
     <aside class="app-sidebar" id="appSidebar" aria-label="Menu principal">
         <div class="sidebar-brand-row">
@@ -34,11 +35,11 @@
             @if($me->hasPermission('tickets.view_all'))
                 <a href="{{ route('boxes.all') }}" class="sidebar-link {{ request()->routeIs('boxes.all') ? 'active' : '' }}">Todos os tickets</a>
             @endif
-            @if($me->department_id && $me->hasPermission('tickets.view_department'))
-                <a href="{{ route('boxes.department',$me->department_id) }}" class="sidebar-link {{ request()->routeIs('boxes.department') ? 'active' : '' }}">Meu Departamento</a>
+            @if($departmentMenuIds !== [] || $me->hasPermission('departments.manage'))
+                <a href="{{ route('departments.index') }}" class="sidebar-link {{ request()->routeIs('departments.*') || request()->routeIs('boxes.department') ? 'active' : '' }}">Departamentos</a>
             @endif
 
-            @if($me->hasPermission('users.manage') || $me->hasPermission('departments.manage') || $me->hasPermission('roles.manage') || $me->hasPermission('integrations.manage') || $me->hasPermission('labels.manage'))
+            @if($me->hasPermission('users.manage') || $me->hasPermission('roles.manage') || $me->hasPermission('integrations.manage') || $me->hasPermission('labels.manage'))
                 <p class="sidebar-label admin-label">ADMINISTRAÇÃO</p>
             @endif
             @if($me->hasPermission('users.manage'))
@@ -46,9 +47,6 @@
             @endif
             @if($me->hasPermission('users.manage') && $me->hasPermission('permissions.manage'))
                 <a href="{{ route('admin.settings.mail.edit') }}" class="sidebar-link {{ request()->routeIs('admin.settings.mail.*') ? 'active' : '' }}">Configurações de e-mail</a>
-            @endif
-            @if($me->hasPermission('departments.manage'))
-                <a href="{{ route('admin.departments.index') }}" class="sidebar-link {{ request()->routeIs('admin.departments.*') ? 'active' : '' }}">Departamentos</a>
             @endif
             @if($me->hasPermission('roles.manage'))
                 <a href="{{ route('admin.roles.index') }}" class="sidebar-link {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">Cargos</a>
