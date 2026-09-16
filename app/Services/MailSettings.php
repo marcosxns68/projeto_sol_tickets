@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 
 class MailSettings
 {
+    private const SENDER_NAME = 'Sutoorii Tickets';
+
     private const KEYS = [
         'host' => 'mail.host',
         'port' => 'mail.port',
@@ -30,7 +32,7 @@ class MailSettings
             'username' => $stored[self::KEYS['username']] ?? config('mail.mailers.smtp.username'),
             'encryption' => $stored[self::KEYS['encryption']] ?? $this->encryptionFromConfig(),
             'from_address' => $stored[self::KEYS['from_address']] ?? config('mail.from.address'),
-            'from_name' => $stored[self::KEYS['from_name']] ?? config('mail.from.name'),
+            'from_name' => self::SENDER_NAME,
             'password_saved' => isset($stored[self::KEYS['password']]),
         ];
     }
@@ -43,7 +45,6 @@ class MailSettings
             self::KEYS['username'] => (string) ($data['username'] ?? ''),
             self::KEYS['encryption'] => (string) $data['encryption'],
             self::KEYS['from_address'] => (string) $data['from_address'],
-            self::KEYS['from_name'] => (string) $data['from_name'],
         ];
 
         if (isset($data['password']) && $data['password'] !== '') {
@@ -61,6 +62,8 @@ class MailSettings
                     ]
                 );
             }
+
+            DB::table('settings')->where('key', self::KEYS['from_name'])->delete();
         });
     }
 
@@ -71,6 +74,8 @@ class MailSettings
 
     public function apply(): void
     {
+        config(['mail.from.name' => self::SENDER_NAME]);
+
         $stored = DB::table('settings')
             ->whereIn('key', array_values(self::KEYS))
             ->pluck('value', 'key');
@@ -97,7 +102,7 @@ class MailSettings
             'mail.mailers.smtp.password' => $password,
             'mail.mailers.smtp.scheme' => $this->schemeFor($encryption),
             'mail.from.address' => $stored[self::KEYS['from_address']] ?? config('mail.from.address'),
-            'mail.from.name' => $stored[self::KEYS['from_name']] ?? config('mail.from.name'),
+            'mail.from.name' => self::SENDER_NAME,
         ]);
     }
 

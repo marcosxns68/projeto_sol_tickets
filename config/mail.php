@@ -20,6 +20,6 @@ return [
     ],
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'tickets@sutoorii.com'),
-        'name' => env('MAIL_FROM_NAME', 'Sutoorii Tickets'),
+        'name' => 'Sutoorii Tickets',
     ],
 ];

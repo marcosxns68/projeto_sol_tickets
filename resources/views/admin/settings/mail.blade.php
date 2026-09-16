@@ -64,9 +64,10 @@
             <label>E-mail remetente
                 <input type="email" name="from_address" value="{{ old('from_address',$mailSettings['from_address']) }}" required>
             </label>
-            <label>Nome remetente
-                <input name="from_name" value="{{ old('from_name',$mailSettings['from_name']) }}" required>
-            </label>
+            <div>
+                <b>Nome remetente</b>
+                <div class="alert" style="margin-top:8px"><strong>Sutoorii Tickets</strong><br><span class="muted">Este nome é fixo e será usado em todos os e-mails enviados pelo sistema.</span></div>
+            </div>
         </div>
     </article>
 

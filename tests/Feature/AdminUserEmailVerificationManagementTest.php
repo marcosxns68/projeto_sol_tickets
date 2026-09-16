@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Auth\Notifications\VerifyEmail;
+use App\Notifications\VerifyEmailPtBrNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -87,7 +87,7 @@ class AdminUserEmailVerificationManagementTest extends TestCase
             ->assertSessionHas('success');
 
         $this->assertNull($target->fresh()->email_verified_at);
-        Notification::assertSentTo($target, VerifyEmail::class);
+        Notification::assertSentTo($target, VerifyEmailPtBrNotification::class);
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $admin->id,
             'auditable_type' => User::class,

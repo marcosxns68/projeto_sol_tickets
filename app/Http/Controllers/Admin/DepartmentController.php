@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\User;
+use App\Notifications\DepartmentMembershipNotification;
 use App\Services\DepartmentAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class DepartmentController extends Controller
 {
@@ -99,6 +102,11 @@ class DepartmentController extends Controller
         ]);
         $user = User::query()->whereKey($data['user_id'])->where('active', true)->firstOrFail();
 
+        $alreadyAssociated = DB::table('department_user_access')
+            ->where('user_id', $user->id)
+            ->where('department_id', $department->id)
+            ->exists();
+
         DB::table('department_user_access')->updateOrInsert(
             ['user_id' => $user->id, 'department_id' => $department->id],
             [
@@ -113,6 +121,19 @@ class DepartmentController extends Controller
             'user_id' => $user->id,
             'access_level' => $data['access_level'],
         ]);
+
+        if (!$alreadyAssociated) {
+            try {
+                $user->notify(new DepartmentMembershipNotification($department, $data['access_level']));
+            } catch (Throwable $exception) {
+                Log::warning('Falha ao enviar notificação de entrada em departamento.', [
+                    'department_id' => $department->id,
+                    'user_id' => $user->id,
+                    'exception' => $exception::class,
+                    'code' => $exception->getCode(),
+                ]);
+            }
+        }
 
         return back()->with('success', 'Pessoa associada ao departamento.');
     }

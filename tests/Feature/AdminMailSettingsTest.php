@@ -41,7 +41,7 @@ class AdminMailSettingsTest extends TestCase
         $this->assertSame('SenhaTeste#123', config('mail.mailers.smtp.password'));
         $this->assertSame('smtps', config('mail.mailers.smtp.scheme'));
         $this->assertSame('tickets@example.test', config('mail.from.address'));
-        $this->assertSame('Tickets Teste', config('mail.from.name'));
+        $this->assertSame('Sutoorii Tickets', config('mail.from.name'));
     }
 
     public function test_mail_settings_keep_environment_configuration_when_database_has_no_mail_values(): void
@@ -62,5 +62,6 @@ class AdminMailSettingsTest extends TestCase
         $this->assertSame(587, config('mail.mailers.smtp.port'));
         $this->assertSame('env-password', config('mail.mailers.smtp.password'));
         $this->assertSame('env-from@example.test', config('mail.from.address'));
+        $this->assertSame('Sutoorii Tickets', config('mail.from.name'));
     }
 }
