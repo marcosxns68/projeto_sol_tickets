@@ -4,16 +4,32 @@
 <div class="page-head"><div><p class="eyebrow">ADMINISTRAÇÃO</p><h1>{{ $managedUser->name }}</h1><p class="muted">{{ $managedUser->email }}</p></div><a href="{{ route('admin.users.index') }}" class="secondary-button">← Usuários</a></div>
 @if($errors->any())<div class="alert error-box"><strong>Não foi possível concluir a ação.</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
-@if(!$managedUser->hasVerifiedEmail() && auth()->user()->hasPermission('users.manage') && auth()->user()->hasPermission('permissions.manage'))
 <article class="panel">
     <div class="section-title">
-        <div><p class="eyebrow">CONFIRMAÇÃO DE CONTA</p><h2>Conta ainda não confirmada</h2><p class="muted">O endereço {{ $managedUser->email }} ainda não confirmou o cadastro.</p></div>
+        <div>
+            <p class="eyebrow">CONFIRMAÇÃO DE CONTA</p>
+            @if($managedUser->hasVerifiedEmail())
+                <h2>E-mail confirmado</h2>
+                <p class="muted">O endereço {{ $managedUser->email }} está marcado como confirmado desde {{ $managedUser->email_verified_at?->format('d/m/Y H:i') }}.</p>
+            @else
+                <h2>Conta ainda não confirmada</h2>
+                <p class="muted">O endereço {{ $managedUser->email }} ainda não confirmou o cadastro.</p>
+            @endif
+        </div>
     </div>
-    <form method="post" action="{{ route('admin.users.resend-verification',$managedUser) }}">@csrf
-        <button class="secondary-button" type="submit">Reenviar e-mail de confirmação</button>
-    </form>
+
+    @if(auth()->user()->hasPermission('users.manage') && auth()->user()->hasPermission('permissions.manage'))
+        @if($managedUser->hasVerifiedEmail())
+            <form method="post" action="{{ route('admin.users.reset-verification',$managedUser) }}" onsubmit="return confirm('Isso removerá a confirmação atual e enviará um novo e-mail para este usuário. Continuar?')">@csrf
+                <button class="secondary-button" type="submit">Redefinir confirmação e reenviar e-mail</button>
+            </form>
+        @else
+            <form method="post" action="{{ route('admin.users.resend-verification',$managedUser) }}">@csrf
+                <button class="secondary-button" type="submit">Reenviar e-mail de confirmação</button>
+            </form>
+        @endif
+    @endif
 </article>
-@endif
 
 <form action="{{ route('admin.users.update',$managedUser) }}" method="post" class="admin-editor">@csrf @method('PATCH')
 <article class="panel"><div class="section-title"><div><p class="eyebrow">PERFIL</p><h2>Dados do usuário</h2></div></div>
