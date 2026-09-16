@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class TicketBoxTest extends TestCase
@@ -52,6 +53,19 @@ class TicketBoxTest extends TestCase
             'department_id' => null,
             'active' => true,
         ]);
+    }
+
+    private function associate(User $user, Department $department, string $level): void
+    {
+        DB::table('department_user_access')->updateOrInsert(
+            ['user_id' => $user->id, 'department_id' => $department->id],
+            [
+                'access_level' => $level,
+                'follow_department' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
     }
 
     private function ticket(Department $department, string $title, string $statusKey, ?User $assignee = null, ?User $creator = null): Ticket
@@ -120,6 +134,45 @@ class TicketBoxTest extends TestCase
             ->get('/departamentos/'.$department->id.'/tickets')
             ->assertOk()
             ->assertSee($ticket->number);
+    }
+
+    public function test_department_box_accepts_new_view_access_outside_legacy_department(): void
+    {
+        $legacy = Department::create(['name' => 'Legado']);
+        $secondary = Department::create(['name' => 'Projetos']);
+        $user = $this->user($legacy);
+        $this->associate($user, $secondary, 'view');
+        $ticket = $this->ticket($secondary, 'Fila secundária', 'new');
+
+        $this->actingAs($user)
+            ->get('/departamentos/'.$secondary->id.'/tickets')
+            ->assertOk()
+            ->assertSee($ticket->number);
+    }
+
+    public function test_my_box_filters_only_by_departments_the_user_can_view(): void
+    {
+        $legacy = Department::create(['name' => 'Operação']);
+        $viewable = Department::create(['name' => 'Financeiro']);
+        $sendOnly = Department::create(['name' => 'Envio apenas']);
+        $user = $this->user($legacy);
+        $this->associate($user, $viewable, 'view');
+        $this->associate($user, $sendOnly, 'send');
+
+        $legacyTicket = $this->ticket($legacy, 'Ticket operação', 'new', $user);
+        $viewableTicket = $this->ticket($viewable, 'Ticket financeiro', 'new', $user);
+
+        $this->actingAs($user)->get('/minha-caixa')
+            ->assertOk()
+            ->assertSee('Filtrar departamento')
+            ->assertSee($legacy->name)
+            ->assertSee($viewable->name)
+            ->assertDontSee($sendOnly->name);
+
+        $this->actingAs($user)->get('/minha-caixa?department='.$viewable->id)
+            ->assertOk()
+            ->assertSee($viewableTicket->number)
+            ->assertDontSee($legacyTicket->number);
     }
 
     public function test_view_all_user_has_a_general_box_for_unassigned_internal_and_integration_tickets(): void
