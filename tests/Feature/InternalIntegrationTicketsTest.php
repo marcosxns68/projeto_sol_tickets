@@ -135,6 +135,10 @@ class InternalIntegrationTicketsTest extends TestCase
         $this->initialStatus();
         $integration = $this->integration();
         $department = Department::create(['name' => 'Suporte externo', 'active' => true]);
+        $user->departments()->attach($department->id, [
+            'access_level' => 'send',
+            'follow_department' => false,
+        ]);
         $label = Label::create(['name' => 'Estúdio França', 'color' => '#7c3aed', 'system' => false]);
         $settings = app(IntegrationSettings::class);
         $settings->put($integration->id, 'department_id', $department->id);
