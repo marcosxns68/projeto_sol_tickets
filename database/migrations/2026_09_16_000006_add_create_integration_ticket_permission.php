@@ -20,9 +20,14 @@ return new class extends Migration {
     public function down(): void
     {
         $permission = Permission::where('key', 'tickets.create_integration')->first();
-        if ($permission) {
-            $permission->roles?->each(fn ($role) => $role->permissions()->detach($permission->id));
-            $permission->delete();
+        if (! $permission) {
+            return;
         }
+
+        foreach (Role::all() as $role) {
+            $role->permissions()->detach($permission->id);
+        }
+
+        $permission->delete();
     }
 };
