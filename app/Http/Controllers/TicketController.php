@@ -8,6 +8,7 @@ use App\Models\Label;
 use App\Models\Status;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\DepartmentAccess;
 use App\Services\IntegrationSettings;
 use App\Services\IntegrationUserDirectory;
 use App\Services\IntegrationWebhookDispatcher;
@@ -25,13 +26,20 @@ class TicketController extends Controller
         return redirect()->route('boxes.mine');
     }
 
-    public function create(Request $request)
+    public function create(Request $request, DepartmentAccess $departmentAccess)
     {
-        abort_unless($request->user()->hasPermission('tickets.create'), 403);
+        $actor = $request->user();
+        abort_unless($actor->hasPermission('tickets.create'), 403);
+
+        $sendableIds = $departmentAccess->sendableIds($actor);
 
         return view('tickets.create', [
             'statuses' => Status::where('active', true)->orderBy('position')->get(),
-            'departments' => Department::where('active', true)->orderBy('name')->get(),
+            'departments' => Department::query()
+                ->where('active', true)
+                ->whereIn('id', $sendableIds)
+                ->orderBy('name')
+                ->get(),
             'integrations' => ConnectedSystem::query()->where('active', true)->orderBy('name')->get(),
         ]);
     }
@@ -41,27 +49,45 @@ class TicketController extends Controller
         TicketEventRecorder $events,
         IntegrationSettings $settings,
         IntegrationUserDirectory $directory,
+        DepartmentAccess $departmentAccess,
     ) {
-        abort_unless($request->user()->hasPermission('tickets.create'), 403);
+        $actor = $request->user();
+        abort_unless($actor->hasPermission('tickets.create'), 403);
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:180'],
             'description' => ['required', 'string'],
             'priority' => ['required', Rule::in(['low', 'normal', 'high', 'urgent'])],
             'due_at' => ['required', 'date', 'after:now'],
-            'department_id' => ['nullable', 'exists:departments,id'],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'source_mode' => ['nullable', Rule::in(['internal', 'integration'])],
             'system_id' => ['nullable', 'integer'],
             'requester_name' => ['nullable', 'string', 'max:160'],
+            'requester_email' => ['nullable', 'email', 'max:190'],
+            'requester_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'integration_target' => ['nullable', Rule::in(['integration', 'external_user'])],
             'external_requester_id' => ['nullable', 'string', 'max:190'],
+            'assignee_id' => ['nullable', 'integer', 'exists:users,id'],
+            'collaborator_ids' => ['nullable', 'array'],
+            'collaborator_ids.*' => ['integer', 'exists:users,id'],
+            'follower_ids' => ['nullable', 'array'],
+            'follower_ids.*' => ['integer', 'exists:users,id'],
         ]);
 
         $sourceMode = $data['source_mode'] ?? 'internal';
         $integration = null;
         $externalUser = null;
         $target = null;
-        $manualRequesterName = null;
+        $requesterUser = null;
+        $manualRequesterName = trim((string) ($data['requester_name'] ?? '')) ?: null;
+        $manualRequesterEmail = $this->normalizeEmail($data['requester_email'] ?? null);
+
+        if (!empty($data['requester_user_id'])) {
+            $requesterUser = User::query()
+                ->whereKey((int) $data['requester_user_id'])
+                ->where('active', true)
+                ->firstOrFail();
+        }
 
         if ($sourceMode === 'integration') {
             if (empty($data['system_id'])) {
@@ -77,35 +103,45 @@ class TicketController extends Controller
                 throw ValidationException::withMessages(['system_id' => 'A integração selecionada não está disponível.']);
             }
 
-            $manualRequesterName = trim((string) ($data['requester_name'] ?? '')) ?: null;
+            $target = $data['integration_target'] ?? 'integration';
+            if (!in_array($target, ['integration', 'external_user'], true)) {
+                throw ValidationException::withMessages(['integration_target' => 'Escolha quem receberá este ticket.']);
+            }
 
-            if ($manualRequesterName !== null) {
-                $target = 'integration';
-            } else {
-                $target = $data['integration_target'] ?? 'integration';
-                if (!in_array($target, ['integration', 'external_user'], true)) {
-                    throw ValidationException::withMessages(['integration_target' => 'Escolha quem receberá este ticket.']);
+            $externalId = trim((string) ($data['external_requester_id'] ?? ''));
+            if ($target === 'external_user' && $externalId !== '') {
+                try {
+                    $externalUser = $directory->find($integration, $externalId);
+                } catch (RuntimeException) {
+                    throw ValidationException::withMessages([
+                        'external_requester_id' => 'Não foi possível validar o usuário da integração agora.',
+                    ]);
                 }
 
-                if ($target === 'external_user') {
-                    $externalId = trim((string) ($data['external_requester_id'] ?? ''));
-                    if ($externalId === '') {
-                        throw ValidationException::withMessages(['external_requester_id' => 'Selecione um usuário da integração.']);
-                    }
+                if (!$externalUser) {
+                    throw ValidationException::withMessages([
+                        'external_requester_id' => 'O usuário selecionado não está disponível nesta integração.',
+                    ]);
+                }
+            } elseif ($target === 'external_user' && $manualRequesterEmail === null) {
+                throw ValidationException::withMessages([
+                    'external_requester_id' => 'Selecione um usuário da integração ou informe o e-mail do solicitante.',
+                ]);
+            }
 
-                    try {
-                        $externalUser = $directory->find($integration, $externalId);
-                    } catch (RuntimeException) {
-                        throw ValidationException::withMessages([
-                            'external_requester_id' => 'Não foi possível validar o usuário da integração agora.',
-                        ]);
+            if (!$externalUser && $manualRequesterEmail !== null) {
+                try {
+                    $matches = $directory->search($integration, $manualRequesterEmail);
+                    foreach ($matches as $candidate) {
+                        if ($this->normalizeEmail($candidate['email'] ?? null) === $manualRequesterEmail) {
+                            $externalUser = $candidate;
+                            $target = 'external_user';
+                            break;
+                        }
                     }
-
-                    if (!$externalUser) {
-                        throw ValidationException::withMessages([
-                            'external_requester_id' => 'O usuário selecionado não está disponível nesta integração.',
-                        ]);
-                    }
+                } catch (RuntimeException) {
+                    // O vínculo por e-mail é uma conveniência. Se o diretório estiver
+                    // indisponível, o contato manual continua válido.
                 }
             }
         }
@@ -113,53 +149,133 @@ class TicketController extends Controller
         $newStatus = Status::system('new') ?? Status::where('category', 'open')->orderBy('position')->first();
         abort_unless($newStatus, 500, 'Nenhum status inicial está configurado.');
 
-        $departmentId = $data['department_id'] ?? null;
+        $departmentId = !empty($data['department_id']) ? (int) $data['department_id'] : null;
+        $departmentFromIntegrationDefault = false;
+
         if ($integration) {
             $integrationDepartment = $settings->departmentId($integration->id);
             if ($integrationDepartment !== null && Department::query()->whereKey($integrationDepartment)->where('active', true)->exists()) {
-                $departmentId = $integrationDepartment;
-            }
-        }
-        if (empty($departmentId)) {
-            $departmentId = $request->user()->department_id;
-        }
-
-        $requesterName = $manualRequesterName ?? ($externalUser['name'] ?? null);
-
-        $ticket = Ticket::create([
-            'number' => Ticket::nextNumber(),
-            'origin' => 'internal',
-            'title' => $data['title'],
-            'description' => $data['description'],
-            'priority' => $data['priority'],
-            'status_id' => $newStatus->id,
-            'creator_id' => $request->user()->id,
-            'department_id' => $departmentId,
-            'system_id' => $integration?->id,
-            'requester_name' => $requesterName,
-            'requester_email' => $manualRequesterName !== null ? null : ($externalUser['email'] ?? null),
-            'external_requester_id' => $manualRequesterName !== null ? null : ($externalUser['id'] ?? null),
-            'due_at' => $data['due_at'],
-        ]);
-
-        if ($integration) {
-            $labelIds = $settings->labelIds($integration->id);
-            if ($labelIds !== []) {
-                $ticket->labels()->syncWithoutDetaching($labelIds);
+                $departmentId = (int) $integrationDepartment;
+                $departmentFromIntegrationDefault = true;
             }
         }
 
-        $events->record($ticket, $request->user(), 'created', [
-            'department_id' => $ticket->department_id,
-            'status' => $newStatus->name,
-            'integration_id' => $integration?->id,
-            'integration_name' => $integration?->name,
-            'integration_target' => $target,
-            'external_requester_id' => $ticket->external_requester_id,
-            'external_requester_name' => $requesterName,
-        ]);
+        if ($departmentId !== null && !$departmentFromIntegrationDefault) {
+            $department = Department::query()->whereKey($departmentId)->where('active', true)->firstOrFail();
+            abort_unless($departmentAccess->canSend($actor, $department), 403);
+        }
 
-        return redirect()->route('tickets.show', $ticket)->with('success', 'Ticket criado com sucesso.');
+        if ($departmentId === null && $actor->department_id) {
+            $legacyDepartment = Department::query()->whereKey($actor->department_id)->where('active', true)->first();
+            if ($legacyDepartment && $departmentAccess->canSend($actor, $legacyDepartment)) {
+                $departmentId = $legacyDepartment->id;
+            }
+        }
+
+        $assignee = null;
+        if (!empty($data['assignee_id'])) {
+            $assignee = User::query()->whereKey((int) $data['assignee_id'])->where('active', true)->firstOrFail();
+        }
+
+        $collaborators = $this->activeUsersByIds($data['collaborator_ids'] ?? []);
+        $followers = $this->activeUsersByIds($data['follower_ids'] ?? []);
+
+        $requesterName = $requesterUser?->name
+            ?? ($externalUser['name'] ?? null)
+            ?? $manualRequesterName;
+        $requesterEmail = $this->normalizeEmail(
+            $requesterUser?->email
+            ?? ($externalUser['email'] ?? null)
+            ?? $manualRequesterEmail
+        );
+        $externalRequesterId = $externalUser['id'] ?? null;
+
+        $ticket = DB::transaction(function () use (
+            $actor,
+            $data,
+            $newStatus,
+            $departmentId,
+            $integration,
+            $requesterUser,
+            $requesterName,
+            $requesterEmail,
+            $externalRequesterId,
+            $assignee,
+            $collaborators,
+            $followers,
+            $settings,
+            $events,
+            $target,
+        ) {
+            $ticket = Ticket::create([
+                'number' => Ticket::nextNumber(),
+                'origin' => 'internal',
+                'title' => $data['title'],
+                'description' => $data['description'],
+                'priority' => $data['priority'],
+                'status_id' => $newStatus->id,
+                'creator_id' => $actor->id,
+                'assignee_id' => $assignee?->id,
+                'department_id' => $departmentId,
+                'company_id' => $integration?->company_id,
+                'system_id' => $integration?->id,
+                'requester_name' => $requesterName,
+                'requester_email' => $requesterEmail,
+                'requester_user_id' => $requesterUser?->id,
+                'external_requester_id' => $externalRequesterId,
+                'due_at' => $data['due_at'],
+            ]);
+
+            $participantRows = [];
+            foreach ($collaborators as $user) {
+                $participantRows[$user->id] = [
+                    'type' => 'collaborator',
+                    'notify_status' => true,
+                    'notify_comments' => true,
+                    'notify_attachments' => true,
+                ];
+            }
+            foreach ($followers as $user) {
+                if (!isset($participantRows[$user->id])) {
+                    $participantRows[$user->id] = [
+                        'type' => 'follower',
+                        'notify_status' => true,
+                        'notify_comments' => true,
+                        'notify_attachments' => true,
+                    ];
+                }
+            }
+            if ($participantRows !== []) {
+                $ticket->participants()->syncWithoutDetaching($participantRows);
+            }
+
+            if ($integration) {
+                $labelIds = $settings->labelIds($integration->id);
+                if ($labelIds !== []) {
+                    $ticket->labels()->syncWithoutDetaching($labelIds);
+                }
+            }
+
+            $events->record($ticket, $actor, 'created', [
+                'department_id' => $ticket->department_id,
+                'status' => $newStatus->name,
+                'integration_id' => $integration?->id,
+                'integration_name' => $integration?->name,
+                'integration_target' => $target,
+                'requester_user_id' => $ticket->requester_user_id,
+                'external_requester_id' => $ticket->external_requester_id,
+                'external_requester_name' => $requesterName,
+                'assignee_id' => $ticket->assignee_id,
+            ]);
+
+            return $ticket;
+        });
+
+        if (Ticket::visibleTo($actor)->whereKey($ticket->id)->exists()) {
+            return redirect()->route('tickets.show', $ticket)->with('success', 'Ticket criado com sucesso.');
+        }
+
+        return redirect()->route('boxes.mine')->with('success', 'Ticket criado com sucesso.');
     }
 
     public function show(Request $request, Ticket $ticket)
@@ -168,7 +284,7 @@ class TicketController extends Controller
 
         return view('tickets.show', [
             'ticket' => $ticket->load([
-                'status', 'assignee', 'creator', 'department', 'participants', 'labels',
+                'status', 'assignee', 'creator', 'requesterUser', 'department', 'participants', 'labels',
                 'checklist', 'comments.user', 'events.actor', 'company', 'system',
             ]),
             'statuses' => Status::where('active', true)->orderBy('position')->get(),
@@ -184,7 +300,7 @@ class TicketController extends Controller
         return redirect()->route('tickets.show', $ticket);
     }
 
-    public function update(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks)
+    public function update(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks, DepartmentAccess $departmentAccess)
     {
         $this->ensureVisible($request, $ticket);
 
@@ -197,6 +313,10 @@ class TicketController extends Controller
         ]);
 
         $actor = $request->user();
+        if ($ticket->department_id && !$actor->hasPermission('tickets.view_all')) {
+            abort_unless($departmentAccess->canEdit($actor, $ticket->department_id) || $ticket->assignee_id === $actor->id, 403);
+        }
+
         $changes = [];
 
         if ($data['title'] !== $ticket->title || $data['description'] !== $ticket->description) {
@@ -250,6 +370,27 @@ class TicketController extends Controller
         }
 
         return redirect()->route('tickets.show', $ticket)->with('success', 'Ticket atualizado.');
+    }
+
+    private function activeUsersByIds(array $ids)
+    {
+        $normalized = collect($ids)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        if ($normalized->isEmpty()) {
+            return collect();
+        }
+
+        $users = User::query()->whereIn('id', $normalized)->where('active', true)->get();
+        if ($users->count() !== $normalized->count()) {
+            throw ValidationException::withMessages(['participants' => 'Um dos usuários selecionados não está disponível.']);
+        }
+
+        return $users;
+    }
+
+    private function normalizeEmail(?string $email): ?string
+    {
+        $normalized = strtolower(trim((string) $email));
+        return $normalized !== '' ? $normalized : null;
     }
 
     private function ensureVisible(Request $request, Ticket $ticket): void
