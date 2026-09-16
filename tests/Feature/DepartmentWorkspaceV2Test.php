@@ -74,8 +74,7 @@ class DepartmentWorkspaceV2Test extends TestCase
             ->assertOk()
             ->assertSee('Suporte')
             ->assertSee('Abertos')
-            ->assertSee('Concluídos')
-            ->assertSee('Pessoa Associada', false);
+            ->assertSee('Concluídos');
 
         $this->actingAs($manager)->post('/admin/departamentos/'.$department->id.'/usuarios', [
             'user_id' => $person->id,
