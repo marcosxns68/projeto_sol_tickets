@@ -75,6 +75,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/usuarios/{user}/reenviar-confirmacao', [AdminUserController::class, 'resendVerification'])
         ->middleware('throttle:3,1')
         ->name('admin.users.resend-verification');
+    Route::post('/admin/usuarios/{user}/redefinir-confirmacao', [AdminUserController::class, 'resetVerificationAndResend'])
+        ->middleware('throttle:3,1')
+        ->name('admin.users.reset-verification');
 
     Route::get('/admin/configuracoes/email', [AdminMailSettingsController::class, 'edit'])->name('admin.settings.mail.edit');
     Route::patch('/admin/configuracoes/email', [AdminMailSettingsController::class, 'update'])->name('admin.settings.mail.update');

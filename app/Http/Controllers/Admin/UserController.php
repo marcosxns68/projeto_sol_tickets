@@ -55,6 +55,8 @@ class UserController extends Controller
         }
 
         $data['active'] = $request->boolean('active');
+        $normalizedEmail = strtolower($data['email']);
+        $emailChanged = $normalizedEmail !== strtolower($user->email);
 
         if ($user->id === $actor->id && !$this->hasAnotherAdministrator($user)) {
             if (!$data['active'] || !$this->wouldKeepCriticalPermissions($user, $data['role_id'] ?? null, $request->input('permissions'))) {
@@ -62,12 +64,13 @@ class UserController extends Controller
             }
         }
 
-        $old = $user->only(['name', 'email', 'role_id', 'department_id', 'active']);
+        $old = $user->only(['name', 'email', 'email_verified_at', 'role_id', 'department_id', 'active']);
 
-        DB::transaction(function () use ($request, $user, $data, $actor, $old) {
+        DB::transaction(function () use ($request, $user, $data, $actor, $old, $normalizedEmail, $emailChanged) {
             $user->update([
                 'name' => $data['name'],
-                'email' => strtolower($data['email']),
+                'email' => $normalizedEmail,
+                'email_verified_at' => $emailChanged ? null : $user->email_verified_at,
                 'role_id' => $data['role_id'] ?? null,
                 'department_id' => $data['department_id'] ?? null,
                 'active' => $data['active'],
@@ -91,7 +94,7 @@ class UserController extends Controller
                 'auditable_id' => $user->id,
                 'event' => 'user.updated',
                 'old_values' => json_encode($old, JSON_UNESCAPED_UNICODE),
-                'new_values' => json_encode($user->fresh()->only(['name', 'email', 'role_id', 'department_id', 'active']), JSON_UNESCAPED_UNICODE),
+                'new_values' => json_encode($user->fresh()->only(['name', 'email', 'email_verified_at', 'role_id', 'department_id', 'active']), JSON_UNESCAPED_UNICODE),
                 'ip_address' => request()->ip(),
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -104,15 +107,12 @@ class UserController extends Controller
     public function resendVerification(Request $request, User $user)
     {
         $actor = $request->user();
-        abort_unless(
-            $actor->hasPermission('users.manage') && $actor->hasPermission('permissions.manage'),
-            403
-        );
+        $this->authorizeVerificationManagement($actor);
 
         if ($user->hasVerifiedEmail()) {
             return redirect()
                 ->route('admin.users.edit', $user)
-                ->withErrors(['verification' => 'Esta conta já teve o e-mail confirmado.']);
+                ->withErrors(['verification' => 'Esta conta já teve o e-mail confirmado. Use a opção para redefinir a confirmação se necessário.']);
         }
 
         $user->sendEmailVerificationNotification();
@@ -135,6 +135,47 @@ class UserController extends Controller
         return redirect()
             ->route('admin.users.edit', $user)
             ->with('success', 'E-mail de confirmação reenviado para '.$user->email.'.');
+    }
+
+    public function resetVerificationAndResend(Request $request, User $user)
+    {
+        $actor = $request->user();
+        $this->authorizeVerificationManagement($actor);
+
+        $previousVerifiedAt = $user->email_verified_at;
+        $user->forceFill(['email_verified_at' => null])->save();
+        $user->sendEmailVerificationNotification();
+
+        DB::table('audit_logs')->insert([
+            'user_id' => $actor->id,
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'event' => 'user.verification_reset_and_resent',
+            'old_values' => json_encode([
+                'email' => $user->email,
+                'email_verified_at' => $previousVerifiedAt?->toIso8601String(),
+            ], JSON_UNESCAPED_UNICODE),
+            'new_values' => json_encode([
+                'email' => $user->email,
+                'email_verified_at' => null,
+                'resent_at' => now()->toIso8601String(),
+            ], JSON_UNESCAPED_UNICODE),
+            'ip_address' => $request->ip(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()
+            ->route('admin.users.edit', $user)
+            ->with('success', 'Confirmação redefinida e novo e-mail enviado para '.$user->email.'.');
+    }
+
+    private function authorizeVerificationManagement(User $actor): void
+    {
+        abort_unless(
+            $actor->hasPermission('users.manage') && $actor->hasPermission('permissions.manage'),
+            403
+        );
     }
 
     private function hasAnotherAdministrator(User $user): bool
