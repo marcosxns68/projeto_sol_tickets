@@ -1,19 +1,29 @@
 @extends('layouts.app')
 @section('title','#'.$ticket->number.' — '.$ticket->title)
 @section('content')
+<link rel="stylesheet" href="{{ asset('css/user-picker.css') }}?v={{ filemtime(public_path('css/user-picker.css')) }}">
 @php
     $me = auth()->user();
-    $canContent = $me->hasPermission('tickets.edit');
-    $canPriority = $me->hasPermission('tickets.change_priority');
-    $canStatus = $me->hasPermission('tickets.change_status');
-    $canDue = $me->hasPermission('tickets.change_due_date');
+    $departmentAccess = app(\App\Services\DepartmentAccess::class);
+    $canDepartmentEdit = !$ticket->department_id || $departmentAccess->canEdit($me, $ticket->department_id);
+    $canDepartmentView = !$ticket->department_id || $departmentAccess->canView($me, $ticket->department_id);
+    $isRequester = (int) $ticket->requester_user_id === (int) $me->id;
+    $canContent = $me->hasPermission('tickets.edit') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
+    $canPriority = $me->hasPermission('tickets.change_priority') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
+    $canStatus = $me->hasPermission('tickets.change_status') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
+    $canDue = $me->hasPermission('tickets.change_due_date') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
     $canUpdate = $canContent || $canPriority || $canStatus || $canDue;
-    $canComment = $me->hasPermission('tickets.comment');
+    $canComment = $me->hasPermission('tickets.comment') || $isRequester;
     $canInternal = $me->hasPermission('tickets.internal_note');
     $canLabels = $me->hasPermission('tickets.manage_labels');
+    $canManagePeople = $me->hasPermission('tickets.manage_participants') && $canDepartmentEdit;
+    $canReassign = $me->hasPermission('tickets.reassign') && $canDepartmentEdit;
+    $canForward = $me->hasPermission('tickets.forward') && $canDepartmentEdit;
+    $canAssume = !$ticket->assignee && $ticket->department_id && $canDepartmentView && $me->hasPermission('tickets.assume');
+    $hasRequesterEmail = filled($ticket->requester_email);
     $eventLabels = [
         'created'=>'Ticket criado','assumed'=>'Ticket assumido','reassigned'=>'Responsável alterado','forwarded'=>'Ticket encaminhado',
-        'participant.added'=>'Participante adicionado','participant.removed'=>'Participante removido','ticket.updated'=>'Ticket atualizado',
+        'participant_added'=>'Participante adicionado','participant_changed'=>'Participante atualizado','participant_removed'=>'Participante removido','ticket.updated'=>'Ticket atualizado',
         'checklist.added'=>'Item de checklist adicionado','checklist.toggled'=>'Checklist atualizado','checklist.removed'=>'Item de checklist removido',
         'comment.public'=>'Comentário público adicionado','comment.internal'=>'Nota interna adicionada','completion.requested'=>'Conclusão solicitada',
         'label.added'=>'Etiqueta adicionada','label.removed'=>'Etiqueta removida',
@@ -63,6 +73,9 @@
                 </label>
                 <label>Prazo<input type="datetime-local" name="due_at" value="{{ old('due_at',$ticket->due_at?->format('Y-m-d\TH:i')) }}" @readonly(!$canDue)></label>
             </div>
+            @if($hasRequesterEmail)
+            <div class="notify-options"><span>Notificação</span><label><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante sobre esta alteração</label></div>
+            @endif
             <div class="actions"><button class="button" type="submit">Salvar alterações</button></div>
         </form>
         @else
@@ -73,12 +86,19 @@
     @if($canComment || $canInternal)
     <article class="panel">
         <div class="section-title"><div><p class="eyebrow">COMUNICAÇÃO</p><h2>Adicionar atividade</h2></div></div>
-        <form action="{{ route('tickets.comments.store',$ticket) }}" method="post" class="form">@csrf
-            <label>Tipo<select name="visibility">
+        <form action="{{ route('tickets.comments.store',$ticket) }}" method="post" class="form" id="ticketActivityForm">@csrf
+            <label>Tipo<select name="visibility" id="ticketActivityVisibility">
                 @if($canComment)<option value="public">Comentário público</option>@endif
                 @if($canInternal)<option value="internal">Nota interna</option>@endif
             </select></label>
             <label>Mensagem<textarea name="body" rows="4" placeholder="Escreva uma atualização..." required></textarea></label>
+            <div class="notify-options" id="commentNotifyOptions">
+                <span>Enviar e-mail para</span>
+                @if($hasRequesterEmail)<label><input type="checkbox" name="notify_requester" value="1" checked> Solicitante</label>@endif
+                @if($ticket->assignee)<label><input type="checkbox" name="notify_responsible" value="1"> Responsável</label>@endif
+                @if($ticket->participants->where('pivot.type','collaborator')->isNotEmpty())<label><input type="checkbox" name="notify_collaborators" value="1"> Colaboradores</label>@endif
+                @if($ticket->participants->where('pivot.type','follower')->isNotEmpty())<label><input type="checkbox" name="notify_followers" value="1"> Seguidores</label>@endif
+            </div>
             <div class="actions"><button class="button" type="submit">Adicionar</button></div>
         </form>
     </article>
@@ -96,7 +116,7 @@
         <div class="timeline">
         @forelse($ticket->events->sortByDesc('created_at') as $event)
             <div class="timeline-item"><span class="timeline-dot"></span><div><b>{{ $eventLabels[$event->event] ?? $event->event }}</b><p class="muted">{{ $event->actor?->name ?? 'Sistema' }} · {{ $event->created_at?->format('d/m/Y H:i') }}</p>
-                @if($event->event==='forwarded' && is_array($event->data))<small>{{ $event->data['old_department_name'] ?? 'Origem' }} → {{ $event->data['new_department_name'] ?? 'Destino' }}</small>@endif
+                @if($event->event==='forwarded' && is_array($event->data))<small>{{ $event->data['from_department_name'] ?? 'Origem' }} → {{ $event->data['to_department_name'] ?? 'Destino' }}</small>@endif
                 @if($event->event==='reassigned' && is_array($event->data))<small>{{ $event->data['old_assignee_name'] ?? 'Sem responsável' }} → {{ $event->data['new_assignee_name'] ?? 'Novo responsável' }}</small>@endif
                 @if(in_array($event->event,['label.added','label.removed'],true) && is_array($event->data))<small>{{ $event->data['label_name'] ?? 'Etiqueta' }}</small>@endif
             </div></div>
@@ -114,24 +134,33 @@
             <dt>Responsável</dt><dd>{{ $ticket->assignee?->name ?? 'Não atribuído' }}</dd>
             <dt>Prazo</dt><dd>{{ $ticket->due_at?->format('d/m/Y H:i') ?? 'Sem prazo' }}</dd>
             <dt>Origem</dt><dd>{{ $ticket->origin==='internal'?'Interno':'Integração' }}</dd>
-            @if($ticket->system)
-                <dt>Integração</dt><dd>{{ $ticket->system->name }}</dd>
-            @endif
-            @if($ticket->requester_name)
-                <dt>Solicitante</dt><dd>{{ $ticket->requester_name }}</dd>
-            @endif
+            @if($ticket->system)<dt>Integração</dt><dd>{{ $ticket->system->name }}</dd>@endif
+            @if($ticket->requester_name)<dt>Solicitante</dt><dd>{{ $ticket->requester_name }}@if($ticket->requester_email)<small style="display:block">{{ $ticket->requester_email }}</small>@endif</dd>@endif
         </dl>
 
-        @if(!$ticket->assignee && $ticket->department_id && $me->department_id===$ticket->department_id && $me->hasPermission('tickets.assume'))
+        @if($canAssume)
         <form method="post" action="{{ route('tickets.assume',$ticket) }}">@csrf<button class="button full" type="submit">Assumir ticket</button></form>
         @endif
 
-        @if($me->hasPermission('tickets.reassign'))
-        <form method="post" action="{{ route('tickets.reassign',$ticket) }}" class="mini-form">@csrf @method('PATCH')<label>Alterar responsável<select name="user_id" required><option value="">Selecione...</option>@foreach($users as $user)<option value="{{ $user->id }}" @selected($ticket->assignee_id===$user->id)>{{ $user->name }}</option>@endforeach</select></label><button class="secondary-button full" type="submit">Atribuir</button></form>
+        @if($canReassign)
+        <form method="post" action="{{ route('tickets.reassign',$ticket) }}" class="mini-form">@csrf @method('PATCH')
+            <label>Alterar responsável</label>
+            <div class="user-picker mini-user-picker" data-user-picker data-field="user_id" data-multiple="false">
+                @if($ticket->assignee)<span data-preselected-user data-id="{{ $ticket->assignee->id }}" data-name="{{ $ticket->assignee->name }}" data-email="{{ $ticket->assignee->email }}"></span>@endif
+                <input type="search" data-user-search autocomplete="off" placeholder="Buscar por nome ou e-mail">
+                <div class="user-picker-results" data-user-results></div><div class="user-picker-selected" data-user-selected></div>
+            </div>
+            <button class="secondary-button full" type="submit">Atribuir</button>
+        </form>
         @endif
 
-        @if($me->hasPermission('tickets.forward'))
-        <form method="post" action="{{ route('tickets.forward',$ticket) }}" class="mini-form">@csrf<label>Encaminhar para<select name="department_id" required><option value="">Selecione...</option>@foreach($departments as $department)@if($department->id!==$ticket->department_id)<option value="{{ $department->id }}">{{ $department->name }}</option>@endif @endforeach</select></label><input type="text" name="reason" placeholder="Motivo (opcional)"><button class="secondary-button full" type="submit">Encaminhar</button></form>
+        @if($canForward)
+        <form method="post" action="{{ route('tickets.forward',$ticket) }}" class="mini-form">@csrf
+            <label>Encaminhar para<select name="department_id" required><option value="">Selecione...</option>@foreach($departments as $department)@if($department->id!==$ticket->department_id)<option value="{{ $department->id }}">{{ $department->name }}</option>@endif @endforeach</select></label>
+            <input type="text" name="reason" placeholder="Motivo (opcional)">
+            @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif
+            <button class="secondary-button full" type="submit">Encaminhar</button>
+        </form>
         @endif
     </article>
 
@@ -139,29 +168,13 @@
         <div class="section-title"><h2>Etiquetas</h2><span class="counter">{{ $ticket->labels->count() }}</span></div>
         <div class="ticket-labels ticket-labels-large">
             @forelse($ticket->labels->sortBy('name') as $label)
-                <span class="ticket-label-token" style="--label-color:{{ $label->color }}">
-                    <span>{{ $label->name }}</span>
-                    @if($canLabels)
-                        <form method="post" action="{{ route('tickets.labels.destroy',[$ticket,$label]) }}">@csrf @method('DELETE')<button class="label-remove-button" type="submit" title="Remover {{ $label->name }}" aria-label="Remover etiqueta {{ $label->name }}">×</button></form>
-                    @endif
-                </span>
-            @empty
-                <span class="muted">Nenhuma etiqueta.</span>
-            @endforelse
+                <span class="ticket-label-token" style="--label-color:{{ $label->color }}"><span>{{ $label->name }}</span>@if($canLabels)<form method="post" action="{{ route('tickets.labels.destroy',[$ticket,$label]) }}">@csrf @method('DELETE')<button class="label-remove-button" type="submit" title="Remover {{ $label->name }}" aria-label="Remover etiqueta {{ $label->name }}">×</button></form>@endif</span>
+            @empty<span class="muted">Nenhuma etiqueta.</span>@endforelse
         </div>
         @if($canLabels)
-            <div class="label-manager">
-                <h3>Gerenciar etiquetas</h3>
-                @if($availableLabels->isNotEmpty())
-                    <form method="post" action="{{ route('tickets.labels.store',$ticket) }}" class="mini-form">@csrf
-                        <select name="label_id" required><option value="">Adicionar etiqueta...</option>@foreach($availableLabels as $label)<option value="{{ $label->id }}">{{ $label->name }}</option>@endforeach</select>
-                        <button class="secondary-button full" type="submit">Adicionar etiqueta</button>
-                    </form>
-                @elseif($labels->isEmpty())
-                    <p class="muted">Nenhuma etiqueta foi cadastrada pela administração.</p>
-                @else
-                    <p class="muted">Todas as etiquetas disponíveis já estão neste ticket.</p>
-                @endif
+            <div class="label-manager"><h3>Gerenciar etiquetas</h3>
+                @if($availableLabels->isNotEmpty())<form method="post" action="{{ route('tickets.labels.store',$ticket) }}" class="mini-form">@csrf<select name="label_id" required><option value="">Adicionar etiqueta...</option>@foreach($availableLabels as $label)<option value="{{ $label->id }}">{{ $label->name }}</option>@endforeach</select><button class="secondary-button full" type="submit">Adicionar etiqueta</button></form>
+                @elseif($labels->isEmpty())<p class="muted">Nenhuma etiqueta foi cadastrada pela administração.</p>@else<p class="muted">Todas as etiquetas disponíveis já estão neste ticket.</p>@endif
             </div>
         @endif
     </article>
@@ -176,20 +189,48 @@
 
     <article class="panel">
         <div class="section-title"><h2>Participantes</h2></div>
-        @forelse($ticket->participants as $participant)<div class="person-row"><div><b>{{ $participant->name }}</b><small>{{ $participant->pivot->type==='collaborator'?'Colaborador':'Seguidor' }}</small></div>@if($me->hasPermission('tickets.manage_participants'))<form method="post" action="{{ route('tickets.participants.destroy',[$ticket,$participant]) }}">@csrf @method('DELETE')<button class="icon-button">×</button></form>@endif</div>@empty<p class="muted">Nenhum participante.</p>@endforelse
-        @if($me->hasPermission('tickets.manage_participants'))<form method="post" action="{{ route('tickets.participants.store',$ticket) }}" class="mini-form">@csrf<select name="user_id" required><option value="">Adicionar usuário...</option>@foreach($users as $user)<option value="{{ $user->id }}">{{ $user->name }}</option>@endforeach</select><select name="type"><option value="collaborator">Colaborador</option><option value="follower">Seguidor</option></select><button class="secondary-button full">Adicionar</button></form>@endif
+        @forelse($ticket->participants as $participant)<div class="person-row"><div><b>{{ $participant->name }}</b><small>{{ $participant->pivot->type==='collaborator'?'Colaborador':'Seguidor' }}</small></div>@if($canManagePeople)<form method="post" action="{{ route('tickets.participants.destroy',[$ticket,$participant]) }}">@csrf @method('DELETE')<button class="icon-button">×</button></form>@endif</div>@empty<p class="muted">Nenhum participante.</p>@endforelse
+        @if($canManagePeople)
+        <form method="post" action="{{ route('tickets.participants.store',$ticket) }}" class="mini-form">@csrf
+            <div class="user-picker mini-user-picker" data-user-picker data-field="user_id" data-multiple="false"><input type="search" data-user-search autocomplete="off" placeholder="Buscar usuário"><div class="user-picker-results" data-user-results></div><div class="user-picker-selected" data-user-selected></div></div>
+            <select name="type"><option value="collaborator">Colaborador</option><option value="follower">Seguidor</option></select>
+            <button class="secondary-button full">Adicionar</button>
+        </form>
+        @endif
     </article>
 
     <article class="panel danger-zone">
         <div class="section-title"><h2>Ações</h2></div>
         <div class="action-stack">
-        @if($me->hasPermission('tickets.request_completion') && ($ticket->assignee_id===$me->id || $ticket->participants->contains(fn($p)=>$p->id===$me->id && $p->pivot->type==='collaborator')))<form method="post" action="{{ route('tickets.completion.request',$ticket) }}">@csrf<button class="secondary-button full">Solicitar conclusão</button></form>@endif
-        @if($me->hasPermission('tickets.resolve') && $ticket->assignee_id===$me->id && !in_array($ticket->status?->system_key,['resolved','closed','cancelled']))<form method="post" action="{{ route('tickets.resolve',$ticket) }}">@csrf<button class="button full">Resolver ticket</button></form>@endif
-        @if($me->hasPermission('tickets.close') && $ticket->status?->system_key==='resolved')<form method="post" action="{{ route('tickets.close',$ticket) }}">@csrf<button class="secondary-button full">Fechar ticket</button></form>@endif
-        @if($me->hasPermission('tickets.cancel') && $ticket->status?->system_key!=='cancelled')<form method="post" action="{{ route('tickets.cancel',$ticket) }}">@csrf<button class="danger-button full">Cancelar ticket</button></form>@endif
-        @if($me->hasPermission('tickets.reopen') && in_array($ticket->status?->system_key,['resolved','closed','cancelled']))<form method="post" action="{{ route('tickets.reopen',$ticket) }}">@csrf<button class="secondary-button full">Reabrir ticket</button></form>@endif
+        @if($me->hasPermission('tickets.request_completion') && ($ticket->assignee_id===$me->id || $ticket->participants->contains(fn($p)=>$p->id===$me->id && $p->pivot->type==='collaborator')))
+            <form method="post" action="{{ route('tickets.completion.request',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="secondary-button full">Solicitar conclusão</button></form>
+        @endif
+        @if($me->hasPermission('tickets.resolve') && $ticket->assignee_id===$me->id && !in_array($ticket->status?->system_key,['resolved','closed','cancelled']))
+            <form method="post" action="{{ route('tickets.resolve',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="button full">Resolver ticket</button></form>
+        @endif
+        @if($me->hasPermission('tickets.close') && $ticket->status?->system_key==='resolved')
+            <form method="post" action="{{ route('tickets.close',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="secondary-button full">Fechar ticket</button></form>
+        @endif
+        @if($me->hasPermission('tickets.cancel') && $ticket->status?->system_key!=='cancelled')
+            <form method="post" action="{{ route('tickets.cancel',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="danger-button full">Cancelar ticket</button></form>
+        @endif
+        @if($me->hasPermission('tickets.reopen') && in_array($ticket->status?->system_key,['resolved','closed','cancelled']))
+            <form method="post" action="{{ route('tickets.reopen',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="secondary-button full">Reabrir ticket</button></form>
+        @endif
         </div>
     </article>
 </aside>
 </div>
+
+<script src="{{ asset('js/user-autocomplete.js') }}?v={{ filemtime(public_path('js/user-autocomplete.js')) }}" defer></script>
+<script>
+(() => {
+    const visibility = document.getElementById('ticketActivityVisibility');
+    const options = document.getElementById('commentNotifyOptions');
+    if (!visibility || !options) return;
+    const sync = () => { options.hidden = visibility.value !== 'public'; };
+    visibility.addEventListener('change', sync);
+    sync();
+})();
+</script>
 @endsection
