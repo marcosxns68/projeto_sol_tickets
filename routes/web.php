@@ -21,6 +21,7 @@ use App\Http\Controllers\TicketLifecycleController;
 use App\Http\Controllers\TicketParticipantController;
 use App\Http\Controllers\TicketRoutingController;
 use App\Http\Controllers\UserDirectoryController;
+use App\Http\Middleware\RequireIntegrationTicketPermission;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
@@ -63,7 +64,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/departamentos', [AdminDepartmentController::class, 'index'])->name('departments.index');
     Route::patch('/departamentos/{department}/acompanhar', [AdminDepartmentController::class, 'follow'])->name('departments.follow');
     Route::get('/usuarios/buscar', UserDirectoryController::class)->name('users.search');
-    Route::get('/integracoes/{integration}/usuarios', IntegrationUserDirectoryController::class)->name('integrations.users.search');
+    Route::get('/integracoes/{integration}/usuarios', IntegrationUserDirectoryController::class)
+        ->middleware(RequireIntegrationTicketPermission::class)
+        ->name('integrations.users.search');
 
     Route::post('/tickets/{ticket}/assumir', [TicketAssignmentController::class, 'assume'])->name('tickets.assume');
     Route::patch('/tickets/{ticket}/responsavel', [TicketAssignmentController::class, 'reassign'])->name('tickets.reassign');
@@ -124,6 +127,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/integracoes/{integration}/nova-chave', [AdminIntegrationController::class, 'rotateKey'])->name('admin.integrations.rotate-key');
     Route::post('/admin/integracoes/{integration}/novo-segredo-webhook', [AdminIntegrationController::class, 'rotateWebhookSecret'])->name('admin.integrations.rotate-webhook-secret');
 
-    Route::resource('tickets', TicketController::class)->except(['destroy']);
+    Route::post('/tickets', [TicketController::class, 'store'])
+        ->middleware(RequireIntegrationTicketPermission::class)
+        ->name('tickets.store');
+    Route::resource('tickets', TicketController::class)->except(['destroy', 'store']);
     Route::post('/sair', [AuthController::class, 'logout'])->name('logout');
 });
