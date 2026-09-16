@@ -24,7 +24,11 @@ class IntegrationTicketPermissionTest extends TestCase
         $this->actingAs($user)
             ->get('/tickets/create')
             ->assertOk()
-            ->assertDontSee('Uma empresa/cliente');
+            ->assertDontSee('Tipo de chamado')
+            ->assertDontSee('Empresa / cliente')
+            ->assertDontSee('Empresa / sistema integrado')
+            ->assertDontSee('Chamado geral')
+            ->assertDontSee('Usuário específico');
     }
 
     public function test_user_without_integration_create_permission_cannot_create_integration_ticket_by_direct_request(): void
@@ -40,16 +44,29 @@ class IntegrationTicketPermissionTest extends TestCase
         $this->assertDatabaseCount('tickets', 0);
     }
 
-    public function test_user_with_integration_create_permission_can_see_and_create_integration_ticket(): void
+    public function test_user_with_integration_permission_sees_progressive_type_and_external_sections(): void
     {
         $user = $this->ticketCreator(true);
-        $integration = $this->integration();
-        $this->initialStatus();
+        $this->integration();
 
         $this->actingAs($user)
             ->get('/tickets/create')
             ->assertOk()
-            ->assertSee('Uma empresa/cliente');
+            ->assertSee('Tipo de chamado')
+            ->assertSee('Minha equipe')
+            ->assertSee('Empresa / cliente')
+            ->assertSee('data-create-progressive', false)
+            ->assertSee('data-integration-section', false)
+            ->assertSee('data-general-requester', false)
+            ->assertSee('data-external-requester', false)
+            ->assertSee('Atribuição inicial (opcional)');
+    }
+
+    public function test_user_with_integration_create_permission_can_create_integration_ticket(): void
+    {
+        $user = $this->ticketCreator(true);
+        $integration = $this->integration();
+        $this->initialStatus();
 
         $this->actingAs($user)
             ->post('/tickets', $this->integrationPayload($integration))

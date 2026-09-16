@@ -64,7 +64,7 @@ class TicketCreationV2Test extends TestCase
         ], $extra);
     }
 
-    public function test_create_form_is_simplified_and_lists_only_sendable_departments(): void
+    public function test_internal_only_create_form_starts_clean_and_hides_all_integration_ui(): void
     {
         $user = $this->user('Criador');
         $allowed = Department::create(['name' => 'Suporte Permitido', 'active' => true]);
@@ -73,11 +73,17 @@ class TicketCreationV2Test extends TestCase
 
         $this->actingAs($user)->get('/tickets/create')
             ->assertOk()
-            ->assertSee('Este ticket é para')
-            ->assertSee('Minha equipe')
-            ->assertDontSee('Uma empresa/cliente')
+            ->assertSee('data-create-progressive', false)
+            ->assertSee('name="source_mode" value="internal"', false)
+            ->assertDontSee('Tipo de chamado')
+            ->assertDontSee('Empresa / cliente')
+            ->assertDontSee('Empresa / sistema integrado')
+            ->assertDontSee('Chamado geral')
+            ->assertDontSee('Usuário específico')
             ->assertSee('Suporte Permitido')
             ->assertDontSee('Financeiro Bloqueado')
+            ->assertSee('Atribuição inicial (opcional)')
+            ->assertSee('<details', false)
             ->assertSee('Responsável')
             ->assertSee('Colaboradores')
             ->assertSee('Seguidores')
