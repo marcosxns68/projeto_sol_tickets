@@ -43,6 +43,6 @@ class TicketActivityNotification extends Notification
             $mail->action('Abrir ticket', $this->actionUrl);
         }
 
-        return $mail->line('Sutoorii Tickets');
+        return $mail->salutation('Atenciosamente, Sutoorii Tickets');
     }
 }
