@@ -152,17 +152,15 @@ class TicketController extends Controller
         abort_unless($newStatus, 500, 'Nenhum status inicial está configurado.');
 
         $departmentId = !empty($data['department_id']) ? (int) $data['department_id'] : null;
-        $departmentFromIntegrationDefault = false;
 
         if ($integration) {
             $integrationDepartment = $settings->departmentId($integration->id);
             if ($integrationDepartment !== null && Department::query()->whereKey($integrationDepartment)->where('active', true)->exists()) {
                 $departmentId = (int) $integrationDepartment;
-                $departmentFromIntegrationDefault = true;
             }
         }
 
-        if ($departmentId !== null && !$departmentFromIntegrationDefault) {
+        if ($departmentId !== null) {
             $department = Department::query()->whereKey($departmentId)->where('active', true)->firstOrFail();
             abort_unless($departmentAccess->canSend($actor, $department), 403);
         }
@@ -294,7 +292,6 @@ class TicketController extends Controller
             ]),
             'statuses' => Status::where('active', true)->orderBy('position')->get(),
             'departments' => Department::where('active', true)->orderBy('name')->get(),
-            'users' => User::where('active', true)->orderBy('name')->get(),
             'labels' => Label::query()->orderBy('name')->get(),
         ]);
     }
