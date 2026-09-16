@@ -64,10 +64,54 @@ jobs:
         run: composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
 
       - name: Montar versão para envio direto
+        shell: bash
         run: |
           printf '%s\n' "${GITHUB_SHA}" > public/release-version.txt
           mkdir -p .deploy/direct
           rsync -a app bootstrap config database public resources routes vendor artisan composer.json .deploy/direct/
+
+          DEPLOY_TOKEN="$(openssl rand -hex 32)"
+          echo "::add-mask::${DEPLOY_TOKEN}"
+          echo "DEPLOY_TOKEN=${DEPLOY_TOKEN}" >> "${GITHUB_ENV}"
+          DEPLOY_TOKEN_HASH="$(printf '%s' "${DEPLOY_TOKEN}" | sha256sum | awk '{print $1}')"
+
+          cat > .deploy/direct/public/deploy-migrate.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          header('Content-Type: text/plain; charset=UTF-8');
+
+          $provided = (string) ($_SERVER['HTTP_X_DEPLOY_TOKEN'] ?? '');
+          $expectedHash = '__DEPLOY_TOKEN_HASH__';
+
+          if ($provided === '' || !hash_equals($expectedHash, hash('sha256', $provided))) {
+              http_response_code(404);
+              echo 'not-found';
+              exit;
+          }
+
+          register_shutdown_function(static function (): void {
+              @unlink(__FILE__);
+          });
+
+          require __DIR__.'/../vendor/autoload.php';
+
+          $app = require_once __DIR__.'/../bootstrap/app.php';
+          $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+          $kernel->bootstrap();
+
+          $exitCode = $kernel->call('migrate', ['--force' => true]);
+          if ($exitCode !== 0) {
+              http_response_code(500);
+              echo 'migration-failed';
+              exit;
+          }
+
+          echo 'migration-ok';
+          PHP
+
+          sed -i "s/__DEPLOY_TOKEN_HASH__/${DEPLOY_TOKEN_HASH}/" .deploy/direct/public/deploy-migrate.php
 
       - name: Publicar versão diretamente no servidor
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
@@ -80,6 +124,26 @@ jobs:
           local-dir: ./.deploy/direct/
           server-dir: ${{ secrets.FTP_SERVER_DIR }}
           dangerous-clean-slate: false
+
+      - name: Executar migrations no servidor
+        shell: bash
+        run: |
+          migration_code="$(curl -kLsS --connect-timeout 10 --max-time 120 \
+            -H "X-Deploy-Token: ${DEPLOY_TOKEN}" \
+            -o /tmp/deploy-migration.txt \
+            -w '%{http_code}' \
+            https://tickets.sutoorii.com/deploy-migrate.php)"
+
+          cat /tmp/deploy-migration.txt
+          echo
+          test "${migration_code}" = "200"
+          grep -qx 'migration-ok' /tmp/deploy-migration.txt
+
+          cleanup_code="$(curl -kLsS --connect-timeout 10 --max-time 30 \
+            -o /dev/null \
+            -w '%{http_code}' \
+            https://tickets.sutoorii.com/deploy-migrate.php)"
+          test "${cleanup_code}" = "404"
 
       - name: Verificar produção
         shell: bash
