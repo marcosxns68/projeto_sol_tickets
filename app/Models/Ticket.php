@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\DepartmentAccess;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -10,7 +11,7 @@ class Ticket extends Model
     protected $fillable = [
         'number', 'origin', 'title', 'description', 'priority', 'status_id', 'creator_id',
         'assignee_id', 'department_id', 'company_id', 'system_id', 'requester_name',
-        'requester_email', 'external_requester_id', 'due_at', 'completed_at', 'trashed_at',
+        'requester_email', 'requester_user_id', 'external_requester_id', 'due_at', 'completed_at', 'trashed_at',
         'external_reference',
     ];
 
@@ -22,6 +23,7 @@ class Ticket extends Model
     public function status() { return $this->belongsTo(Status::class); }
     public function assignee() { return $this->belongsTo(User::class, 'assignee_id'); }
     public function creator() { return $this->belongsTo(User::class, 'creator_id'); }
+    public function requesterUser() { return $this->belongsTo(User::class, 'requester_user_id'); }
     public function department() { return $this->belongsTo(Department::class); }
     public function company() { return $this->belongsTo(Company::class); }
     public function system() { return $this->belongsTo(ConnectedSystem::class, 'system_id'); }
@@ -37,21 +39,36 @@ class Ticket extends Model
             return $query;
         }
 
-        return $query->where(function (Builder $q) use ($user) {
+        $departmentIds = app(DepartmentAccess::class)->viewableIds($user);
+        $normalizedEmail = strtolower(trim((string) $user->email));
+
+        return $query->where(function (Builder $q) use ($user, $departmentIds, $normalizedEmail) {
             $q->where('assignee_id', $user->id)
+                ->orWhere('requester_user_id', $user->id)
                 ->orWhereHas('participants', fn (Builder $participants) => $participants->where('users.id', $user->id));
 
-            if ($user->department_id && $user->hasPermission('tickets.view_department')) {
-                $q->orWhere('department_id', $user->department_id);
+            if ($departmentIds !== []) {
+                $q->orWhereIn('department_id', $departmentIds);
+            }
+
+            if ($normalizedEmail !== '') {
+                $q->orWhereRaw('LOWER(requester_email) = ?', [$normalizedEmail]);
             }
         });
     }
 
     public function scopeMyBox(Builder $query, User $user): Builder
     {
-        return $query->where(function (Builder $q) use ($user) {
+        $normalizedEmail = strtolower(trim((string) $user->email));
+
+        return $query->where(function (Builder $q) use ($user, $normalizedEmail) {
             $q->where('assignee_id', $user->id)
+                ->orWhere('requester_user_id', $user->id)
                 ->orWhereHas('participants', fn (Builder $participants) => $participants->where('users.id', $user->id));
+
+            if ($normalizedEmail !== '') {
+                $q->orWhereRaw('LOWER(requester_email) = ?', [$normalizedEmail]);
+            }
         });
     }
 
