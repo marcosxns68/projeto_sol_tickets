@@ -34,7 +34,6 @@ class MailSettingsController extends Controller
             'password' => ['nullable', 'string', 'max:500'],
             'encryption' => ['required', Rule::in(['ssl', 'tls', 'none'])],
             'from_address' => ['required', 'email', 'max:190'],
-            'from_name' => ['required', 'string', 'max:120'],
         ]);
 
         $old = $this->auditValues($settings->values());
@@ -121,7 +120,7 @@ class MailSettingsController extends Controller
             'username' => $values['username'] ?? null,
             'encryption' => $values['encryption'] ?? null,
             'from_address' => $values['from_address'] ?? null,
-            'from_name' => $values['from_name'] ?? null,
+            'from_name' => 'Sutoorii Tickets',
         ];
     }
 }
