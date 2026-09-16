@@ -22,9 +22,9 @@ class IntegrationTicketPermissionTest extends TestCase
         $this->integration();
 
         $this->actingAs($user)
-            ->get('/tickets/criar')
+            ->get('/tickets/create')
             ->assertOk()
-            ->assertDontSee('Enviar para integração');
+            ->assertDontSee('Uma empresa/cliente');
     }
 
     public function test_user_without_integration_create_permission_cannot_create_integration_ticket_by_direct_request(): void
@@ -47,9 +47,9 @@ class IntegrationTicketPermissionTest extends TestCase
         $this->initialStatus();
 
         $this->actingAs($user)
-            ->get('/tickets/criar')
+            ->get('/tickets/create')
             ->assertOk()
-            ->assertSee('Enviar para integração');
+            ->assertSee('Uma empresa/cliente');
 
         $this->actingAs($user)
             ->post('/tickets', $this->integrationPayload($integration))
@@ -150,14 +150,16 @@ class IntegrationTicketPermissionTest extends TestCase
     private function integration(): ConnectedSystem
     {
         $company = Company::create(['name' => 'Cliente '.uniqid(), 'active' => true]);
-
-        return ConnectedSystem::create([
+        $integration = ConnectedSystem::create([
             'company_id' => $company->id,
             'name' => 'Estúdio França',
             'base_url' => 'https://93.184.216.34',
             'webhook_url' => 'https://93.184.216.34/webhook',
             'active' => true,
         ]);
+        $integration->issueWebhookSecret();
+
+        return $integration;
     }
 
     private function initialStatus(): void
