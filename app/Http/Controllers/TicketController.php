@@ -13,6 +13,7 @@ use App\Services\IntegrationSettings;
 use App\Services\IntegrationUserDirectory;
 use App\Services\IntegrationWebhookDispatcher;
 use App\Services\TicketEventRecorder;
+use App\Services\TicketNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -50,6 +51,7 @@ class TicketController extends Controller
         IntegrationSettings $settings,
         IntegrationUserDirectory $directory,
         DepartmentAccess $departmentAccess,
+        TicketNotifier $notifier,
     ) {
         $actor = $request->user();
         abort_unless($actor->hasPermission('tickets.create'), 403);
@@ -271,6 +273,9 @@ class TicketController extends Controller
             return $ticket;
         });
 
+        $ticket->loadMissing(['requesterUser', 'assignee', 'participants', 'department']);
+        $notifier->opened($ticket, $actor);
+
         if (Ticket::visibleTo($actor)->whereKey($ticket->id)->exists()) {
             return redirect()->route('tickets.show', $ticket)->with('success', 'Ticket criado com sucesso.');
         }
@@ -300,8 +305,14 @@ class TicketController extends Controller
         return redirect()->route('tickets.show', $ticket);
     }
 
-    public function update(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks, DepartmentAccess $departmentAccess)
-    {
+    public function update(
+        Request $request,
+        Ticket $ticket,
+        TicketEventRecorder $events,
+        IntegrationWebhookDispatcher $webhooks,
+        DepartmentAccess $departmentAccess,
+        TicketNotifier $notifier,
+    ) {
         $this->ensureVisible($request, $ticket);
 
         $data = $request->validate([
@@ -310,6 +321,7 @@ class TicketController extends Controller
             'priority' => ['required', Rule::in(['low', 'normal', 'high', 'urgent'])],
             'status_id' => ['required', 'integer', 'exists:statuses,id'],
             'due_at' => ['nullable', 'date'],
+            'notify_requester' => ['nullable', 'boolean'],
         ]);
 
         $actor = $request->user();
@@ -367,6 +379,12 @@ class TicketController extends Controller
             $webhooks->dispatch($ticket, 'ticket.status.changed', [
                 'previous_status' => $changes['status']['old'],
             ]);
+        }
+
+        $notifyRequester = !array_key_exists('notify_requester', $data) || (bool) $data['notify_requester'];
+        if ($changes !== [] && $notifyRequester) {
+            $ticket->refresh()->loadMissing('requesterUser');
+            $notifier->requesterChanged($ticket, $actor);
         }
 
         return redirect()->route('tickets.show', $ticket)->with('success', 'Ticket atualizado.');
