@@ -4,16 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\DepartmentAccess;
 use App\Services\TicketEventRecorder;
+use App\Services\TicketNotifier;
 use Illuminate\Http\Request;
 
 class TicketParticipantController extends Controller
 {
-    public function store(Request $request, Ticket $ticket, TicketEventRecorder $events)
-    {
+    public function store(
+        Request $request,
+        Ticket $ticket,
+        TicketEventRecorder $events,
+        DepartmentAccess $departmentAccess,
+        TicketNotifier $notifier,
+    ) {
         $actor = $request->user();
         abort_unless($actor->hasPermission('tickets.manage_participants'), 403);
         abort_unless(Ticket::visibleTo($actor)->whereKey($ticket->id)->exists(), 403);
+        if ($ticket->department_id && !$actor->hasPermission('tickets.view_all')) {
+            abort_unless($departmentAccess->canEdit($actor, $ticket->department_id), 403);
+        }
 
         $data = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
@@ -43,14 +53,27 @@ class TicketParticipantController extends Controller
             'type' => $data['type'],
         ]);
 
+        if (!$existing || $oldType !== $data['type']) {
+            $notifier->participantChanged($ticket, $participant, $data['type'], true, $actor);
+        }
+
         return redirect()->route('tickets.show', $ticket)->with('success', $data['type'] === 'collaborator' ? 'Colaborador atualizado.' : 'Seguidor atualizado.');
     }
 
-    public function destroy(Request $request, Ticket $ticket, User $user, TicketEventRecorder $events)
-    {
+    public function destroy(
+        Request $request,
+        Ticket $ticket,
+        User $user,
+        TicketEventRecorder $events,
+        DepartmentAccess $departmentAccess,
+        TicketNotifier $notifier,
+    ) {
         $actor = $request->user();
         abort_unless($actor->hasPermission('tickets.manage_participants'), 403);
         abort_unless(Ticket::visibleTo($actor)->whereKey($ticket->id)->exists(), 403);
+        if ($ticket->department_id && !$actor->hasPermission('tickets.view_all')) {
+            abort_unless($departmentAccess->canEdit($actor, $ticket->department_id), 403);
+        }
 
         $participant = $ticket->participants()->where('users.id', $user->id)->firstOrFail();
         $type = $participant->pivot->type;
@@ -61,6 +84,8 @@ class TicketParticipantController extends Controller
             'user_name' => $user->name,
             'type' => $type,
         ]);
+
+        $notifier->participantChanged($ticket, $user, $type, false, $actor);
 
         return redirect()->route('tickets.show', $ticket)->with('success', 'Participante removido.');
     }
