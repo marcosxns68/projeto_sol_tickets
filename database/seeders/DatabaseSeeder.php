@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
     {
         $permissions = [
             'tickets.create' => 'Criar tickets',
+            'tickets.create_integration' => 'Criar tickets para integrações',
             'tickets.view_department' => 'Visualizar tickets do próprio departamento',
             'tickets.view_all' => 'Visualizar todos os tickets',
             'tickets.edit' => 'Editar título e descrição',
@@ -68,7 +69,7 @@ class DatabaseSeeder extends Seeder
 
         $gestor = Role::firstOrCreate(['name' => 'Gestor'], ['protected' => false, 'active' => true]);
         $gestor->permissions()->sync(Permission::whereIn('key', [
-            'tickets.create', 'tickets.view_department', 'tickets.view_all', 'tickets.edit',
+            'tickets.create', 'tickets.create_integration', 'tickets.view_department', 'tickets.view_all', 'tickets.edit',
             'tickets.forward', 'tickets.assume', 'tickets.reassign', 'tickets.change_status',
             'tickets.change_priority', 'tickets.change_due_date', 'tickets.manage_participants',
             'tickets.manage_labels', 'tickets.comment', 'tickets.internal_note',
