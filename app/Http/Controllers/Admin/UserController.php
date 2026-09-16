@@ -27,7 +27,7 @@ class UserController extends Controller
         abort_unless($request->user()->hasPermission('users.manage'), 403);
 
         return view('admin.users.edit', [
-            'managedUser' => $user->load(['role', 'department', 'permissionOverrides']),
+            'managedUser' => $user->load(['role.permissions', 'department', 'permissionOverrides']),
             'roles' => Role::where('active', true)->orderBy('name')->get(),
             'departments' => Department::where('active', true)->orderBy('name')->get(),
             'permissions' => Permission::orderBy('group')->orderBy('name')->get()->groupBy('group'),
@@ -47,7 +47,7 @@ class UserController extends Controller
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'active' => ['nullable', 'boolean'],
             'permissions' => ['nullable', 'array'],
-            'permissions.*' => ['nullable', Rule::in(['inherit', 'allow', 'deny'])],
+            'permissions.*' => ['nullable', Rule::in(['yes', 'no'])],
         ]);
 
         if ($request->has('permissions')) {
@@ -77,14 +77,29 @@ class UserController extends Controller
             ]);
 
             if ($request->has('permissions')) {
+                $rolePermissionIds = ($data['role_id'] ?? null)
+                    ? Role::find($data['role_id'])?->permissions()->pluck('permissions.id')->map(fn ($id) => (int) $id)->all() ?? []
+                    : [];
+
                 $user->permissionOverrides()->delete();
-                foreach ((array) $request->input('permissions', []) as $permissionId => $effect) {
-                    if (in_array($effect, ['allow', 'deny'], true) && Permission::whereKey($permissionId)->exists()) {
-                        $user->permissionOverrides()->create([
-                            'permission_id' => (int) $permissionId,
-                            'effect' => $effect,
-                        ]);
+
+                foreach ((array) $request->input('permissions', []) as $permissionId => $answer) {
+                    $permission = Permission::find($permissionId);
+                    if (!$permission) {
+                        continue;
                     }
+
+                    $wantsPermission = $answer === 'yes';
+                    $roleGrantsPermission = in_array((int) $permissionId, $rolePermissionIds, true);
+
+                    if ($wantsPermission === $roleGrantsPermission) {
+                        continue;
+                    }
+
+                    $user->permissionOverrides()->create([
+                        'permission_id' => (int) $permissionId,
+                        'effect' => $wantsPermission ? 'allow' : 'deny',
+                    ]);
                 }
             }
 
@@ -189,7 +204,6 @@ class UserController extends Controller
     {
         $role = $roleId ? Role::with('permissions')->find($roleId) : null;
         $existing = $user->permissionOverrides()->pluck('effect', 'permission_id')->all();
-        $overrides = $submittedOverrides === null ? $existing : $submittedOverrides;
 
         foreach (['users.manage', 'permissions.manage'] as $key) {
             $permission = Permission::where('key', $key)->first();
@@ -197,7 +211,17 @@ class UserController extends Controller
                 return false;
             }
 
-            $effect = $overrides[$permission->id] ?? $overrides[(string) $permission->id] ?? 'inherit';
+            if ($submittedOverrides !== null && array_key_exists($permission->id, $submittedOverrides)) {
+                if ($submittedOverrides[$permission->id] === 'yes') {
+                    continue;
+                }
+
+                if ($submittedOverrides[$permission->id] === 'no') {
+                    return false;
+                }
+            }
+
+            $effect = $existing[$permission->id] ?? 'inherit';
             if ($effect === 'deny') {
                 return false;
             }

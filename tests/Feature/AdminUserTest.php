@@ -31,12 +31,77 @@ class AdminUserTest extends TestCase
         $this->actingAs($admin)->get('/admin/usuarios')->assertOk()->assertSee('Alvo');
         $this->actingAs($admin)->patch('/admin/usuarios/'.$target->id, [
             'name'=>'Alvo Atualizado','email'=>'alvo@sutoorii.com','role_id'=>$userRole->id,'department_id'=>$department->id,'active'=>1,
-            'permissions'=>[$reassign->id=>'allow'],
+            'permissions'=>[$reassign->id=>'yes'],
         ])->assertRedirect();
 
         $this->assertSame('Alvo Atualizado',$target->fresh()->name);
         $this->assertDatabaseHas('user_permission_overrides',['user_id'=>$target->id,'permission_id'=>$reassign->id,'effect'=>'allow']);
         $this->assertTrue($target->fresh()->hasPermission('tickets.reassign'));
+    }
+
+    public function test_permission_editor_shows_only_effective_yes_or_no(): void
+    {
+        [$admin] = $this->makeAdministrator();
+        $inherited = Permission::firstOrCreate(['key'=>'tickets.inherited'], ['name'=>'Permissão herdada','group'=>'tickets']);
+        $missing = Permission::firstOrCreate(['key'=>'tickets.missing'], ['name'=>'Permissão ausente','group'=>'tickets']);
+
+        $role = Role::create(['name'=>'Operador']);
+        $role->permissions()->attach($inherited->id);
+        $target = User::create([
+            'name'=>'Operador teste',
+            'email'=>'operador@sutoorii.com',
+            'email_verified_at'=>now(),
+            'password'=>'SenhaTeste123',
+            'role_id'=>$role->id,
+            'active'=>true,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/usuarios/'.$target->id.'/editar');
+
+        $response->assertOk()
+            ->assertSee('Permissões individuais')
+            ->assertSee('Sim')
+            ->assertSee('Não')
+            ->assertDontSee('Herdada do cargo')
+            ->assertDontSee('Concedida')
+            ->assertDontSee('Negada');
+
+        $this->assertTrue($target->hasPermission($inherited->key));
+        $this->assertFalse($target->hasPermission($missing->key));
+    }
+
+    public function test_matching_yes_no_values_keep_role_inheritance_internally(): void
+    {
+        [$admin] = $this->makeAdministrator();
+        $inherited = Permission::firstOrCreate(['key'=>'tickets.role_yes'], ['name'=>'Permitida pelo cargo','group'=>'tickets']);
+        $notInherited = Permission::firstOrCreate(['key'=>'tickets.role_no'], ['name'=>'Negada pelo cargo','group'=>'tickets']);
+
+        $role = Role::create(['name'=>'Atendente']);
+        $role->permissions()->attach($inherited->id);
+        $target = User::create([
+            'name'=>'Atendente teste',
+            'email'=>'atendente@sutoorii.com',
+            'email_verified_at'=>now(),
+            'password'=>'SenhaTeste123',
+            'role_id'=>$role->id,
+            'active'=>true,
+        ]);
+
+        $this->actingAs($admin)->patch('/admin/usuarios/'.$target->id, [
+            'name'=>$target->name,
+            'email'=>$target->email,
+            'role_id'=>$role->id,
+            'active'=>1,
+            'permissions'=>[
+                $inherited->id=>'yes',
+                $notInherited->id=>'no',
+            ],
+        ])->assertRedirect();
+
+        $this->assertDatabaseMissing('user_permission_overrides',['user_id'=>$target->id,'permission_id'=>$inherited->id]);
+        $this->assertDatabaseMissing('user_permission_overrides',['user_id'=>$target->id,'permission_id'=>$notInherited->id]);
+        $this->assertTrue($target->fresh()->hasPermission($inherited->key));
+        $this->assertFalse($target->fresh()->hasPermission($notInherited->key));
     }
 
     public function test_user_without_permission_cannot_access_admin_users(): void
