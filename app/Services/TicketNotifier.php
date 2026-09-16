@@ -35,7 +35,7 @@ class TicketNotifier
         );
     }
 
-    public function publicComment(Ticket $ticket, ?User $actor, array $groups): void
+    public function publicComment(Ticket $ticket, ?User $actor, array $groups, ?string $actorEmail = null): void
     {
         $ticket->loadMissing(['requesterUser', 'assignee', 'participants']);
         $recipients = [];
@@ -62,6 +62,7 @@ class TicketNotifier
         }
 
         $this->removeActor($recipients, $actor);
+        $this->removeEmail($recipients, $actorEmail);
         $this->sendMany(
             $ticket,
             $recipients,
@@ -144,14 +145,24 @@ class TicketNotifier
 
     private function addRequester(array &$recipients, Ticket $ticket): void
     {
+        $actionUrl = $this->requesterActionUrl($ticket);
+
         if ($ticket->requesterUser) {
             $this->addUser($recipients, $ticket->requesterUser);
+            $email = $this->normalizeEmail($ticket->requesterUser->email);
+            if ($email !== null && isset($recipients[$email])) {
+                $recipients[$email]['action_url'] = $actionUrl;
+            }
             return;
         }
 
         $email = $this->normalizeEmail($ticket->requester_email);
         if ($email !== null) {
-            $recipients[$email] = ['email' => $email, 'user' => null];
+            $recipients[$email] = [
+                'email' => $email,
+                'user' => null,
+                'action_url' => $actionUrl,
+            ];
         }
     }
 
@@ -186,14 +197,24 @@ class TicketNotifier
             return;
         }
 
-        $recipients[$email] = ['email' => $email, 'user' => $user];
+        $existingAction = $recipients[$email]['action_url'] ?? null;
+        $recipients[$email] = [
+            'email' => $email,
+            'user' => $user,
+            'action_url' => $existingAction,
+        ];
     }
 
     private function removeActor(array &$recipients, ?User $actor): void
     {
-        $email = $this->normalizeEmail($actor?->email);
-        if ($email !== null) {
-            unset($recipients[$email]);
+        $this->removeEmail($recipients, $actor?->email);
+    }
+
+    private function removeEmail(array &$recipients, ?string $email): void
+    {
+        $normalized = $this->normalizeEmail($email);
+        if ($normalized !== null) {
+            unset($recipients[$normalized]);
         }
     }
 
@@ -201,7 +222,12 @@ class TicketNotifier
     {
         foreach ($recipients as $recipient) {
             try {
-                $notification = new TicketActivityNotification($ticket, $headline, $message, $actionUrl);
+                $notification = new TicketActivityNotification(
+                    $ticket,
+                    $headline,
+                    $message,
+                    $recipient['action_url'] ?? $actionUrl,
+                );
                 if ($recipient['user'] instanceof User) {
                     $recipient['user']->notify($notification);
                 } else {
@@ -224,12 +250,19 @@ class TicketNotifier
 
     private function requesterActionUrl(Ticket $ticket): ?string
     {
-        $email = $this->normalizeEmail($ticket->requester_email);
-        if ($email !== null && Route::has('requester.show')) {
-            return URL::signedRoute('requester.show', ['ticket' => $ticket->id, 'email' => $email]);
+        if ($ticket->requester_user_id) {
+            return $this->internalTicketUrl($ticket);
         }
 
-        return $ticket->requester_user_id ? $this->internalTicketUrl($ticket) : null;
+        $email = $this->normalizeEmail($ticket->requester_email);
+        if ($email !== null && Route::has('requester.show')) {
+            return URL::signedRoute('requester.show', [
+                'ticket' => $ticket->id,
+                'email' => $email,
+            ]);
+        }
+
+        return null;
     }
 
     private function normalizeEmail(?string $email): ?string
