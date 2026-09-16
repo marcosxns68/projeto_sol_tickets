@@ -15,11 +15,15 @@ class TicketNotifier
 {
     public function opened(Ticket $ticket, ?User $creator): void
     {
-        $ticket->loadMissing(['requesterUser', 'department']);
+        $ticket->loadMissing(['requesterUser', 'assignee', 'participants', 'department']);
 
         $recipients = [];
         $this->addUser($recipients, $creator);
         $this->addRequester($recipients, $ticket);
+        $this->addUser($recipients, $ticket->assignee);
+        foreach ($ticket->participants as $participant) {
+            $this->addUser($recipients, $participant);
+        }
         $this->addDepartmentFollowers($recipients, $ticket);
 
         $this->sendMany(
