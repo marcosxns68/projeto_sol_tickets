@@ -37,6 +37,9 @@ class TicketWorkspaceTest extends TestCase
     {
         $department = Department::create(['name' => 'Suporte']);
         $user = $this->user($department, ['tickets.view_department','tickets.edit','tickets.change_priority','tickets.change_due_date','tickets.change_status']);
+        $user->departments()->syncWithoutDetaching([
+            $department->id => ['access_level' => 'edit', 'follow_department' => false],
+        ]);
         $new = $this->ticketStatus('new','Novo');
         $progress = $this->ticketStatus('in_progress','Em andamento');
         $ticket = Ticket::create(['number'=>Ticket::nextNumber(),'origin'=>'internal','title'=>'Antigo','description'=>'Texto antigo','priority'=>'normal','status_id'=>$new->id,'department_id'=>$department->id,'due_at'=>now()->addDay()]);
