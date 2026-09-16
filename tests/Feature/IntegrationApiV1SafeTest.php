@@ -7,9 +7,12 @@ use App\Models\ConnectedSystem;
 use App\Models\Department;
 use App\Models\Status;
 use App\Models\Ticket;
+use App\Models\User;
+use App\Notifications\TicketActivityNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -41,6 +44,17 @@ class IntegrationApiV1SafeTest extends TestCase
         $integration->forceFill(['api_token_hash' => hash('sha256', $token)])->save();
 
         return $integration;
+    }
+
+    private function internalUser(string $name): User
+    {
+        return User::create([
+            'name' => $name,
+            'email' => strtolower(str_replace(' ', '.', $name)).uniqid().'@sutoorii.test',
+            'email_verified_at' => now(),
+            'password' => 'SenhaTeste123',
+            'active' => true,
+        ]);
     }
 
     private function headers(string $token, string $userId = '10', string $role = 'user'): array
@@ -171,6 +185,58 @@ class IntegrationApiV1SafeTest extends TestCase
         $response->assertCreated();
         $ticket = Ticket::where('number', $response->json('ticket.number'))->firstOrFail();
         $this->assertSame($target->id, $ticket->department_id);
+    }
+
+    public function test_api_created_ticket_notifies_people_following_destination_department(): void
+    {
+        Notification::fake();
+        $this->makeStatus();
+        $department = Department::create(['name' => 'Suporte integração', 'active' => true]);
+        $integration = $this->integration('A', 'token-a');
+        $follower = $this->internalUser('Acompanhante integração');
+        $follower->departments()->attach($department->id, [
+            'access_level' => 'view',
+            'follow_department' => true,
+        ]);
+        DB::table('settings')->insert([
+            'key' => 'integration.'.$integration->id.'.department_id',
+            'value' => (string) $department->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->withHeaders($this->headers('token-a', '153'))
+            ->postJson('/api/v1/tickets', $this->payload())
+            ->assertCreated();
+
+        Notification::assertSentTo($follower, TicketActivityNotification::class);
+    }
+
+    public function test_api_public_comment_notifies_internal_responsible(): void
+    {
+        Notification::fake();
+        $status = $this->makeStatus();
+        $integration = $this->integration('A', 'token-a');
+        $assignee = $this->internalUser('Responsável API');
+        $ticket = Ticket::create([
+            'number' => Ticket::nextNumber(),
+            'origin' => 'integration',
+            'title' => 'Ticket externo',
+            'description' => 'Descrição',
+            'priority' => 'normal',
+            'status_id' => $status->id,
+            'system_id' => $integration->id,
+            'external_requester_id' => '153',
+            'requester_name' => 'Cliente',
+            'requester_email' => 'cliente@example.com',
+            'assignee_id' => $assignee->id,
+        ]);
+
+        $this->withHeaders($this->headers('token-a', '153'))
+            ->postJson('/api/v1/tickets/'.$ticket->number.'/comments', ['body' => 'Resposta externa'])
+            ->assertCreated();
+
+        Notification::assertSentTo($assignee, TicketActivityNotification::class);
     }
 
     public function test_public_comments_activity_lifecycle_and_attachments_work_without_exposing_internal_notes(): void
