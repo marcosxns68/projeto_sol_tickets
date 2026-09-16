@@ -10,6 +10,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntegrationUserDirectoryController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\RequesterPortalController;
 use App\Http\Controllers\TicketAssignmentController;
 use App\Http\Controllers\TicketBoxController;
 use App\Http\Controllers\TicketChecklistController;
@@ -33,6 +34,16 @@ Route::middleware('guest')->group(function () {
     Route::get('/redefinir-senha/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
     Route::post('/redefinir-senha', [PasswordResetController::class, 'reset'])->name('password.update');
 });
+
+Route::get('/minhas-solicitacoes', [RequesterPortalController::class, 'index'])
+    ->middleware('signed')
+    ->name('requester.index');
+Route::get('/minhas-solicitacoes/{ticket}', [RequesterPortalController::class, 'show'])
+    ->middleware('signed')
+    ->name('requester.show');
+Route::post('/minhas-solicitacoes/{ticket}/comentarios', [RequesterPortalController::class, 'comment'])
+    ->middleware(['signed', 'throttle:10,1'])
+    ->name('requester.comments.store');
 
 Route::get('/email/verificar', fn () => view('auth.verify-email'))->middleware('auth')->name('verification.notice');
 Route::get('/email/verificar/{id}/{hash}', function (EmailVerificationRequest $request) {
