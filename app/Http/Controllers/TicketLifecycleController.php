@@ -6,12 +6,13 @@ use App\Models\Status;
 use App\Models\Ticket;
 use App\Services\IntegrationWebhookDispatcher;
 use App\Services\TicketEventRecorder;
+use App\Services\TicketNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class TicketLifecycleController extends Controller
 {
-    public function requestCompletion(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks)
+    public function requestCompletion(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks, TicketNotifier $notifier)
     {
         $actor = $request->user();
         $this->ensureVisible($actor, $ticket);
@@ -20,10 +21,22 @@ class TicketLifecycleController extends Controller
         $isCollaborator = $ticket->participants()->where('users.id', $actor->id)->wherePivot('type', 'collaborator')->exists();
         abort_unless($ticket->assignee_id === $actor->id || $isCollaborator, 403);
 
-        return $this->transition($ticket, $actor, 'completion_requested', 'completion.requested', $events, $webhooks, 'ticket.status.changed', 'Conclusão solicitada.');
+        return $this->transition(
+            $ticket,
+            $actor,
+            'completion_requested',
+            'completion.requested',
+            $events,
+            $webhooks,
+            $notifier,
+            'ticket.status.changed',
+            'Conclusão solicitada.',
+            false,
+            $this->shouldNotifyRequester($request),
+        );
     }
 
-    public function resolve(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks)
+    public function resolve(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks, TicketNotifier $notifier)
     {
         $actor = $request->user();
         $this->ensureVisible($actor, $ticket);
@@ -34,28 +47,69 @@ class TicketLifecycleController extends Controller
             return back()->withErrors(['ticket' => 'Conclua todos os itens obrigatórios do checklist antes de resolver o ticket.']);
         }
 
-        return $this->transition($ticket, $actor, 'resolved', 'resolved', $events, $webhooks, 'ticket.resolved', 'Ticket resolvido.', true);
+        return $this->transition(
+            $ticket,
+            $actor,
+            'resolved',
+            'resolved',
+            $events,
+            $webhooks,
+            $notifier,
+            'ticket.resolved',
+            'Ticket resolvido.',
+            true,
+            $this->shouldNotifyRequester($request),
+        );
     }
 
-    public function close(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks)
+    public function close(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks, TicketNotifier $notifier)
     {
         $actor = $request->user();
         $this->ensureVisible($actor, $ticket);
         abort_unless($actor->hasPermission('tickets.close'), 403);
 
-        return $this->transition($ticket, $actor, 'closed', 'closed', $events, $webhooks, 'ticket.closed', 'Ticket fechado.', true);
+        return $this->transition(
+            $ticket,
+            $actor,
+            'closed',
+            'closed',
+            $events,
+            $webhooks,
+            $notifier,
+            'ticket.closed',
+            'Ticket fechado.',
+            true,
+            $this->shouldNotifyRequester($request),
+        );
     }
 
-    public function cancel(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks)
+    public function cancel(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks, TicketNotifier $notifier)
     {
         $actor = $request->user();
         $this->ensureVisible($actor, $ticket);
         abort_unless($actor->hasPermission('tickets.cancel'), 403);
 
-        return $this->transition($ticket, $actor, 'cancelled', 'cancelled', $events, $webhooks, 'ticket.status.changed', 'Ticket cancelado.', true);
+        $response = $this->transition(
+            $ticket,
+            $actor,
+            'cancelled',
+            'cancelled',
+            $events,
+            $webhooks,
+            $notifier,
+            'ticket.status.changed',
+            'Ticket cancelado.',
+            true,
+            $this->shouldNotifyRequester($request),
+        );
+
+        $ticket->refresh()->loadMissing('department');
+        $notifier->departmentEvent($ticket, 'cancelled', $actor);
+
+        return $response;
     }
 
-    public function reopen(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks)
+    public function reopen(Request $request, Ticket $ticket, TicketEventRecorder $events, IntegrationWebhookDispatcher $webhooks, TicketNotifier $notifier)
     {
         $actor = $request->user();
         $this->ensureVisible($actor, $ticket);
@@ -75,6 +129,10 @@ class TicketLifecycleController extends Controller
             'previous_status' => $oldStatus,
         ]);
 
+        if ($this->shouldNotifyRequester($request)) {
+            $notifier->requesterChanged($ticket, $actor, 'Ticket reaberto');
+        }
+
         return redirect()->route('tickets.show', $ticket)->with('success', 'Ticket reaberto.');
     }
 
@@ -85,9 +143,11 @@ class TicketLifecycleController extends Controller
         string $event,
         TicketEventRecorder $events,
         IntegrationWebhookDispatcher $webhooks,
+        TicketNotifier $notifier,
         string $webhookEvent,
         string $message,
-        bool $complete = false
+        bool $complete = false,
+        bool $notifyRequester = true,
     ) {
         $status = Status::system($systemKey);
         abort_unless($status, 500, 'Status necessário não configurado.');
@@ -106,7 +166,16 @@ class TicketLifecycleController extends Controller
             'previous_status' => $oldStatus,
         ]);
 
+        if ($notifyRequester) {
+            $notifier->requesterChanged($ticket, $actor, 'Status do ticket atualizado');
+        }
+
         return redirect()->route('tickets.show', $ticket)->with('success', $message);
+    }
+
+    private function shouldNotifyRequester(Request $request): bool
+    {
+        return !$request->has('notify_requester') || $request->boolean('notify_requester');
     }
 
     private function ensureVisible($actor, Ticket $ticket): void
