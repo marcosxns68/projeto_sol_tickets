@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordPtBrNotification;
+use App\Notifications\VerifyEmailPtBrNotification;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -21,6 +23,16 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'active' => 'boolean',
         ];
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmailPtBrNotification());
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordPtBrNotification((string) $token));
     }
 
     public function role()
