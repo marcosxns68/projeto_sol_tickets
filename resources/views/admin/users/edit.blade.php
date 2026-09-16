@@ -42,9 +42,27 @@
     $roleAllows = $managedUser->role?->permissions->contains('id', $permission->id) ?? false;
     $effective = $override === 'allow' ? 'yes' : ($override === 'deny' ? 'no' : ($roleAllows ? 'yes' : 'no'));
     $answer = old('permissions.'.$permission->id, $effective);
-@endphp<div class="permission-row"><div><b>{{ $permission->name }}</b><small>{{ $permission->key }}</small></div><select name="permissions[{{ $permission->id }}]" class="permission-select"><option value="yes" @selected($answer==='yes')>Sim</option><option value="no" @selected($answer==='no')>Não</option></select></div>@endforeach</section>@endforeach</div>
+@endphp
+<div class="permission-row">
+    <div><b>{{ $permission->name }}</b><small>{{ $permission->key }}</small></div>
+    <div class="permission-choice" role="group" aria-label="Permissão: {{ $permission->name }}">
+        <label class="permission-option">
+            <input type="radio" name="permissions[{{ $permission->id }}]" value="yes" @checked($answer==='yes')>
+            <span>Sim</span>
+        </label>
+        <label class="permission-option">
+            <input type="radio" name="permissions[{{ $permission->id }}]" value="no" @checked($answer==='no')>
+            <span>Não</span>
+        </label>
+    </div>
+</div>
+@endforeach</section>@endforeach</div>
 </article>
 @endif
 <div class="sticky-actions"><a href="{{ route('admin.users.index') }}" class="secondary-button">Cancelar</a><button class="button" type="submit">Salvar usuário</button></div>
 </form>
+
+<style>
+.permission-choice{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:3px;border:1px solid var(--line);border-radius:9px;background:#f4f2f7}.permission-option{position:relative;margin:0!important}.permission-option input{position:absolute;opacity:0;pointer-events:none}.permission-option span{display:flex;align-items:center;justify-content:center;min-height:34px;padding:0 14px;border:1px solid transparent;border-radius:7px;cursor:pointer;font-size:.88rem;font-weight:800;color:var(--muted);transition:.16s ease}.permission-option input:checked+span{background:#fff;border-color:#bca6dd;color:var(--purple);box-shadow:0 2px 8px rgba(55,34,84,.08)}.permission-option input:focus-visible+span{outline:3px solid #ece4ff;outline-offset:1px}.permission-option:hover span{color:var(--purple)}@media(max-width:720px){.permission-choice{width:100%}}
+</style>
 @endsection

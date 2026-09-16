@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title','Novo ticket')
 @section('content')
+@php($canCreateIntegrationTicket = auth()->user()->hasPermission('tickets.create_integration'))
 <div class="page-head">
     <div><p class="eyebrow">NOVO</p><h1>Criar ticket</h1><p class="muted">Defina para quem é a solicitação e quem deve acompanhar o trabalho.</p></div>
 </div>
@@ -14,15 +15,17 @@
 
     <article class="panel create-section">
         <div class="section-title"><div><p class="eyebrow">DESTINO</p><h2>Este ticket é para:</h2></div></div>
-        <div class="create-choice-grid">
+        <div class="create-choice-grid {{ $canCreateIntegrationTicket ? '' : 'single-choice' }}">
             <label class="create-choice">
                 <input type="radio" name="source_mode" value="internal" {{ old('source_mode','internal') === 'internal' ? 'checked' : '' }}>
                 <span><b>Minha equipe</b><small>Solicitação interna da Sutoorii.</small></span>
             </label>
+            @if($canCreateIntegrationTicket)
             <label class="create-choice">
                 <input type="radio" name="source_mode" value="integration" {{ old('source_mode') === 'integration' ? 'checked' : '' }}>
                 <span><b>Uma empresa/cliente</b><small>Vincula o ticket a um sistema integrado.</small></span>
             </label>
+            @endif
         </div>
 
         <div id="internalRequesterFields" class="create-subsection">
@@ -34,6 +37,7 @@
             </div>
         </div>
 
+        @if($canCreateIntegrationTicket)
         <div id="integrationFields" class="create-subsection" {{ old('source_mode') === 'integration' ? '' : 'hidden' }}>
             <label>Empresa / sistema integrado
                 <select name="system_id" id="integrationSelect">
@@ -81,6 +85,7 @@
                 <div id="externalUserSelected" class="user-picker-selected" hidden></div>
             </div>
         </div>
+        @endif
     </article>
 
     <article class="panel create-section">
@@ -142,7 +147,7 @@
 </form>
 
 <style>
-.ticket-create-v2{display:grid;gap:16px}.create-section{display:grid;gap:18px}.create-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.create-choice{display:flex!important;align-items:flex-start;gap:10px;padding:15px;border:1px solid #e2dce8;border-radius:14px;background:#fff;cursor:pointer}.create-choice:has(input:checked){border-color:#7650aa;box-shadow:0 0 0 2px rgba(118,80,170,.1)}.create-choice input{width:auto;margin-top:3px}.create-choice span{display:grid;gap:3px}.create-choice small,.picker-card>small{color:#716978}.create-subsection{display:grid;gap:14px;padding:16px;border:1px solid #e8e3ec;border-radius:14px;background:#faf9fb}.requester-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.compact-choices{margin-top:8px}.people-picker-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.picker-card{display:grid;align-content:start;gap:8px;padding:14px;border:1px solid #e8e3ec;border-radius:14px;background:#faf9fb}.user-picker{position:relative;display:grid;gap:8px}.user-picker-results{display:grid;gap:5px}.user-picker-result,.external-user-result{display:grid;width:100%;gap:2px;text-align:left;padding:10px 12px;border:1px solid #dfd8e6;border-radius:10px;background:#fff;cursor:pointer}.user-picker-result:hover,.external-user-result:hover{border-color:#7650aa;background:#fbf9ff}.user-picker-result small,.external-user-result small{color:#716978}.user-picker-selected{display:flex;flex-wrap:wrap;gap:6px}.user-picker-token{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:7px 9px;border-radius:9px;background:#eee8f8;color:#4f3374;font-size:.86rem}.user-picker-remove{border:0;background:transparent;color:inherit;font-size:1rem;cursor:pointer}.external-user-search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.create-actions{display:flex;justify-content:flex-end;gap:10px;padding-bottom:8px}@media(max-width:850px){.people-picker-grid{grid-template-columns:1fr}.requester-fields{grid-template-columns:1fr}}@media(max-width:620px){.create-choice-grid{grid-template-columns:1fr}.external-user-search-row{grid-template-columns:1fr}.create-actions{position:sticky;bottom:0;padding:10px;background:rgba(255,255,255,.95);z-index:3}.create-actions>*{flex:1;text-align:center}}
+.ticket-create-v2{display:grid;gap:16px}.create-section{display:grid;gap:18px}.create-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.create-choice-grid.single-choice{grid-template-columns:1fr}.create-choice{display:flex!important;align-items:flex-start;gap:10px;padding:15px;border:1px solid #e2dce8;border-radius:14px;background:#fff;cursor:pointer}.create-choice:has(input:checked){border-color:#7650aa;box-shadow:0 0 0 2px rgba(118,80,170,.1)}.create-choice input{width:auto;margin-top:3px}.create-choice span{display:grid;gap:3px}.create-choice small,.picker-card>small{color:#716978}.create-subsection{display:grid;gap:14px;padding:16px;border:1px solid #e8e3ec;border-radius:14px;background:#faf9fb}.requester-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.compact-choices{margin-top:8px}.people-picker-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.picker-card{display:grid;align-content:start;gap:8px;padding:14px;border:1px solid #e8e3ec;border-radius:14px;background:#faf9fb}.user-picker{position:relative;display:grid;gap:8px}.user-picker-results{display:grid;gap:5px}.user-picker-result,.external-user-result{display:grid;width:100%;gap:2px;text-align:left;padding:10px 12px;border:1px solid #dfd8e6;border-radius:10px;background:#fff;cursor:pointer}.user-picker-result:hover,.external-user-result:hover{border-color:#7650aa;background:#fbf9ff}.user-picker-result small,.external-user-result small{color:#716978}.user-picker-selected{display:flex;flex-wrap:wrap;gap:6px}.user-picker-token{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:7px 9px;border-radius:9px;background:#eee8f8;color:#4f3374;font-size:.86rem}.user-picker-remove{border:0;background:transparent;color:inherit;font-size:1rem;cursor:pointer}.external-user-search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.create-actions{display:flex;justify-content:flex-end;gap:10px;padding-bottom:8px}@media(max-width:850px){.people-picker-grid{grid-template-columns:1fr}.requester-fields{grid-template-columns:1fr}}@media(max-width:620px){.create-choice-grid{grid-template-columns:1fr}.external-user-search-row{grid-template-columns:1fr}.create-actions{position:sticky;bottom:0;padding:10px;background:rgba(255,255,255,.95);z-index:3}.create-actions>*{flex:1;text-align:center}}
 </style>
 
 <script src="{{ asset('js/user-autocomplete.js') }}?v={{ filemtime(public_path('js/user-autocomplete.js')) }}" defer></script>
@@ -160,6 +165,8 @@
     const externalUserResults = document.getElementById('externalUserResults');
     const externalUserSelected = document.getElementById('externalUserSelected');
     const searchUrlTemplate = @json(url('/integracoes/__INTEGRATION__/usuarios'));
+
+    if (!integrationFields || !integrationSelect) return;
 
     const sourceMode = () => document.querySelector('input[name="source_mode"]:checked')?.value || 'internal';
     const integrationTarget = () => document.querySelector('input[name="integration_target"]:checked')?.value || 'integration';

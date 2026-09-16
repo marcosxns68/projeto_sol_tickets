@@ -75,7 +75,7 @@ class TicketCreationV2Test extends TestCase
             ->assertOk()
             ->assertSee('Este ticket é para')
             ->assertSee('Minha equipe')
-            ->assertSee('Uma empresa/cliente')
+            ->assertDontSee('Uma empresa/cliente')
             ->assertSee('Suporte Permitido')
             ->assertDontSee('Financeiro Bloqueado')
             ->assertSee('Responsável')
@@ -129,7 +129,7 @@ class TicketCreationV2Test extends TestCase
 
     public function test_integration_default_department_still_requires_send_access(): void
     {
-        $user = $this->user('Criador Integração Restrito');
+        $user = $this->user('Criador Integração Restrito', ['tickets.create', 'tickets.create_integration']);
         $department = Department::create(['name' => 'Destino padrão restrito', 'active' => true]);
         $company = Company::create(['name' => 'Empresa Restrita', 'active' => true]);
         $integration = ConnectedSystem::create([
@@ -151,7 +151,7 @@ class TicketCreationV2Test extends TestCase
 
     public function test_manual_company_requester_email_is_linked_to_exact_external_user(): void
     {
-        $user = $this->user('Criador Empresa');
+        $user = $this->user('Criador Empresa', ['tickets.create', 'tickets.create_integration']);
         $department = Department::create(['name' => 'Suporte Cliente', 'active' => true]);
         $this->access($user, $department, 'send');
         $company = Company::create(['name' => 'Empresa Teste', 'active' => true]);

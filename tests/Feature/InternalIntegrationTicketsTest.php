@@ -26,11 +26,15 @@ class InternalIntegrationTicketsTest extends TestCase
     private function operator(): User
     {
         $role = Role::create(['name' => 'Criador '.uniqid(), 'active' => true]);
-        $permission = Permission::firstOrCreate(
+        $create = Permission::firstOrCreate(
             ['key' => 'tickets.create'],
             ['name' => 'Criar tickets', 'group' => 'tickets']
         );
-        $role->permissions()->attach($permission->id);
+        $createIntegration = Permission::firstOrCreate(
+            ['key' => 'tickets.create_integration'],
+            ['name' => 'Criar tickets para integrações', 'group' => 'tickets']
+        );
+        $role->permissions()->attach([$create->id, $createIntegration->id]);
 
         return User::create([
             'name' => 'Operador',
