@@ -75,16 +75,21 @@ class ResponsiveSidebarMobileTest extends TestCase
             ->assertSee('class="mobile-filters"', false);
     }
 
-    public function test_admin_indexes_have_mobile_card_lists_instead_of_relying_on_wide_tables(): void
+    public function test_admin_indexes_use_responsive_layouts_instead_of_relying_on_wide_tables(): void
     {
         $user = $this->userWithVisualPermissions();
 
-        foreach (['/admin/usuarios', '/admin/departamentos', '/admin/cargos'] as $path) {
+        foreach (['/admin/usuarios', '/admin/cargos'] as $path) {
             $this->actingAs($user)->get($path)
                 ->assertOk()
                 ->assertSee('class="mobile-admin-list"', false)
                 ->assertSee('desktop-admin-table', false);
         }
+
+        $this->actingAs($user)->get('/admin/departamentos')
+            ->assertOk()
+            ->assertSee('class="department-list"', false)
+            ->assertSee('@media(max-width:800px)', false);
     }
 
     public function test_responsive_assets_define_compact_mobile_layout_and_collapsed_desktop_sidebar(): void
