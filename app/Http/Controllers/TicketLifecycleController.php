@@ -128,6 +128,7 @@ class TicketLifecycleController extends Controller
         $webhooks->dispatch($ticket, 'ticket.reopened', [
             'previous_status' => $oldStatus,
         ]);
+        $notifier->statusChanged($ticket, $actor, 'Ticket reaberto');
 
         if ($this->shouldNotifyRequester($request)) {
             $notifier->requesterChanged($ticket, $actor, 'Ticket reaberto');
@@ -165,6 +166,7 @@ class TicketLifecycleController extends Controller
         $webhooks->dispatch($ticket, $webhookEvent, [
             'previous_status' => $oldStatus,
         ]);
+        $notifier->statusChanged($ticket, $actor);
 
         if ($notifyRequester) {
             $notifier->requesterChanged($ticket, $actor, 'Status do ticket atualizado');

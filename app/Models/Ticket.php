@@ -32,6 +32,8 @@ class Ticket extends Model
     public function checklist() { return $this->hasMany(ChecklistItem::class)->orderBy('position'); }
     public function comments() { return $this->hasMany(Comment::class); }
     public function events() { return $this->hasMany(TicketEvent::class)->orderBy('created_at')->orderBy('id'); }
+    public function attachments() { return $this->hasMany(Attachment::class)->orderByDesc('created_at'); }
+    public function recurrence() { return $this->hasOne(Recurrence::class, 'source_ticket_id'); }
 
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {

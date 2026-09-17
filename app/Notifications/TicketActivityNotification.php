@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Ticket;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -16,12 +17,14 @@ class TicketActivityNotification extends Notification
         public string $headline,
         public string $message,
         public ?string $actionUrl = null,
+        public string $event = 'ticket.activity',
+        public ?string $actorName = null,
     ) {
     }
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return $notifiable instanceof User ? ['mail', 'database'] : ['mail'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -44,5 +47,18 @@ class TicketActivityNotification extends Notification
         }
 
         return $mail->salutation('Atenciosamente, Sutoorii Tickets');
+    }
+
+    public function toDatabase(object $notifiable): array
+    {
+        return [
+            'ticket_id' => $this->ticket->id,
+            'ticket_number' => $this->ticket->number,
+            'event' => $this->event,
+            'title' => $this->headline,
+            'message' => $this->message,
+            'actor_name' => $this->actorName,
+            'url' => $this->actionUrl,
+        ];
     }
 }
