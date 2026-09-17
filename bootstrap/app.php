@@ -19,6 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             ApplyMailSettings::class,
         ]);
+        $middleware->api(append: [
+            ApplyMailSettings::class,
+        ]);
 
         $middleware->alias([
             'permission' => RequirePermission::class,
