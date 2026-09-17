@@ -9,9 +9,11 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntegrationUserDirectoryController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\RequesterPortalController;
 use App\Http\Controllers\TicketAssignmentController;
+use App\Http\Controllers\TicketAttachmentController;
 use App\Http\Controllers\TicketBoxController;
 use App\Http\Controllers\TicketChecklistController;
 use App\Http\Controllers\TicketCommentController;
@@ -19,6 +21,7 @@ use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TicketLabelController;
 use App\Http\Controllers\TicketLifecycleController;
 use App\Http\Controllers\TicketParticipantController;
+use App\Http\Controllers\TicketRecurrenceController;
 use App\Http\Controllers\TicketRoutingController;
 use App\Http\Controllers\UserDirectoryController;
 use App\Http\Middleware\RequireIntegrationTicketPermission;
@@ -68,6 +71,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware(RequireIntegrationTicketPermission::class)
         ->name('integrations.users.search');
 
+    Route::get('/notificacoes', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notificacoes/ler-todas', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('/notificacoes/{notification}/ler', [NotificationController::class, 'read'])->name('notifications.read');
+
     Route::post('/tickets/{ticket}/assumir', [TicketAssignmentController::class, 'assume'])->name('tickets.assume');
     Route::patch('/tickets/{ticket}/responsavel', [TicketAssignmentController::class, 'reassign'])->name('tickets.reassign');
     Route::post('/tickets/{ticket}/encaminhar', [TicketRoutingController::class, 'forward'])->name('tickets.forward');
@@ -80,6 +87,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/tickets/{ticket}/checklist', [TicketChecklistController::class, 'store'])->name('tickets.checklist.store');
     Route::patch('/tickets/{ticket}/checklist/{item}/alternar', [TicketChecklistController::class, 'toggle'])->name('tickets.checklist.toggle');
     Route::delete('/tickets/{ticket}/checklist/{item}', [TicketChecklistController::class, 'destroy'])->name('tickets.checklist.destroy');
+
+    Route::post('/tickets/{ticket}/anexos', [TicketAttachmentController::class, 'store'])->name('tickets.attachments.store');
+    Route::get('/tickets/{ticket}/anexos/{attachment}', [TicketAttachmentController::class, 'download'])->name('tickets.attachments.download');
+    Route::delete('/tickets/{ticket}/anexos/{attachment}', [TicketAttachmentController::class, 'destroy'])->name('tickets.attachments.destroy');
+
+    Route::post('/tickets/{ticket}/recorrencia', [TicketRecurrenceController::class, 'store'])->name('tickets.recurrence.store');
+    Route::delete('/tickets/{ticket}/recorrencia', [TicketRecurrenceController::class, 'destroy'])->name('tickets.recurrence.destroy');
 
     Route::post('/tickets/{ticket}/solicitar-conclusao', [TicketLifecycleController::class, 'requestCompletion'])->name('tickets.completion.request');
     Route::post('/tickets/{ticket}/resolver', [TicketLifecycleController::class, 'resolve'])->name('tickets.resolve');
