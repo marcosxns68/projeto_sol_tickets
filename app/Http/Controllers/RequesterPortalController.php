@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Ticket;
 use App\Services\IntegrationWebhookDispatcher;
+use App\Services\RequesterReplyWorkflow;
 use App\Services\TicketEventRecorder;
 use App\Services\TicketNotifier;
 use Illuminate\Http\Request;
@@ -47,6 +48,7 @@ class RequesterPortalController extends Controller
         TicketEventRecorder $events,
         IntegrationWebhookDispatcher $webhooks,
         TicketNotifier $notifier,
+        RequesterReplyWorkflow $replyWorkflow,
     ) {
         $email = $this->requesterEmail($request);
         $this->ensureRequesterOwnsTicket($ticket, $email);
@@ -66,6 +68,14 @@ class RequesterPortalController extends Controller
             'comment_id' => $comment->id,
             'source' => 'requester',
         ]);
+
+        if ($replyWorkflow->resumeIfWaitingForCustomer($ticket)) {
+            $events->record($ticket, null, 'status.changed', [
+                'source' => 'requester_reply',
+                'automatic' => true,
+                'status' => $ticket->status?->name,
+            ]);
+        }
 
         $webhooks->dispatch($ticket, 'ticket.comment.created', [
             'comment' => [
