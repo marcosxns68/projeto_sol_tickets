@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="{{ asset('css/responsive-shell.css') }}?v={{ filemtime(public_path('css/responsive-shell.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/responsive-admin.css') }}?v={{ filemtime(public_path('css/responsive-admin.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/labels.css') }}?v={{ filemtime(public_path('css/labels.css')) }}">
-<style>.ticket-create-v2 [hidden]{display:none!important}.notification-count{display:inline-flex;min-width:20px;height:20px;padding:0 6px;align-items:center;justify-content:center;border-radius:999px;background:#7c3aed;color:#fff;font-size:11px;font-weight:700;margin-left:auto}</style>
+<style>.ticket-create-v2 [hidden]{display:none!important}.notification-count{display:inline-flex;min-width:20px;height:20px;padding:0 6px;align-items:center;justify-content:center;border-radius:999px;background:#7c3aed;color:#fff;font-size:11px;font-weight:700;margin-left:auto}.sidebar-version{padding:0 16px 14px;text-align:center;font-size:11px;line-height:1;color:inherit;opacity:.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.app-shell.sidebar-collapsed .sidebar-version{display:none}@media(max-width:900px){.app-shell.sidebar-collapsed .sidebar-version{display:block}}</style>
 </head>
 <body>
 @auth
@@ -67,6 +67,7 @@
             <div class="sidebar-user-copy"><strong>{{ $me->name }}</strong><small>{{ $me->role?->name ?? 'Usuário' }}</small></div>
             <form action="{{ route('logout') }}" method="post">@csrf<button class="sidebar-logout" title="Sair">Sair</button></form>
         </div>
+        <div class="sidebar-version">Versão 1.0.1</div>
     </aside>
 
     <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Fechar menu"></button>
