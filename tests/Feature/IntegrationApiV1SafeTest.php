@@ -239,6 +239,46 @@ class IntegrationApiV1SafeTest extends TestCase
         Notification::assertSentTo($assignee, TicketActivityNotification::class);
     }
 
+    public function test_activity_identifies_support_author_and_external_requester(): void
+    {
+        $status = $this->makeStatus();
+        $integration = $this->integration('França', 'token-franca');
+        $support = $this->internalUser('João Suporte');
+        $ticket = Ticket::create([
+            'number' => Ticket::nextNumber(),
+            'origin' => 'integration',
+            'title' => 'Ticket',
+            'description' => 'Mensagem inicial',
+            'priority' => 'normal',
+            'status_id' => $status->id,
+            'system_id' => $integration->id,
+            'external_requester_id' => '153',
+            'requester_name' => 'Ricardo França',
+        ]);
+
+        $ticket->comments()->create([
+            'user_id' => $support->id,
+            'visibility' => 'public',
+            'body' => 'Resposta da equipe',
+            'source' => 'web',
+        ]);
+        $ticket->comments()->create([
+            'user_id' => null,
+            'visibility' => 'public',
+            'body' => 'Retorno do cliente',
+            'source' => 'integration',
+        ]);
+
+        $activity = $this->withHeaders($this->headers('token-franca', '153'))
+            ->getJson('/api/v1/tickets/'.$ticket->number.'/activity');
+
+        $activity->assertOk();
+        $activity->assertJsonPath('activity.0.author_name', 'João Suporte');
+        $activity->assertJsonPath('activity.0.author_type', 'support');
+        $activity->assertJsonPath('activity.1.author_name', 'Ricardo França');
+        $activity->assertJsonPath('activity.1.author_type', 'requester');
+    }
+
     public function test_public_comments_activity_lifecycle_and_attachments_work_without_exposing_internal_notes(): void
     {
         Storage::fake('local');
@@ -270,8 +310,10 @@ class IntegrationApiV1SafeTest extends TestCase
 
         $activity = $this->withHeaders($this->headers('token-franca', '153'))->getJson('/api/v1/tickets/'.$ticket->number.'/activity');
         $activity->assertOk();
+        $activity->assertJsonPath('activity.0.body', 'Retorno do cliente');
+        $activity->assertJsonPath('activity.0.author_name', 'Solicitante');
+        $activity->assertJsonPath('activity.0.author_type', 'requester');
         $encoded = json_encode($activity->json(), JSON_UNESCAPED_UNICODE);
-        $this->assertStringContainsString('Retorno do cliente', $encoded);
         $this->assertStringNotContainsString('segredo interno', $encoded);
 
         $this->withHeaders($this->headers('token-franca', '153'))->postJson('/api/v1/tickets/'.$ticket->number.'/close')->assertOk();

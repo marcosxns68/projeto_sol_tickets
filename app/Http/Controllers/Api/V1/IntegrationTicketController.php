@@ -299,14 +299,23 @@ class IntegrationTicketController extends Controller
         $ticket->load('status');
 
         $comments = $ticket->comments()
+            ->with('user')
             ->where('visibility', 'public')
             ->orderBy('id')
             ->get()
-            ->map(fn ($comment) => [
-                'type' => 'comment',
-                'body' => $comment->body,
-                'created_at' => $comment->created_at?->toIso8601String(),
-            ])->values();
+            ->map(function ($comment) use ($ticket) {
+                $fromRequester = $comment->source === 'integration' && $comment->user_id === null;
+                $authorName = $comment->user?->name
+                    ?: ($fromRequester ? ($ticket->requester_name ?: 'Solicitante') : 'Equipe de suporte');
+
+                return [
+                    'type' => 'comment',
+                    'body' => $comment->body,
+                    'author_name' => $authorName,
+                    'author_type' => $fromRequester ? 'requester' : 'support',
+                    'created_at' => $comment->created_at?->toIso8601String(),
+                ];
+            })->values();
 
         $attachments = DB::table('attachments')
             ->where('ticket_id', $ticket->id)
