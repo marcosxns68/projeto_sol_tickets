@@ -32,6 +32,8 @@ class TicketNotifier
             'Ticket criado',
             'O ticket foi registrado no Sutoorii Tickets.',
             null,
+            'ticket.created',
+            $creator?->name,
         );
     }
 
@@ -48,14 +50,14 @@ class TicketNotifier
         }
         if ($groups['collaborators'] ?? false) {
             foreach ($ticket->participants as $participant) {
-                if ($participant->pivot?->type === 'collaborator') {
+                if ($participant->pivot?->type === 'collaborator' && $participant->pivot?->notify_comments) {
                     $this->addUser($recipients, $participant);
                 }
             }
         }
         if ($groups['followers'] ?? false) {
             foreach ($ticket->participants as $participant) {
-                if ($participant->pivot?->type === 'follower') {
+                if ($participant->pivot?->type === 'follower' && $participant->pivot?->notify_comments) {
                     $this->addUser($recipients, $participant);
                 }
             }
@@ -69,6 +71,8 @@ class TicketNotifier
             'Novo comentário no ticket',
             'Um novo comentário público foi adicionado ao ticket.',
             $this->internalTicketUrl($ticket),
+            'ticket.comment.public',
+            $actor?->name,
         );
     }
 
@@ -85,6 +89,78 @@ class TicketNotifier
             $headline,
             'Houve uma atualização no seu ticket.',
             $this->requesterActionUrl($ticket),
+            'ticket.requester.updated',
+            $actor?->name,
+        );
+    }
+
+    public function statusChanged(Ticket $ticket, ?User $actor, string $headline = 'Status do ticket atualizado'): void
+    {
+        $ticket->loadMissing(['assignee', 'participants', 'department']);
+        $recipients = [];
+        $this->addUser($recipients, $ticket->assignee);
+        foreach ($ticket->participants as $participant) {
+            if ($participant->pivot?->notify_status) {
+                $this->addUser($recipients, $participant);
+            }
+        }
+        $this->addDepartmentFollowers($recipients, $ticket);
+        $this->removeActor($recipients, $actor);
+
+        $this->sendMany(
+            $ticket,
+            $recipients,
+            $headline,
+            'O status do ticket foi alterado para '.($ticket->status?->name ?? 'um novo status').'.',
+            $this->internalTicketUrl($ticket),
+            'ticket.status.changed',
+            $actor?->name,
+        );
+    }
+
+    public function attachmentAdded(Ticket $ticket, ?User $actor, string $fileName): void
+    {
+        $ticket->loadMissing(['assignee', 'participants']);
+        $recipients = [];
+        $this->addUser($recipients, $ticket->assignee);
+        foreach ($ticket->participants as $participant) {
+            if ($participant->pivot?->notify_attachments) {
+                $this->addUser($recipients, $participant);
+            }
+        }
+        $this->removeActor($recipients, $actor);
+
+        $this->sendMany(
+            $ticket,
+            $recipients,
+            'Novo anexo no ticket',
+            'O arquivo "'.$fileName.'" foi anexado ao ticket.',
+            $this->internalTicketUrl($ticket),
+            'ticket.attachment.added',
+            $actor?->name,
+        );
+    }
+
+    public function deadlineApproaching(Ticket $ticket): void
+    {
+        $ticket->loadMissing(['assignee', 'participants', 'department']);
+        $recipients = [];
+        $this->addUser($recipients, $ticket->assignee);
+        foreach ($ticket->participants as $participant) {
+            if ($participant->pivot?->notify_status) {
+                $this->addUser($recipients, $participant);
+            }
+        }
+        $this->addDepartmentFollowers($recipients, $ticket);
+
+        $this->sendMany(
+            $ticket,
+            $recipients,
+            'Prazo do ticket se aproxima',
+            'O prazo deste ticket vence em até 24 horas.',
+            $this->internalTicketUrl($ticket),
+            'ticket.deadline.approaching',
+            null,
         );
     }
 
@@ -101,6 +177,8 @@ class TicketNotifier
             'Responsável alterado',
             'A responsabilidade pelo ticket foi alterada.',
             $this->internalTicketUrl($ticket),
+            'ticket.assignee.changed',
+            $actor?->name,
         );
     }
 
@@ -119,6 +197,8 @@ class TicketNotifier
                 ? 'Você foi adicionado como '.$role.' deste ticket.'
                 : 'Você não participa mais deste ticket como '.$role.'.',
             $added ? $this->internalTicketUrl($ticket) : null,
+            $added ? 'ticket.participant.added' : 'ticket.participant.removed',
+            $actor?->name,
         );
     }
 
@@ -140,6 +220,8 @@ class TicketNotifier
             $headlines[$event] ?? 'Atualização no departamento',
             'O ticket teve uma movimentação no departamento que você acompanha.',
             $this->internalTicketUrl($ticket),
+            'ticket.department.'.$event,
+            $actor?->name,
         );
     }
 
@@ -218,8 +300,15 @@ class TicketNotifier
         }
     }
 
-    private function sendMany(Ticket $ticket, array $recipients, string $headline, string $message, ?string $actionUrl): void
-    {
+    private function sendMany(
+        Ticket $ticket,
+        array $recipients,
+        string $headline,
+        string $message,
+        ?string $actionUrl,
+        string $event = 'ticket.activity',
+        ?string $actorName = null,
+    ): void {
         foreach ($recipients as $recipient) {
             try {
                 $notification = new TicketActivityNotification(
@@ -227,6 +316,8 @@ class TicketNotifier
                     $headline,
                     $message,
                     $recipient['action_url'] ?? $actionUrl,
+                    $event,
+                    $actorName,
                 );
                 if ($recipient['user'] instanceof User) {
                     $recipient['user']->notify($notification);
