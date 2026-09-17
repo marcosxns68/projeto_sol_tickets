@@ -10,12 +10,13 @@
 <link rel="stylesheet" href="{{ asset('css/responsive-shell.css') }}?v={{ filemtime(public_path('css/responsive-shell.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/responsive-admin.css') }}?v={{ filemtime(public_path('css/responsive-admin.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/labels.css') }}?v={{ filemtime(public_path('css/labels.css')) }}">
-<style>.ticket-create-v2 [hidden]{display:none!important}</style>
+<style>.ticket-create-v2 [hidden]{display:none!important}.notification-count{display:inline-flex;min-width:20px;height:20px;padding:0 6px;align-items:center;justify-content:center;border-radius:999px;background:#7c3aed;color:#fff;font-size:11px;font-weight:700;margin-left:auto}</style>
 </head>
 <body>
 @auth
 @php($me = auth()->user())
 @php($departmentMenuIds = app(\App\Services\DepartmentAccess::class)->sendableIds($me))
+@php($unreadNotifications = $me->unreadNotifications()->count())
 <div class="app-shell" id="appShell">
     <aside class="app-sidebar" id="appSidebar" aria-label="Menu principal">
         <div class="sidebar-brand-row">
@@ -33,6 +34,7 @@
         <nav class="sidebar-nav" aria-label="Navegação principal">
             <p class="sidebar-label">CAIXAS</p>
             <a href="{{ route('boxes.mine') }}" class="sidebar-link {{ request()->routeIs('boxes.mine') ? 'active' : '' }}">Minha Caixa</a>
+            <a href="{{ route('notifications.index') }}" class="sidebar-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}"><span>Notificações</span>@if($unreadNotifications > 0)<span class="notification-count">{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>@endif</a>
             @if($me->hasPermission('tickets.view_all'))
                 <a href="{{ route('boxes.all') }}" class="sidebar-link {{ request()->routeIs('boxes.all') ? 'active' : '' }}">Todos os tickets</a>
             @endif
