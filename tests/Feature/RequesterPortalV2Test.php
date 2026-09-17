@@ -8,8 +8,10 @@ use App\Models\Role;
 use App\Models\Status;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Notifications\TicketActivityNotification;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
@@ -153,4 +155,38 @@ class RequesterPortalV2Test extends TestCase
             'body' => 'Complemento do solicitante',
         ]);
     }
+
+    public function test_requester_reply_moves_waiting_customer_ticket_back_to_in_progress_and_notifies_assignee(): void
+    {
+        Notification::fake();
+
+        $waiting = Status::query()->where('name', 'Aguardando cliente')->firstOrFail();
+        $inProgress = Status::system('in_progress');
+
+        $assignee = User::create([
+            'name' => 'Responsável Cliente',
+            'email' => 'responsavel-cliente@sutoorii.com',
+            'email_verified_at' => now(),
+            'password' => 'SenhaTeste123',
+            'active' => true,
+        ]);
+
+        $ticket = $this->ticket('cliente@example.com', 'Aguardando retorno');
+        $ticket->update([
+            'status_id' => $waiting->id,
+            'assignee_id' => $assignee->id,
+        ]);
+
+        $url = URL::signedRoute('requester.comments.store', [
+            'ticket' => $ticket->id,
+            'email' => 'cliente@example.com',
+        ]);
+
+        $this->post($url, ['body' => 'Já respondi o que faltava.'])->assertRedirect();
+
+        $ticket->refresh();
+        $this->assertSame($inProgress->id, $ticket->status_id);
+        Notification::assertSentTo($assignee, TicketActivityNotification::class);
+    }
+
 }
