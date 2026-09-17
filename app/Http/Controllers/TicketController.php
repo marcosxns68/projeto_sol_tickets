@@ -288,7 +288,7 @@ class TicketController extends Controller
         return view('tickets.show', [
             'ticket' => $ticket->load([
                 'status', 'assignee', 'creator', 'requesterUser', 'department', 'participants', 'labels',
-                'checklist', 'comments.user', 'events.actor', 'company', 'system',
+                'checklist', 'comments.user', 'events.actor', 'company', 'system', 'attachments.uploader', 'recurrence',
             ]),
             'statuses' => Status::where('active', true)->orderBy('position')->get(),
             'departments' => Department::where('active', true)->orderBy('name')->get(),
@@ -376,6 +376,7 @@ class TicketController extends Controller
             $webhooks->dispatch($ticket, 'ticket.status.changed', [
                 'previous_status' => $changes['status']['old'],
             ]);
+            $notifier->statusChanged($ticket, $actor);
         }
 
         $notifyRequester = !array_key_exists('notify_requester', $data) || (bool) $data['notify_requester'];
