@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Status;
 use App\Models\Ticket;
 use App\Services\IntegrationSettings;
+use App\Services\RequesterReplyWorkflow;
 use App\Services\TicketNotifier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -196,7 +197,7 @@ class IntegrationTicketController extends Controller
         return response()->json(['ticket' => $this->serializeTicket($ticket)]);
     }
 
-    public function comment(Request $request, string $reference, TicketNotifier $notifier): JsonResponse
+    public function comment(Request $request, string $reference, TicketNotifier $notifier, RequesterReplyWorkflow $replyWorkflow): JsonResponse
     {
         $ticket = $this->findVisibleTicket($request, $reference);
         $data = $request->validate([
@@ -226,6 +227,8 @@ class IntegrationTicketController extends Controller
             'source' => 'integration',
             'message_id' => $messageId,
         ]);
+
+        $replyWorkflow->resumeIfWaitingForCustomer($ticket);
 
         $notifier->publicComment($ticket, null, [
             'requester' => false,

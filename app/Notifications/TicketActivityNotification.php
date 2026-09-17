@@ -24,7 +24,7 @@ class TicketActivityNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return $notifiable instanceof User ? ['mail', 'database'] : ['mail'];
+        return $notifiable instanceof User ? ['database', 'mail'] : ['mail'];
     }
 
     public function toMail(object $notifiable): MailMessage

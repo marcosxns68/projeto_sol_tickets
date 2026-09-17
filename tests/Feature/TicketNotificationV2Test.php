@@ -180,4 +180,20 @@ class TicketNotificationV2Test extends TestCase
 
         Notification::assertNotSentTo($requester, TicketActivityNotification::class);
     }
+
+    public function test_internal_notification_persists_in_database_before_attempting_email_delivery(): void
+    {
+        $department = Department::create(['name' => 'Alertas', 'active' => true]);
+        $user = $this->user('Responsável Alertas');
+        $ticket = $this->ticket($department, null, $user);
+
+        $notification = new TicketActivityNotification(
+            $ticket,
+            'Cliente respondeu',
+            'Há uma nova resposta do cliente.'
+        );
+
+        $this->assertSame(['database', 'mail'], $notification->via($user));
+    }
+
 }

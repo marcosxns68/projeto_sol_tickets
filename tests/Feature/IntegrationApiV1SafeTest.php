@@ -319,4 +319,44 @@ class IntegrationApiV1SafeTest extends TestCase
         $this->withHeaders($this->headers('token-franca', '153'))->postJson('/api/v1/tickets/'.$ticket->number.'/close')->assertOk();
         $this->withHeaders($this->headers('token-franca', '153'))->postJson('/api/v1/tickets/'.$ticket->number.'/reopen')->assertOk();
     }
+
+    public function test_external_client_reply_moves_waiting_customer_ticket_back_to_in_progress_and_notifies_assignee(): void
+    {
+        Notification::fake();
+
+        $waiting = Status::create([
+            'name' => 'Aguardando cliente',
+            'system_key' => null,
+            'category' => 'waiting',
+            'color' => '#D97706',
+            'position' => 4,
+            'active' => true,
+        ]);
+        $inProgress = $this->makeStatus('in_progress', 'Em andamento', 'in_progress');
+        $integration = $this->integration('Estúdio França', 'token-franca');
+        $assignee = $this->internalUser('Responsável França');
+
+        $ticket = Ticket::create([
+            'number' => Ticket::nextNumber(),
+            'origin' => 'integration',
+            'title' => 'Acesso ao e-mail',
+            'description' => 'Cliente precisa responder.',
+            'priority' => 'urgent',
+            'status_id' => $waiting->id,
+            'system_id' => $integration->id,
+            'external_requester_id' => '153',
+            'requester_name' => 'Ricardo França',
+            'requester_email' => 'cliente@example.com',
+            'assignee_id' => $assignee->id,
+        ]);
+
+        $this->withHeaders($this->headers('token-franca', '153'))
+            ->postJson('/api/v1/tickets/'.$ticket->number.'/comments', ['body' => 'Consegui responder.'])
+            ->assertCreated();
+
+        $ticket->refresh();
+        $this->assertSame($inProgress->id, $ticket->status_id);
+        Notification::assertSentTo($assignee, TicketActivityNotification::class);
+    }
+
 }

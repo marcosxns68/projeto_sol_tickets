@@ -84,7 +84,7 @@ class DatabaseSeeder extends Seeder
             ['Encaminhado', 'forwarded', 'open', '#7C3AED'],
             ['Em análise', null, 'open', '#2563EB'],
             ['Em andamento', 'in_progress', 'in_progress', '#0891B2'],
-            ['Aguardando cliente', null, 'waiting', '#D97706'],
+            ['Aguardando cliente', 'waiting_customer', 'waiting', '#D97706'],
             ['Aguardando terceiro', null, 'waiting', '#D97706'],
             ['Aguardando aprovação', 'completion_requested', 'completion_requested', '#9333EA'],
             ['Resolvido', 'resolved', 'completed', '#16A34A'],
