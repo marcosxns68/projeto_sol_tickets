@@ -17,17 +17,22 @@
     $canInternal = $me->hasPermission('tickets.internal_note');
     $canLabels = $me->hasPermission('tickets.manage_labels');
     $canManagePeople = $me->hasPermission('tickets.manage_participants') && $canDepartmentEdit;
+    $canAttachments = $me->hasPermission('tickets.manage_attachments');
+    $canRecurrence = $me->hasPermission('tickets.recurrence');
     $canReassign = $me->hasPermission('tickets.reassign') && $canDepartmentEdit;
     $canForward = $me->hasPermission('tickets.forward') && $canDepartmentEdit;
     $canAssume = !$ticket->assignee && $ticket->department_id && $canDepartmentView && $me->hasPermission('tickets.assume');
     $hasRequesterEmail = filled($ticket->requester_email);
+    $activeAttachments = $ticket->attachments->whereNull('deleted_at');
+    $recurrence = $ticket->recurrence;
     $eventLabels = [
         'created'=>'Ticket criado','assumed'=>'Ticket assumido','reassigned'=>'Responsável alterado','forwarded'=>'Ticket encaminhado',
         'participant_added'=>'Participante adicionado','participant_changed'=>'Participante atualizado','participant_removed'=>'Participante removido','ticket.updated'=>'Ticket atualizado',
         'checklist.added'=>'Item de checklist adicionado','checklist.toggled'=>'Checklist atualizado','checklist.removed'=>'Item de checklist removido',
         'comment.public'=>'Comentário público adicionado','comment.internal'=>'Nota interna adicionada','completion.requested'=>'Conclusão solicitada',
-        'label.added'=>'Etiqueta adicionada','label.removed'=>'Etiqueta removida',
-        'resolved'=>'Ticket resolvido','closed'=>'Ticket fechado','cancelled'=>'Ticket cancelado','reopened'=>'Ticket reaberto'
+        'label.added'=>'Etiqueta adicionada','label.removed'=>'Etiqueta removida','attachment.added'=>'Anexo adicionado','attachment.removed'=>'Anexo removido',
+        'recurrence.configured'=>'Recorrência configurada','recurrence.removed'=>'Recorrência removida','recurrence_created'=>'Ticket criado por recorrência',
+        'deadline.reminder'=>'Lembrete de prazo enviado','resolved'=>'Ticket resolvido','closed'=>'Ticket fechado','cancelled'=>'Ticket cancelado','reopened'=>'Ticket reaberto'
     ];
     $attachedLabelIds = $ticket->labels->pluck('id')->all();
     $availableLabels = $labels->whereNotIn('id', $attachedLabelIds);
@@ -119,6 +124,7 @@
                 @if($event->event==='forwarded' && is_array($event->data))<small>{{ $event->data['from_department_name'] ?? 'Origem' }} → {{ $event->data['to_department_name'] ?? 'Destino' }}</small>@endif
                 @if($event->event==='reassigned' && is_array($event->data))<small>{{ $event->data['old_assignee_name'] ?? 'Sem responsável' }} → {{ $event->data['new_assignee_name'] ?? 'Novo responsável' }}</small>@endif
                 @if(in_array($event->event,['label.added','label.removed'],true) && is_array($event->data))<small>{{ $event->data['label_name'] ?? 'Etiqueta' }}</small>@endif
+                @if(in_array($event->event,['attachment.added','attachment.removed'],true) && is_array($event->data))<small>{{ $event->data['name'] ?? 'Arquivo' }}</small>@endif
             </div></div>
         @empty<p class="muted">O histórico começará a aparecer conforme o ticket for movimentado.</p>@endforelse
         </div>
@@ -186,6 +192,40 @@
         @empty<p class="muted">Sem itens.</p>@endforelse
         @if($me->hasPermission('tickets.manage_checklist'))<form method="post" action="{{ route('tickets.checklist.store',$ticket) }}" class="mini-form">@csrf<input name="text" placeholder="Novo item" required><label class="inline-check"><input type="checkbox" name="required" value="1"> Obrigatório</label><button class="secondary-button full">Adicionar item</button></form>@endif
     </article>
+
+    <article class="panel">
+        <div class="section-title"><h2>Anexos</h2><span class="counter">{{ $activeAttachments->count() }}</span></div>
+        @forelse($activeAttachments as $attachment)
+            <div class="person-row"><div><b>{{ $attachment->original_name }}</b><small>{{ number_format($attachment->size/1024,1,',','.') }} KB · expira {{ $attachment->expires_at?->format('d/m/Y') }}</small></div><div style="display:flex;gap:6px"><a class="secondary-button" href="{{ route('tickets.attachments.download',[$ticket,$attachment]) }}">Baixar</a>@if($canAttachments)<form method="post" action="{{ route('tickets.attachments.destroy',[$ticket,$attachment]) }}">@csrf @method('DELETE')<button class="icon-button" type="submit" title="Remover">×</button></form>@endif</div></div>
+        @empty<p class="muted">Nenhum anexo.</p>@endforelse
+        @if($canAttachments)
+        <form method="post" action="{{ route('tickets.attachments.store',$ticket) }}" enctype="multipart/form-data" class="mini-form">@csrf
+            <input type="file" name="file" required>
+            <small class="muted">Vídeos não são permitidos.</small>
+            <button class="secondary-button full" type="submit">Enviar anexo</button>
+        </form>
+        @endif
+    </article>
+
+    @if($canRecurrence || $recurrence)
+    <article class="panel">
+        <div class="section-title"><h2>Recorrência</h2>@if($recurrence)<span class="counter">{{ $recurrence->active ? 'Ativa' : 'Pausada' }}</span>@endif</div>
+        @if($canRecurrence)
+        <form method="post" action="{{ route('tickets.recurrence.store',$ticket) }}" class="mini-form">@csrf
+            <label>Frequência<select name="frequency" required><option value="daily" @selected(($recurrence?->frequency ?? '')==='daily')>Diária</option><option value="weekly" @selected(($recurrence?->frequency ?? '')==='weekly')>Semanal</option><option value="monthly" @selected(($recurrence?->frequency ?? '')==='monthly')>Mensal</option></select></label>
+            <label>Intervalo<input type="number" min="1" max="365" name="interval" value="{{ $recurrence?->interval ?? 1 }}" required></label>
+            <div><small>Dias da semana (para recorrência semanal)</small><div class="notify-options">@foreach([0=>'Dom',1=>'Seg',2=>'Ter',3=>'Qua',4=>'Qui',5=>'Sex',6=>'Sáb'] as $day=>$dayName)<label><input type="checkbox" name="weekdays[]" value="{{ $day }}" @checked(in_array($day,$recurrence?->weekdays ?? [],true))> {{ $dayName }}</label>@endforeach</div></div>
+            <label>Próxima criação<input type="datetime-local" name="next_run_at" value="{{ $recurrence?->next_run_at?->format('Y-m-d\TH:i') ?? now()->addDay()->format('Y-m-d\TH:i') }}" required></label>
+            <label>Encerrar em (opcional)<input type="datetime-local" name="ends_at" value="{{ $recurrence?->ends_at?->format('Y-m-d\TH:i') }}"></label>
+            <label class="inline-check"><input type="hidden" name="active" value="0"><input type="checkbox" name="active" value="1" @checked(!$recurrence || $recurrence->active)> Ativa</label>
+            <button class="secondary-button full" type="submit">Salvar recorrência</button>
+        </form>
+        @if($recurrence)<form method="post" action="{{ route('tickets.recurrence.destroy',$ticket) }}" style="margin-top:8px">@csrf @method('DELETE')<button class="danger-button full" type="submit">Remover recorrência</button></form>@endif
+        @else
+            <p class="muted">{{ ucfirst($recurrence->frequency) }} · a cada {{ $recurrence->interval }} · próxima em {{ $recurrence->next_run_at?->format('d/m/Y H:i') }}</p>
+        @endif
+    </article>
+    @endif
 
     <article class="panel">
         <div class="section-title"><h2>Participantes</h2></div>
