@@ -156,6 +156,7 @@ class RequesterPortalV2Test extends TestCase
         ]);
     }
 
+    // Regressão: uma resposta do cliente precisa devolver o ticket ao atendimento ativo.
     public function test_requester_reply_moves_waiting_customer_ticket_back_to_in_progress_and_notifies_assignee(): void
     {
         Notification::fake();
