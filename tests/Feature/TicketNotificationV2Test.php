@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Department;
+use App\Models\NotificationPreference;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Status;
@@ -64,7 +65,7 @@ class TicketNotificationV2Test extends TestCase
         ]);
     }
 
-    public function test_opening_notifies_creator_requester_and_department_follower_without_duplicates(): void
+    public function test_opening_notifies_requester_and_department_follower_but_not_creator_only_for_creating(): void
     {
         Notification::fake();
         $department = Department::create(['name' => 'Suporte', 'active' => true]);
@@ -84,9 +85,46 @@ class TicketNotificationV2Test extends TestCase
             'requester_user_id' => $requester->id,
         ])->assertRedirect();
 
-        Notification::assertSentTo($creator, TicketActivityNotification::class);
-        Notification::assertSentTo($requester, TicketActivityNotification::class);
+        Notification::assertNotSentTo($creator, TicketActivityNotification::class);
+        Notification::assertSentTo($requester, TicketActivityNotification::class, function ($notification) {
+            return $notification->eventKey === 'ticket.opened' && $notification->mandatoryMail === true;
+        });
         Notification::assertSentTo($departmentFollower, TicketActivityNotification::class);
+    }
+
+    public function test_internal_notification_is_always_stored_and_optional_email_respects_preference(): void
+    {
+        $department = Department::create(['name' => 'Preferências', 'active' => true]);
+        $user = $this->user('Preferências');
+        $ticket = $this->ticket($department, $user);
+
+        NotificationPreference::create([
+            'user_id' => $user->id,
+            'event_key' => 'ticket.comment.public',
+            'email_enabled' => false,
+        ]);
+
+        $optional = new TicketActivityNotification(
+            $ticket,
+            'Novo comentário',
+            'Há uma atualização.',
+            null,
+            'ticket.comment.public',
+            false,
+        );
+
+        $this->assertSame(['database'], $optional->via($user));
+
+        $mandatory = new TicketActivityNotification(
+            $ticket,
+            'Ticket criado',
+            'Seu ticket foi registrado.',
+            null,
+            'ticket.opened',
+            true,
+        );
+
+        $this->assertSame(['database', 'mail'], $mandatory->via($user));
     }
 
     public function test_public_comment_notifies_only_checked_groups_and_internal_note_never_notifies_requester(): void
@@ -179,5 +217,24 @@ class TicketNotificationV2Test extends TestCase
         ])->assertRedirect();
 
         Notification::assertNotSentTo($requester, TicketActivityNotification::class);
+    }
+
+    public function test_closing_ticket_always_notifies_requester_even_when_checkbox_is_off(): void
+    {
+        Notification::fake();
+        $department = Department::create(['name' => 'Encerramento', 'active' => true]);
+        $actor = $this->user('Fechador', ['tickets.close']);
+        $requester = $this->user('Solicitante Encerramento');
+        $this->access($actor, $department, 'edit');
+        $ticket = $this->ticket($department, $requester);
+        $ticket->update(['status_id' => Status::system('resolved')->id]);
+
+        $this->actingAs($actor)->post('/tickets/'.$ticket->id.'/fechar', [
+            'notify_requester' => 0,
+        ])->assertRedirect();
+
+        Notification::assertSentTo($requester, TicketActivityNotification::class, function ($notification) {
+            return $notification->eventKey === 'ticket.closed' && $notification->mandatoryMail === true;
+        });
     }
 }
