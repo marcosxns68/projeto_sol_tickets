@@ -1,0 +1,522 @@
+/* Tela de ticket focada na conversa, com ferramentas secundárias recolhidas. */
+
+.ticket-head-v2 {
+    margin-bottom: 0;
+}
+
+.ticket-head-copy {
+    min-width: 0;
+}
+
+.ticket-head-v2 h1 {
+    line-height: 1.15;
+}
+
+.ticket-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(4,minmax(0,1fr));
+    margin: 0 0 16px;
+    border: 1px solid var(--line);
+    border-top: 0;
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 2px 7px rgba(30,24,48,.025);
+}
+
+.ticket-summary-item {
+    min-width: 0;
+    padding: 11px 14px;
+    border-left: 1px solid var(--line);
+}
+
+.ticket-summary-item:first-child {
+    border-left: 0;
+}
+
+.ticket-summary-item small,
+.ticket-summary-item strong {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ticket-summary-item small {
+    margin-bottom: 3px;
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.ticket-summary-item strong {
+    color: #35303d;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.ticket-layout-v2 {
+    grid-template-columns: minmax(0,1fr) 320px;
+    gap: 16px;
+}
+
+.ticket-primary-column,
+.ticket-tools {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+}
+
+.ticket-tools {
+    position: sticky;
+    top: 80px;
+    align-self: start;
+}
+
+.ticket-conversation-panel {
+    padding: 0;
+    overflow: hidden;
+}
+
+.ticket-conversation-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--line);
+}
+
+.ticket-conversation-head h2 {
+    margin: 1px 0 0;
+    font-size: 17px;
+}
+
+.ticket-opening-message {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--line);
+    background: #faf9fc;
+}
+
+.ticket-opening-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #443a50;
+}
+
+.ticket-opening-meta strong {
+    font-size: 12px;
+}
+
+.ticket-opening-meta small {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.ticket-opening-message p {
+    margin: 7px 0 0;
+    white-space: pre-wrap;
+    line-height: 1.55;
+    color: #47434e;
+}
+
+.ticket-comment-list {
+    padding: 0 20px;
+}
+
+.ticket-comment-list .activity-row {
+    padding: 15px 0;
+}
+
+.ticket-empty-conversation {
+    padding: 22px 0;
+    margin: 0;
+    text-align: center;
+}
+
+.ticket-composer {
+    border-top: 1px solid var(--line);
+    padding: 16px 20px 18px;
+    background: #fbfbfd;
+}
+
+.ticket-composer-form {
+    gap: 12px;
+}
+
+.ticket-composer-main {
+    display: grid;
+    grid-template-columns: 170px minmax(0,1fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.ticket-composer-type,
+.ticket-composer-message {
+    margin: 0;
+}
+
+.ticket-composer-message textarea {
+    min-height: 104px;
+    resize: vertical;
+}
+
+.ticket-composer-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.ticket-composer-actions .button {
+    min-width: 150px;
+}
+
+.composer-options {
+    border: 1px solid #e7e2ed;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.composer-options > summary {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    cursor: pointer;
+    list-style: none;
+    color: #61576b;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.composer-options > summary::-webkit-details-marker {
+    display: none;
+}
+
+.composer-options > summary::after {
+    content: '›';
+    margin-left: auto;
+    color: var(--purple);
+    font-size: 18px;
+    transition: transform .16s ease;
+}
+
+.composer-options[open] > summary::after {
+    transform: rotate(90deg);
+}
+
+.composer-notify-grid {
+    margin: 0;
+    padding: 11px 12px 12px;
+    border-top: 1px solid #eeeaf2;
+}
+
+.ticket-disclosure {
+    min-width: 0;
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: var(--shadow);
+    overflow: visible;
+}
+
+.ticket-disclosure-summary {
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 14px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.ticket-disclosure-summary::-webkit-details-marker {
+    display: none;
+}
+
+.ticket-disclosure-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.ticket-disclosure-copy strong {
+    color: #38323f;
+    font-size: 13px;
+    line-height: 1.25;
+}
+
+.ticket-disclosure-copy small {
+    min-width: 0;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ticket-disclosure-chevron {
+    flex: 0 0 auto;
+    color: #8b8294;
+    font-size: 21px;
+    line-height: 1;
+    transition: transform .16s ease, color .16s ease;
+}
+
+.ticket-disclosure[open] > .ticket-disclosure-summary .ticket-disclosure-chevron {
+    transform: rotate(90deg);
+    color: var(--purple);
+}
+
+.ticket-disclosure[open] > .ticket-disclosure-summary {
+    background: #fcfbfd;
+}
+
+.ticket-disclosure-content {
+    padding: 15px 14px 16px;
+    border-top: 1px solid var(--line);
+}
+
+.ticket-disclosure-content > :first-child {
+    margin-top: 0;
+}
+
+.ticket-disclosure-content > :last-child {
+    margin-bottom: 0;
+}
+
+.ticket-disclosure .mini-form {
+    margin-top: 12px;
+}
+
+.ticket-disclosure .details dl {
+    margin-top: 0;
+}
+
+.ticket-danger-disclosure {
+    border-color: #eadff5;
+}
+
+.attachment-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.recurrence-remove {
+    margin-top: 8px;
+}
+
+.recurrence-weekdays {
+    margin-top: 6px;
+}
+
+@media (max-width: 1100px) {
+    .ticket-layout-v2 {
+        grid-template-columns: minmax(0,1fr) 290px;
+    }
+}
+
+@media (max-width: 900px) {
+    .ticket-head-v2 {
+        padding-top: 0;
+        padding-bottom: 12px;
+    }
+
+    .ticket-head-v2 .status.large {
+        align-self: flex-start;
+    }
+
+    .ticket-summary-strip {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        margin-bottom: 12px;
+        border-top: 1px solid var(--line);
+        border-radius: 10px;
+    }
+
+    .ticket-summary-item {
+        min-height: 64px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border-top: 1px solid var(--line);
+    }
+
+    .ticket-summary-item:nth-child(1),
+    .ticket-summary-item:nth-child(2) {
+        border-top: 0;
+    }
+
+    .ticket-summary-item:nth-child(odd) {
+        border-left: 0;
+    }
+
+    .ticket-layout-v2 {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .ticket-primary-column,
+    .ticket-tools {
+        gap: 9px;
+    }
+
+    .ticket-tools {
+        position: static;
+    }
+
+    .ticket-conversation-panel {
+        border-radius: 12px;
+    }
+
+    .ticket-conversation-head {
+        padding: 14px;
+    }
+
+    .ticket-opening-message {
+        padding: 13px 14px;
+    }
+
+    .ticket-comment-list {
+        padding: 0 14px;
+    }
+
+    .ticket-comment-list .activity-row {
+        padding: 14px 0;
+    }
+
+    .ticket-composer {
+        padding: 14px;
+    }
+
+    .ticket-composer-main {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .ticket-composer-message textarea {
+        min-height: 108px;
+        font-size: 16px;
+    }
+
+    .ticket-composer-type select {
+        min-height: 44px;
+    }
+
+    .ticket-composer-actions {
+        justify-content: stretch;
+    }
+
+    .ticket-composer-actions .button {
+        width: 100%;
+        min-width: 0;
+        min-height: 48px;
+    }
+
+    .composer-options > summary {
+        min-height: 48px;
+    }
+
+    .ticket-disclosure {
+        border-radius: 11px;
+        box-shadow: 0 2px 8px rgba(30,24,48,.035);
+    }
+
+    .ticket-disclosure-summary {
+        min-height: 48px;
+        padding: 9px 12px;
+    }
+
+    .ticket-disclosure-copy strong {
+        font-size: 13px;
+    }
+
+    .ticket-disclosure-copy small {
+        font-size: 10px;
+    }
+
+    .ticket-disclosure-content {
+        padding: 13px 12px 14px;
+    }
+
+    .ticket-disclosure-content input:not([type="checkbox"]):not([type="hidden"]),
+    .ticket-disclosure-content select,
+    .ticket-disclosure-content textarea,
+    .ticket-disclosure-content .button,
+    .ticket-disclosure-content .secondary-button,
+    .ticket-disclosure-content .danger-button {
+        min-height: 44px;
+    }
+
+    .attachment-actions {
+        margin-left: auto;
+    }
+}
+
+@media (max-width: 600px) {
+    .ticket-head-v2 h1 {
+        font-size: 21px;
+    }
+
+    .ticket-summary-strip {
+        margin-inline: 0;
+    }
+
+    .ticket-summary-item {
+        min-height: 58px;
+        padding: 9px 11px;
+    }
+
+    .ticket-summary-item strong {
+        font-size: 11px;
+    }
+
+    .ticket-conversation-head h2 {
+        font-size: 16px;
+    }
+
+    .ticket-opening-meta {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .ticket-opening-message p,
+    .activity-body p {
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .ticket-comment-list .activity-row {
+        gap: 9px;
+    }
+
+    .ticket-comment-list .avatar {
+        flex-basis: 29px;
+        width: 29px;
+        height: 29px;
+        font-size: 11px;
+    }
+
+    .ticket-disclosure-summary {
+        min-height: 52px;
+    }
+
+    .person-row {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .attachment-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
