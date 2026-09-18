@@ -69,4 +69,76 @@ class TicketWorkspaceTest extends TestCase
         $this->assertDatabaseHas('comments', ['ticket_id'=>$ticket->id,'visibility'=>'public','body'=>'Resposta ao solicitante']);
         $this->assertDatabaseHas('comments', ['ticket_id'=>$ticket->id,'visibility'=>'internal','body'=>'Somente equipe']);
     }
+
+    public function test_ticket_workspace_prioritizes_conversation_and_collapses_secondary_tools(): void
+    {
+        $department = Department::create(['name' => 'Experiência mobile']);
+        $status = $this->ticketStatus('in_progress', 'Em andamento', 'in_progress');
+        $user = $this->user($department, [
+            'tickets.view_department',
+            'tickets.comment',
+            'tickets.internal_note',
+            'tickets.edit',
+            'tickets.change_priority',
+            'tickets.change_due_date',
+            'tickets.change_status',
+            'tickets.manage_checklist',
+            'tickets.manage_attachments',
+            'tickets.manage_participants',
+            'tickets.manage_labels',
+            'tickets.recurrence',
+        ]);
+        $user->departments()->syncWithoutDetaching([
+            $department->id => ['access_level' => 'edit', 'follow_department' => false],
+        ]);
+
+        $ticket = Ticket::create([
+            'number' => Ticket::nextNumber(),
+            'origin' => 'internal',
+            'title' => 'Tela de ticket mais simples',
+            'description' => 'Descrição do chamado',
+            'priority' => 'high',
+            'status_id' => $status->id,
+            'department_id' => $department->id,
+            'assignee_id' => $user->id,
+            'due_at' => now()->addDay(),
+        ]);
+
+        $ticket->comments()->create([
+            'user_id' => $user->id,
+            'visibility' => 'public',
+            'body' => 'Primeiro comentário',
+            'source' => 'web',
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ]);
+        $ticket->comments()->create([
+            'user_id' => $user->id,
+            'visibility' => 'public',
+            'body' => 'Último comentário',
+            'source' => 'web',
+        ]);
+
+        $response = $this->actingAs($user)->get('/tickets/'.$ticket->id);
+
+        $response->assertOk()
+            ->assertSee('data-ticket-conversation', false)
+            ->assertSee('data-ticket-comment-list', false)
+            ->assertSee('data-ticket-composer', false)
+            ->assertSeeInOrder([
+                'data-ticket-conversation',
+                'Primeiro comentário',
+                'Último comentário',
+                'data-ticket-composer',
+            ], false)
+            ->assertSee('class="ticket-summary-strip"', false)
+            ->assertSee('data-ticket-tool="details"', false)
+            ->assertSee('data-ticket-tool="checklist"', false)
+            ->assertSee('data-ticket-tool="attachments"', false)
+            ->assertSee('data-ticket-tool="recurrence"', false)
+            ->assertSee('data-ticket-tool="participants"', false)
+            ->assertSee('data-ticket-tool="history"', false)
+            ->assertDontSee('<details class="ticket-disclosure" open', false);
+    }
+
 }
