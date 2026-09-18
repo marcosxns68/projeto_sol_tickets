@@ -108,4 +108,20 @@ class ResponsiveSidebarMobileTest extends TestCase
         $this->assertStringContainsString('localStorage', $js);
         $this->assertStringContainsString('sidebar-open', $js);
     }
+
+    public function test_ticket_workspace_has_dedicated_mobile_first_styles(): void
+    {
+        $path = public_path('css/ticket-workspace.css');
+
+        $this->assertFileExists($path);
+
+        $css = file_get_contents($path);
+        $this->assertStringContainsString('.ticket-summary-strip', $css);
+        $this->assertStringContainsString('.ticket-conversation-panel', $css);
+        $this->assertStringContainsString('.ticket-composer', $css);
+        $this->assertStringContainsString('.ticket-disclosure', $css);
+        $this->assertStringContainsString('@media (max-width: 900px)', $css);
+        $this->assertStringContainsString('min-height: 48px', $css);
+    }
+
 }
