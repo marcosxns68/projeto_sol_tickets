@@ -41,10 +41,10 @@ A publicação pelo GitHub envia o código e executa as migrations, mas **não c
 cd /CAMINHO/REAL/DO/TICKETS && /CAMINHO/DO/PHP artisan schedule:run >> /dev/null 2>&1
 \`\`\`
 
-O cron precisa ser cadastrado **uma única vez**. As frequências de cada rotina estão em \`routes/console.php\`: fila a cada minuto, recorrências a cada 15 minutos, manutenção a cada hora e resumo dos tickets atribuídos às 08h (horário de São Paulo).
+O cron precisa ser cadastrado **uma única vez**. As frequências de cada rotina estão em \`routes/console.php\`: fila a cada minuto, recorrências a cada 15 minutos, manutenção a cada hora e resumo dos tickets atribuídos toda segunda-feira às 08h (horário de São Paulo).
 
 Para verificar o agendamento pelo terminal da hospedagem, execute, a partir da pasta do projeto, \`php artisan schedule:list\`. Para investigar a execução real, substitua temporariamente o redirecionamento \`/dev/null\` pelo arquivo \`storage/logs/scheduler-cron.log\` e confirme que há execuções; depois volte para \`/dev/null\` para não acumular logs. \`schedule:list\` confirma que as rotinas estão definidas, mas **não prova que o cron da hospedagem está executando**.
 
-O resumo diário só é enviado aos usuários ativos com e-mail confirmado. Ele mostra a quantidade de tickets ativos atribuídos ao usuário, mesmo quando essa quantidade é zero; tickets resolvidos, fechados, cancelados e na lixeira não entram. O comando aplica as configurações de SMTP salvas no painel do Tickets e registra a última data enviada para evitar reenvios no mesmo dia.
+O resumo semanal só é enviado aos usuários ativos com e-mail confirmado. Ele mostra a quantidade de tickets ativos atribuídos ao usuário, mesmo quando essa quantidade é zero; tickets resolvidos, fechados, cancelados e na lixeira não entram. O comando aplica as configurações de SMTP salvas no painel do Tickets e registra a última semana enviada para evitar reenvios na mesma semana.
 
 **Importante:** executar o deploy no GitHub não configura cron, não valida entrega de e-mails reais e não confirma o horário ou PHP CLI do painel da Hostoo.
