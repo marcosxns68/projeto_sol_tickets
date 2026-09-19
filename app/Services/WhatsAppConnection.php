@@ -37,7 +37,7 @@ class WhatsAppConnection
         }
 
         Setting::setValue('whatsapp.evolution.base_url', $url);
-        Setting::setValue('whatsapp.evolution.instance', (string) $data['instance']);
+        Setting::setValue('whatsapp.evolution.instance', trim((string) $data['instance']));
 
         if (filled($data['api_key'] ?? null)) {
             Setting::setValue('whatsapp.evolution.api_key', Crypt::encryptString((string) $data['api_key']));
