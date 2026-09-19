@@ -11,6 +11,7 @@ use App\Services\IntegrationSettings;
 use App\Services\PriorityDeadlines;
 use App\Services\RequesterReplyWorkflow;
 use App\Services\TicketNotifier;
+use App\Services\WhatsAppConnection;
 use App\Services\TicketEventRecorder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -63,6 +64,11 @@ class IntegrationTicketController extends Controller
             'external_reference' => ['nullable', 'string', 'max:255'],
             'requester_name' => ['required', 'string', 'max:160'],
             'requester_email' => ['nullable', 'email', 'max:255'],
+            'requester_whatsapp' => ['nullable', 'string', 'max:35', function ($attribute, $value, $fail) {
+                if (filled($value) && WhatsAppConnection::normalizeNumber($value) === null) {
+                    $fail('Informe um WhatsApp brasileiro válido com DDD.');
+                }
+            }],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'priority' => ['nullable', 'in:low,normal,high,urgent'],
@@ -118,6 +124,7 @@ class IntegrationTicketController extends Controller
                 'system_id' => $integration->id,
                 'requester_name' => $data['requester_name'],
                 'requester_email' => $data['requester_email'] ?? null,
+                'requester_whatsapp' => WhatsAppConnection::normalizeNumber($data['requester_whatsapp'] ?? null),
                 'external_requester_id' => $externalUserId,
                 'external_reference' => $externalReference,
             ]);

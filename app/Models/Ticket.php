@@ -12,12 +12,12 @@ class Ticket extends Model
         'number', 'origin', 'title', 'description', 'priority', 'status_id', 'creator_id',
         'assignee_id', 'department_id', 'company_id', 'system_id', 'requester_name',
         'requester_email', 'requester_user_id', 'external_requester_id', 'due_at', 'completed_at', 'trashed_at',
-        'external_reference',
+        'external_reference', 'requester_whatsapp', 'whatsapp_opened_sent_at',
     ];
 
     protected function casts(): array
     {
-        return ['due_at' => 'datetime', 'completed_at' => 'datetime', 'trashed_at' => 'datetime'];
+        return ['due_at' => 'datetime', 'completed_at' => 'datetime', 'trashed_at' => 'datetime', 'requester_whatsapp' => 'encrypted', 'whatsapp_opened_sent_at' => 'datetime'];
     }
 
     public function status() { return $this->belongsTo(Status::class); }

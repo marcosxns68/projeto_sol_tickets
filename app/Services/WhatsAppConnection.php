@@ -44,6 +44,53 @@ class WhatsAppConnection
         }
     }
 
+    /**
+     * Aceita DDD + telefone brasileiro com ou sem código do país.
+     * Não tenta adivinhar números estrangeiros ou sem DDD.
+     */
+    public static function normalizeNumber(?string $number): ?string
+    {
+        $digits = preg_replace('/\\D+/', '', (string) $number);
+        if (str_starts_with($digits, '55') && in_array(strlen($digits), [12, 13], true)) {
+            $digits = substr($digits, 2);
+        }
+
+        if (!preg_match('/^[1-9][1-9][2-9][0-9]{7,8}$/', $digits)) {
+            return null;
+        }
+
+        return '55'.$digits;
+    }
+
+    public function sendText(string $phone, string $message): void
+    {
+        $normalized = self::normalizeNumber($phone);
+        if ($normalized === null) {
+            throw new \InvalidArgumentException('WhatsApp do solicitante inválido.');
+        }
+
+        $data = $this->values();
+        if (!$data['api_key_saved'] || $data['base_url'] === '' || $data['instance'] === '') {
+            throw new RuntimeException('A conexão WhatsApp não foi configurada.');
+        }
+
+        $key = Crypt::decryptString((string) Setting::getValue('whatsapp.evolution.api_key'));
+        try {
+            $response = Http::withHeaders(['apikey' => $key])
+                ->acceptJson()->timeout(15)->connectTimeout(5)->withoutRedirecting()
+                ->post($data['base_url'].'/message/sendText/'.rawurlencode($data['instance']), [
+                    'number' => $normalized,
+                    'text' => $message,
+                ]);
+        } catch (ConnectionException) {
+            throw new RuntimeException('A Evolution API não respondeu ao envio da confirmação do ticket.');
+        }
+
+        if (!$response->successful()) {
+            throw new RuntimeException('A Evolution API não aceitou a confirmação de abertura do ticket.');
+        }
+    }
+
     public function qrCode(): string
     {
         $response = $this->request('connect');
