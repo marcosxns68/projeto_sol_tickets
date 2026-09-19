@@ -69,7 +69,7 @@ class RequesterPortalController extends Controller
             'source' => 'requester',
         ]);
 
-        if ($replyWorkflow->resumeIfWaitingForCustomer($ticket)) {
+        if ($replyWorkflow->markRequesterReplied($ticket)) {
             $events->record($ticket, null, 'status.changed', [
                 'source' => 'requester_reply',
                 'automatic' => true,

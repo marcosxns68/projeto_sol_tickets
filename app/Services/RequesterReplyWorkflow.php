@@ -7,35 +7,26 @@ use App\Models\Ticket;
 
 class RequesterReplyWorkflow
 {
-    public function resumeIfWaitingForCustomer(Ticket $ticket): bool
+    /**
+     * Identifica uma nova resposta do solicitante sem reabrir automaticamente
+     * tickets concluídos, cancelados ou enviados para a lixeira.
+     */
+    public function markRequesterReplied(Ticket $ticket): bool
     {
         $ticket->loadMissing('status');
 
-        $current = $ticket->status;
-        if (!$current) {
+        if ($ticket->trashed_at || !$ticket->status ||
+            in_array($ticket->status->category, ['completed', 'cancelled'], true)) {
             return false;
         }
 
-        $isWaitingForCustomer = $current->system_key === 'waiting_customer'
-            || mb_strtolower(trim((string) $current->name)) === 'aguardando cliente';
-
-        if (!$isWaitingForCustomer) {
+        $replied = Status::system('requester_replied');
+        if (!$replied || (int) $ticket->status_id === (int) $replied->id) {
             return false;
         }
 
-        $inProgress = Status::system('in_progress')
-            ?? Status::query()->where('name', 'Em andamento')->first();
-
-        if (!$inProgress || (int) $ticket->status_id === (int) $inProgress->id) {
-            return false;
-        }
-
-        $ticket->update([
-            'status_id' => $inProgress->id,
-            'completed_at' => null,
-        ]);
-
-        $ticket->setRelation('status', $inProgress);
+        $ticket->update(['status_id' => $replied->id, 'completed_at' => null]);
+        $ticket->setRelation('status', $replied);
 
         return true;
     }

@@ -157,12 +157,12 @@ class RequesterPortalV2Test extends TestCase
     }
 
     // Regressão: uma resposta do cliente precisa devolver o ticket ao atendimento ativo.
-    public function test_requester_reply_moves_waiting_customer_ticket_back_to_in_progress_and_notifies_assignee(): void
+    public function test_requester_reply_sets_requester_replied_status_and_notifies_assignee(): void
     {
         Notification::fake();
 
-        $waiting = Status::query()->where('name', 'Aguardando cliente')->firstOrFail();
-        $inProgress = Status::system('in_progress');
+        $waiting = Status::system('waiting_customer');
+        $replied = Status::system('requester_replied');
 
         $assignee = User::create([
             'name' => 'Responsável Cliente',
@@ -186,8 +186,21 @@ class RequesterPortalV2Test extends TestCase
         $this->post($url, ['body' => 'Já respondi o que faltava.'])->assertRedirect();
 
         $ticket->refresh();
-        $this->assertSame($inProgress->id, $ticket->status_id);
+        $this->assertSame($replied->id, $ticket->status_id);
         Notification::assertSentTo($assignee, TicketActivityNotification::class);
+    }
+
+
+    public function test_requester_reply_on_closed_ticket_does_not_reopen_it_automatically(): void
+    {
+        $ticket = $this->ticket('cliente@example.com', 'Ticket encerrado', 'closed');
+        $url = URL::signedRoute('requester.comments.store', [
+            'ticket' => $ticket->id,
+            'email' => 'cliente@example.com',
+        ]);
+
+        $this->post($url, ['body' => 'Ainda tenho outra dúvida.'])->assertRedirect();
+        $this->assertSame(Status::system('closed')->id, $ticket->fresh()->status_id);
     }
 
 }

@@ -59,7 +59,7 @@ class VisualShellTest extends TestCase
             ->assertSee('Status')
             ->assertSee('Prioridade')
             ->assertSee('Responsável')
-            ->assertSee('Versão 1.0.4');
+            ->assertSee('Versão 1.0.5');
     }
 
     public function test_styles_define_dark_sutoorii_sidebar_and_light_workspace(): void
@@ -73,4 +73,40 @@ class VisualShellTest extends TestCase
         $this->assertStringContainsString('.tickets-table', $css);
         $this->assertStringNotContainsString('@media(prefers-color-scheme:dark)', $css);
     }
+
+    public function test_unread_notification_count_is_visible_on_mobile_and_refreshable_without_leaking_other_users_counts(): void
+    {
+        $department = Department::create(['name' => 'Suporte', 'active' => true]);
+        $role = Role::create(['name' => 'Usuário notificações', 'active' => true]);
+        $user = User::create([
+            'name' => 'Pessoa Avisos',
+            'email' => 'avisos@sutoorii.com',
+            'email_verified_at' => now(),
+            'password' => 'SenhaTeste123',
+            'role_id' => $role->id,
+            'department_id' => $department->id,
+            'active' => true,
+        ]);
+        $other = User::create([
+            'name' => 'Outro Usuário',
+            'email' => 'outro-avisos@sutoorii.com',
+            'email_verified_at' => now(),
+            'password' => 'SenhaTeste123',
+            'role_id' => $role->id,
+            'active' => true,
+        ]);
+        $user->notifications()->create(['id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'test', 'data' => ['title' => 'Ticket atualizado']]);
+        $other->notifications()->create(['id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'test', 'data' => ['title' => 'Privado']]);
+
+        $this->actingAs($user)->get('/minha-caixa')
+            ->assertOk()
+            ->assertSee('data-notification-count', false)
+            ->assertSee('data-notifications-topbar', false)
+            ->assertSee('1 não lida', false);
+
+        $this->actingAs($user)->getJson('/notificacoes/contador')
+            ->assertOk()
+            ->assertJsonPath('unread', 1);
+    }
+
 }

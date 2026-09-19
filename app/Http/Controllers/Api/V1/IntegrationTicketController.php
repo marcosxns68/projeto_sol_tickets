@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Services\IntegrationSettings;
 use App\Services\RequesterReplyWorkflow;
 use App\Services\TicketNotifier;
+use App\Services\TicketEventRecorder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -197,7 +198,7 @@ class IntegrationTicketController extends Controller
         return response()->json(['ticket' => $this->serializeTicket($ticket)]);
     }
 
-    public function comment(Request $request, string $reference, TicketNotifier $notifier, RequesterReplyWorkflow $replyWorkflow): JsonResponse
+    public function comment(Request $request, string $reference, TicketNotifier $notifier, RequesterReplyWorkflow $replyWorkflow, TicketEventRecorder $events): JsonResponse
     {
         $ticket = $this->findVisibleTicket($request, $reference);
         $data = $request->validate([
@@ -228,7 +229,13 @@ class IntegrationTicketController extends Controller
             'message_id' => $messageId,
         ]);
 
-        $replyWorkflow->resumeIfWaitingForCustomer($ticket);
+        if ($replyWorkflow->markRequesterReplied($ticket)) {
+            $events->record($ticket, null, 'status.changed', [
+                'source' => 'requester_reply',
+                'automatic' => true,
+                'status' => $ticket->status?->name,
+            ]);
+        }
 
         $notifier->publicComment($ticket, null, [
             'requester' => false,
@@ -430,6 +437,17 @@ class IntegrationTicketController extends Controller
             $ticket->loadMissing(['status', 'labels']);
         }
 
+        $lastPublicReply = $ticket->comments()
+            ->where('visibility', 'public')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+        $lastReplyBy = $lastPublicReply
+            ? (($lastPublicReply->source === 'integration' || $lastPublicReply->source === 'requester'
+                || ($ticket->requester_user_id && (int) $lastPublicReply->user_id === (int) $ticket->requester_user_id))
+                ? 'requester' : 'support')
+            : null;
+
         return [
             'number' => $ticket->number,
             'external_reference' => $ticket->external_reference,
@@ -438,6 +456,8 @@ class IntegrationTicketController extends Controller
             'priority' => $ticket->priority,
             'status' => $ticket->status?->name,
             'status_key' => $ticket->status?->system_key,
+            'last_public_reply_by' => $lastReplyBy,
+            'last_public_reply_at' => $lastPublicReply?->created_at?->toIso8601String(),
             'labels' => $ticket->labels->sortBy('name')->values()->map(fn ($label) => [
                 'id' => $label->id,
                 'name' => $label->name,

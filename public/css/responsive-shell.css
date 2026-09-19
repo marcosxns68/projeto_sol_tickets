@@ -610,3 +610,9 @@
         justify-content: flex-start;
     }
 }
+
+/* Três elementos na primeira linha: menu, título e sino de notificações. */
+@media (max-width: 900px) {
+    .workspace-topbar .topbar-user { display: none; }
+    .workspace-topbar .topbar-notifications { justify-self: end; min-height: 40px; }
+}

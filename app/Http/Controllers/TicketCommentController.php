@@ -6,6 +6,7 @@ use App\Models\Ticket;
 use App\Services\IntegrationWebhookDispatcher;
 use App\Services\TicketEventRecorder;
 use App\Services\TicketNotifier;
+use App\Services\RequesterReplyWorkflow;
 use Illuminate\Http\Request;
 
 class TicketCommentController extends Controller
@@ -16,6 +17,7 @@ class TicketCommentController extends Controller
         TicketEventRecorder $events,
         IntegrationWebhookDispatcher $webhooks,
         TicketNotifier $notifier,
+        RequesterReplyWorkflow $replyWorkflow,
     ) {
         $actor = $request->user();
         abort_unless(Ticket::visibleTo($actor)->whereKey($ticket->id)->exists(), 403);
@@ -43,6 +45,14 @@ class TicketCommentController extends Controller
         $events->record($ticket, $actor, $data['visibility'] === 'public' ? 'comment.public' : 'comment.internal', [
             'comment_id' => $comment->id,
         ]);
+
+        if ($data['visibility'] === 'public' && $isRequester && $replyWorkflow->markRequesterReplied($ticket)) {
+            $events->record($ticket, $actor, 'status.changed', [
+                'source' => 'requester_reply',
+                'automatic' => true,
+                'status' => $ticket->status?->name,
+            ]);
+        }
 
         if ($data['visibility'] === 'public') {
             $webhooks->dispatch($ticket, 'ticket.comment.created', [

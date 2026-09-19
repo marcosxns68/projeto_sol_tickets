@@ -320,7 +320,7 @@ class IntegrationApiV1SafeTest extends TestCase
         $this->withHeaders($this->headers('token-franca', '153'))->postJson('/api/v1/tickets/'.$ticket->number.'/reopen')->assertOk();
     }
 
-    public function test_external_client_reply_moves_waiting_customer_ticket_back_to_in_progress_and_notifies_assignee(): void
+    public function test_external_client_reply_sets_requester_replied_status_and_notifies_assignee(): void
     {
         Notification::fake();
 
@@ -332,7 +332,7 @@ class IntegrationApiV1SafeTest extends TestCase
             'position' => 4,
             'active' => true,
         ]);
-        $inProgress = $this->makeStatus('in_progress', 'Em andamento', 'in_progress');
+        $replied = Status::system('requester_replied');
         $integration = $this->integration('Estúdio França', 'token-franca');
         $assignee = $this->internalUser('Responsável França');
 
@@ -355,7 +355,12 @@ class IntegrationApiV1SafeTest extends TestCase
             ->assertCreated();
 
         $ticket->refresh();
-        $this->assertSame($inProgress->id, $ticket->status_id);
+        $this->assertSame($replied->id, $ticket->status_id);
+        $this->withHeaders($this->headers('token-franca', '153'))
+            ->getJson('/api/v1/tickets/'.$ticket->number)
+            ->assertOk()
+            ->assertJsonPath('ticket.status_key', 'requester_replied')
+            ->assertJsonPath('ticket.last_public_reply_by', 'requester');
         Notification::assertSentTo($assignee, TicketActivityNotification::class);
     }
 
@@ -390,6 +395,31 @@ class IntegrationApiV1SafeTest extends TestCase
             'ticket.created',
             $follower->notifications()->firstOrFail()->data['event']
         );
+    }
+
+    public function test_api_identifies_last_public_team_reply_without_exposing_internal_notes(): void
+    {
+        $status = $this->makeStatus();
+        $integration = $this->integration('Estúdio França', 'token-ultima-resposta');
+        $support = $this->internalUser('Suporte França');
+        $ticket = Ticket::create([
+            'number' => Ticket::nextNumber(),
+            'origin' => 'integration',
+            'title' => 'Resposta da Sutoorii',
+            'description' => 'Pergunta inicial',
+            'priority' => 'normal',
+            'status_id' => $status->id,
+            'system_id' => $integration->id,
+            'external_requester_id' => '153',
+        ]);
+        $ticket->comments()->create(['visibility' => 'public', 'body' => 'Cliente perguntou', 'source' => 'integration']);
+        $ticket->comments()->create(['visibility' => 'internal', 'body' => 'Nota secreta', 'source' => 'web', 'user_id' => $support->id]);
+        $ticket->comments()->create(['visibility' => 'public', 'body' => 'Sutoorii respondeu', 'source' => 'web', 'user_id' => $support->id]);
+
+        $this->withHeaders($this->headers('token-ultima-resposta', '153'))
+            ->getJson('/api/v1/tickets/'.$ticket->number)
+            ->assertOk()
+            ->assertJsonPath('ticket.last_public_reply_by', 'support');
     }
 
 }

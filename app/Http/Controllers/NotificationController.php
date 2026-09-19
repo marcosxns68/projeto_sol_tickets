@@ -13,6 +13,11 @@ class NotificationController extends Controller
         ]);
     }
 
+    public function count(Request $request)
+    {
+        return response()->json(['unread' => $request->user()->unreadNotifications()->count()]);
+    }
+
     public function read(Request $request, string $notification)
     {
         $item = $request->user()->notifications()->whereKey($notification)->firstOrFail();
