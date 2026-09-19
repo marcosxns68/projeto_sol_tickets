@@ -54,7 +54,7 @@ class AdminVisualConsistencyTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/usuarios')
             ->assertOk()
-            ->assertSee('Versão 1.0.2');
+            ->assertSee('Versão 1.0.3');
     }
 
     public function test_service_worker_does_not_precache_css_that_can_become_stale(): void
