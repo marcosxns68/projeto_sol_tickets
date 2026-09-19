@@ -18,7 +18,7 @@ class WhatsAppTicketOpenedTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function status(): Status
+    private function initialTicketStatus(): Status
     {
         return Status::create(['name'=>'Novo','system_key'=>'new','category'=>'open','color'=>'#6D28D9','position'=>0,'active'=>true]);
     }
@@ -35,7 +35,7 @@ class WhatsAppTicketOpenedTest extends TestCase
     public function test_opening_an_integration_ticket_queues_exactly_one_whatsapp_confirmation_for_its_requester(): void
     {
         Bus::fake();
-        $this->status();
+        $this->initialTicketStatus();
         $company = Company::create(['name'=>'Estúdio França','active'=>true]);
         $integration = ConnectedSystem::create(['company_id'=>$company->id,'name'=>'Estúdio França','active'=>true]);
         $integration->forceFill(['api_token_hash'=>hash('sha256','token-franca')])->save();
@@ -67,7 +67,7 @@ class WhatsAppTicketOpenedTest extends TestCase
         ]);
         $ticket = Ticket::create([
             'number'=>'26091234','origin'=>'integration','title'=>'Falha','description'=>'Descrição','priority'=>'normal',
-            'status_id'=>$this->status()->id,'requester_name'=>'João',
+            'status_id'=>$this->initialTicketStatus()->id,'requester_name'=>'João',
             'requester_whatsapp'=>'5515999998888',
         ]);
         $job = new SendTicketOpenedWhatsApp($ticket->id);
@@ -84,7 +84,7 @@ class WhatsAppTicketOpenedTest extends TestCase
 
     public function test_no_message_is_queued_without_requester_whatsapp_and_invalid_number_is_rejected(): void
     {
-        $this->status();
+        $this->initialTicketStatus();
         $company=Company::create(['name'=>'Empresa','active'=>true]);
         $integration=ConnectedSystem::create(['company_id'=>$company->id,'name'=>'Sistema','active'=>true]);
         $integration->forceFill(['api_token_hash'=>hash('sha256','token')])->save();
