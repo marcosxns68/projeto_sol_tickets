@@ -14,14 +14,14 @@ use Throwable;
 class SendDailyAssigneeSummary extends Command
 {
     protected $signature = 'tickets:daily-assignee-summary';
-    protected $description = 'Envia a cada usuário um resumo dos tickets abertos atribuídos a ele';
+    protected $description = 'Envia a cada usuário um resumo semanal dos tickets abertos atribuídos a ele';
 
     public function handle(MailSettings $mailSettings): int
     {
         // Os comandos CLI não passam pelo middleware HTTP que aplica o SMTP salvo no painel.
         $mailSettings->apply();
 
-        $date = now('America/Sao_Paulo')->toDateString();
+        $week = now('America/Sao_Paulo')->format('o-\\WW');
         $formattedDate = now('America/Sao_Paulo')->format('d/m/Y');
         $failed = 0;
         $sent = 0;
@@ -31,11 +31,11 @@ class SendDailyAssigneeSummary extends Command
             ->whereNotNull('email_verified_at')
             ->whereNotNull('email')
             ->orderBy('id')
-            ->chunkById(100, function ($users) use ($date, $formattedDate, &$failed, &$sent): void {
+            ->chunkById(100, function ($users) use ($week, $formattedDate, &$failed, &$sent): void {
                 foreach ($users as $user) {
-                    $key = 'daily_assignee_summary.last_sent.'.$user->id;
+                    $key = 'weekly_assignee_summary.last_sent.'.$user->id;
 
-                    if (Setting::getValue($key) === $date) {
+                    if (Setting::getValue($key) === $week) {
                         continue;
                     }
 
@@ -61,7 +61,7 @@ class SendDailyAssigneeSummary extends Command
                         $user->notify(new DailyAssignedTicketsSummary($total, $tickets, $formattedDate));
 
                         // Marca somente depois de enviar: uma falha de SMTP permite tentar novamente.
-                        Setting::setValue($key, $date);
+                        Setting::setValue($key, $week);
                         $sent++;
                     } catch (Throwable $exception) {
                         $failed++;
