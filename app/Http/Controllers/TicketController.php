@@ -15,6 +15,7 @@ use App\Services\IntegrationUserDirectory;
 use App\Services\IntegrationWebhookDispatcher;
 use App\Services\TicketEventRecorder;
 use App\Services\TicketNotifier;
+use App\Services\WhatsAppConnection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -68,6 +69,11 @@ class TicketController extends Controller
             'system_id' => ['nullable', 'integer'],
             'requester_name' => ['nullable', 'string', 'max:160'],
             'requester_email' => ['nullable', 'email', 'max:190'],
+            'requester_whatsapp' => ['nullable', 'string', 'max:35', function ($attribute, $value, $fail) {
+                if (filled($value) && WhatsAppConnection::normalizeNumber($value) === null) {
+                    $fail('Informe um WhatsApp brasileiro válido com DDD.');
+                }
+            }],
             'requester_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'integration_target' => ['nullable', Rule::in(['integration', 'external_user'])],
             'external_requester_id' => ['nullable', 'string', 'max:190'],
@@ -224,6 +230,7 @@ class TicketController extends Controller
                 'system_id' => $integration?->id,
                 'requester_name' => $requesterName,
                 'requester_email' => $requesterEmail,
+                'requester_whatsapp' => WhatsAppConnection::normalizeNumber($data['requester_whatsapp'] ?? null),
                 'requester_user_id' => $requesterUser?->id,
                 'external_requester_id' => $externalRequesterId,
                 'due_at' => !empty($data['due_at']) ? $data['due_at'] : $deadlines->dueAt($data['priority']),
