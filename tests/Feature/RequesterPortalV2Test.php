@@ -157,12 +157,12 @@ class RequesterPortalV2Test extends TestCase
     }
 
     // Regressão: uma resposta do cliente precisa devolver o ticket ao atendimento ativo.
-    public function test_requester_reply_moves_waiting_customer_ticket_back_to_in_progress_and_notifies_assignee(): void
+    public function test_requester_reply_sets_requester_replied_status_and_notifies_assignee(): void
     {
         Notification::fake();
 
         $waiting = Status::query()->where('name', 'Aguardando cliente')->firstOrFail();
-        $inProgress = Status::system('in_progress');
+        $replied = Status::system('requester_replied');
 
         $assignee = User::create([
             'name' => 'Responsável Cliente',
@@ -186,7 +186,7 @@ class RequesterPortalV2Test extends TestCase
         $this->post($url, ['body' => 'Já respondi o que faltava.'])->assertRedirect();
 
         $ticket->refresh();
-        $this->assertSame($inProgress->id, $ticket->status_id);
+        $this->assertSame($replied->id, $ticket->status_id);
         Notification::assertSentTo($assignee, TicketActivityNotification::class);
     }
 
