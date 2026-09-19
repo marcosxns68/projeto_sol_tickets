@@ -72,6 +72,7 @@ class ProcessTicketRecurrences extends Command
                     'system_id' => $source->system_id,
                     'requester_name' => $source->requester_name,
                     'requester_email' => $source->requester_email,
+                    'requester_whatsapp' => $source->requester_whatsapp,
                     'requester_user_id' => $source->requester_user_id,
                     'external_requester_id' => $source->external_requester_id,
                     'external_reference' => null,
