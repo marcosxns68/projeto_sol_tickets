@@ -136,7 +136,8 @@
                 </select>
             </label>
             <label>Prazo
-                <input type="datetime-local" name="due_at" value="{{ old('due_at') }}" required>
+                <input type="datetime-local" name="due_at" value="{{ old('due_at') }}">
+                <small class="muted">Deixe vazio para usar o prazo automático da prioridade. Você pode alterar a data.</small>
             </label>
         </div>
     </article>
