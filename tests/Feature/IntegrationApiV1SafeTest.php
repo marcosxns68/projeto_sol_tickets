@@ -320,7 +320,7 @@ class IntegrationApiV1SafeTest extends TestCase
         $this->withHeaders($this->headers('token-franca', '153'))->postJson('/api/v1/tickets/'.$ticket->number.'/reopen')->assertOk();
     }
 
-    public function test_external_client_reply_moves_waiting_customer_ticket_back_to_in_progress_and_notifies_assignee(): void
+    public function test_external_client_reply_sets_requester_replied_status_and_notifies_assignee(): void
     {
         Notification::fake();
 
@@ -332,7 +332,7 @@ class IntegrationApiV1SafeTest extends TestCase
             'position' => 4,
             'active' => true,
         ]);
-        $inProgress = $this->makeStatus('in_progress', 'Em andamento', 'in_progress');
+        $replied = Status::system('requester_replied');
         $integration = $this->integration('Estúdio França', 'token-franca');
         $assignee = $this->internalUser('Responsável França');
 
@@ -355,7 +355,7 @@ class IntegrationApiV1SafeTest extends TestCase
             ->assertCreated();
 
         $ticket->refresh();
-        $this->assertSame($inProgress->id, $ticket->status_id);
+        $this->assertSame($replied->id, $ticket->status_id);
         Notification::assertSentTo($assignee, TicketActivityNotification::class);
     }
 
