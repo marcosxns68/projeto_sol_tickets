@@ -180,19 +180,27 @@
 
     <details class="ticket-disclosure" data-ticket-tool="history">
         <summary class="ticket-disclosure-summary">
-            <span class="ticket-disclosure-copy"><strong>Histórico</strong><small>{{ $ticket->events->count() }} movimentações registradas</small></span>
+            <span class="ticket-disclosure-copy"><strong>Histórico</strong><small>{{ $ticket->events->where('event','!=','created')->count() + 1 }} movimentações registradas</small></span>
             <span class="ticket-disclosure-chevron" aria-hidden="true">›</span>
         </summary>
         <div class="ticket-disclosure-content">
             <div class="timeline">
-            @forelse($ticket->events->sortByDesc('created_at') as $event)
+            @foreach($ticket->events->where('event','!=','created')->sortByDesc('created_at') as $event)
                 <div class="timeline-item"><span class="timeline-dot"></span><div><b>{{ $eventLabels[$event->event] ?? $event->event }}</b><p class="muted">{{ $event->actor?->name ?? 'Sistema' }} · {{ $event->created_at?->format('d/m/Y H:i') }}</p>
                     @if($event->event==='forwarded' && is_array($event->data))<small>{{ $event->data['from_department_name'] ?? 'Origem' }} → {{ $event->data['to_department_name'] ?? 'Destino' }}</small>@endif
                     @if($event->event==='reassigned' && is_array($event->data))<small>{{ $event->data['old_assignee_name'] ?? 'Sem responsável' }} → {{ $event->data['new_assignee_name'] ?? 'Novo responsável' }}</small>@endif
                     @if(in_array($event->event,['label.added','label.removed'],true) && is_array($event->data))<small>{{ $event->data['label_name'] ?? 'Etiqueta' }}</small>@endif
                     @if(in_array($event->event,['attachment.added','attachment.removed'],true) && is_array($event->data))<small>{{ $event->data['name'] ?? 'Arquivo' }}</small>@endif
                 </div></div>
-            @empty<p class="muted">O histórico começará a aparecer conforme o ticket for movimentado.</p>@endforelse
+            @endforeach
+            <div class="timeline-item" data-ticket-creation>
+                <span class="timeline-dot"></span>
+                <div>
+                    <b>Ticket criado em {{ $ticket->created_at?->format('d/m/Y') }} às {{ $ticket->created_at?->format('H:i') }}</b>
+                    <p class="muted">Origem: {{ $ticket->origin === 'integration' ? 'integração '.($ticket->system?->name ?? 'sistema externo') : 'painel Sutoorii Tickets'.($ticket->system ? ' para '.$ticket->system->name : '') }}</p>
+                    <small>{{ $ticket->creator?->name ?? $ticket->requester_name ?? 'Solicitante externo' }}</small>
+                </div>
+            </div>
             </div>
         </div>
     </details>
