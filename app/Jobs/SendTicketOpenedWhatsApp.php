@@ -42,7 +42,7 @@ class SendTicketOpenedWhatsApp implements ShouldQueue
             try {
                 $connection->sendText(
                     $ticket->requester_whatsapp,
-                    "Sutoorii Tickets\n\nSeu ticket de número {$ticket->number} foi aberto com sucesso."
+                    "> Sutoorii Tickets\n\nSeu ticket de número {$ticket->number} foi aberto com sucesso."
                 );
                 $ticket->update(['whatsapp_opened_sent_at' => now()]);
             } catch (Throwable $exception) {
