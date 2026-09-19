@@ -20,7 +20,8 @@
                 <input type="url" name="base_url" value="{{ old('base_url', $settings['base_url']) }}" placeholder="https://evolution.seudominio.com.br" required>
             </label>
             <label>Nome da instância
-                <input name="instance" value="{{ old('instance', $settings['instance']) }}" pattern="[a-zA-Z0-9_-]{1,80}" maxlength="80" placeholder="sutoorii-tickets" required>
+                <input name="instance" value="{{ old('instance', $settings['instance']) }}" maxlength="80" placeholder="Nome exato da sua instância" required>
+                <small class="muted">Use o mesmo nome cadastrado na Evolution API. São aceitos espaços, pontos, hífen e sublinhado.</small>
             </label>
             <label>Chave de API
                 <input type="password" name="api_key" autocomplete="new-password" value="" placeholder="{{ $settings['api_key_saved'] ? 'Deixe vazio para manter a chave salva' : 'Cole a chave da instância ou API' }}" @required(!$settings['api_key_saved'])>

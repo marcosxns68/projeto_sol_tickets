@@ -59,7 +59,7 @@ class VisualShellTest extends TestCase
             ->assertSee('Status')
             ->assertSee('Prioridade')
             ->assertSee('Responsável')
-            ->assertSee('Versão 1.0.6');
+            ->assertSee('Versão 1.0.7');
     }
 
     public function test_styles_define_dark_sutoorii_sidebar_and_light_workspace(): void
