@@ -141,4 +141,34 @@ class TicketWorkspaceTest extends TestCase
             ->assertDontSee('<details class="ticket-disclosure" open', false);
     }
 
+
+    public function test_history_shows_original_creation_date_time_and_source_for_external_and_internal_tickets(): void
+    {
+        $department = Department::create(['name' => 'Suporte histórico']);
+        $status = $this->ticketStatus('new', 'Novo');
+        $user = $this->user($department, ['tickets.view_department']);
+        $integration = \App\Models\ConnectedSystem::create([
+            'name' => 'Estúdio França',
+            'company_id' => null,
+            'active' => true,
+            'api_key_hash' => hash('sha256', 'historico-test-key'),
+        ]);
+        $ticket = Ticket::create([
+            'number' => Ticket::nextNumber(),
+            'origin' => 'integration',
+            'title' => 'Ticket externo',
+            'description' => 'Problema informado',
+            'priority' => 'normal',
+            'status_id' => $status->id,
+            'department_id' => $department->id,
+            'system_id' => $integration->id,
+            'created_at' => \Illuminate\Support\Carbon::parse('2026-09-17 14:35:00', 'America/Sao_Paulo'),
+        ]);
+
+        $this->actingAs($user)->get('/tickets/'.$ticket->id)
+            ->assertOk()
+            ->assertSee('Ticket criado em 17/09/2026 às 14:35')
+            ->assertSee('Origem: integração Estúdio França');
+    }
+
 }
