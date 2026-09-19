@@ -59,6 +59,7 @@ class WhatsAppTicketOpenedTest extends TestCase
         Bus::assertDispatched(SendTicketOpenedWhatsApp::class,1);
     }
 
+    // Valida o texto enviado e impede o reenvio ao executar a tarefa novamente.
     public function test_confirmation_has_exact_text_and_is_not_sent_twice_for_same_ticket(): void
     {
         $this->connected();
