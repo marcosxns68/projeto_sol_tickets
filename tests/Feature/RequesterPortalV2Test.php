@@ -161,7 +161,7 @@ class RequesterPortalV2Test extends TestCase
     {
         Notification::fake();
 
-        $waiting = Status::query()->where('name', 'Aguardando cliente')->firstOrFail();
+        $waiting = Status::system('waiting_customer');
         $replied = Status::system('requester_replied');
 
         $assignee = User::create([
