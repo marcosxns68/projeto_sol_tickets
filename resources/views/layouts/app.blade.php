@@ -48,6 +48,10 @@
             @if($me->hasPermission('users.manage'))
                 <a href="{{ route('admin.users.index') }}" class="sidebar-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Usuários</a>
             @endif
+            @if($me->role?->name === 'Super Admin')
+                <a href="{{ route('admin.settings.priorities.edit') }}" class="sidebar-link {{ request()->routeIs('admin.settings.priorities.*') ? 'active' : '' }}">Prazos por prioridade</a>
+                <a href="{{ route('admin.settings.whatsapp.edit') }}" class="sidebar-link {{ request()->routeIs('admin.settings.whatsapp.*') ? 'active' : '' }}">WhatsApp</a>
+            @endif
             @if($me->hasPermission('users.manage') && $me->hasPermission('permissions.manage'))
                 <a href="{{ route('admin.settings.mail.edit') }}" class="sidebar-link {{ request()->routeIs('admin.settings.mail.*') ? 'active' : '' }}">Configurações de e-mail</a>
             @endif
@@ -67,7 +71,7 @@
             <div class="sidebar-user-copy"><strong>{{ $me->name }}</strong><small>{{ $me->role?->name ?? 'Usuário' }}</small></div>
             <form action="{{ route('logout') }}" method="post">@csrf<button class="sidebar-logout" title="Sair">Sair</button></form>
         </div>
-        <div class="sidebar-version">Versão 1.0.5</div>
+        <div class="sidebar-version">Versão 1.0.6</div>
     </aside>
 
     <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Fechar menu"></button>

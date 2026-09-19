@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Status;
 use App\Models\Ticket;
 use App\Services\IntegrationSettings;
+use App\Services\PriorityDeadlines;
 use App\Services\RequesterReplyWorkflow;
 use App\Services\TicketNotifier;
 use App\Services\TicketEventRecorder;
@@ -56,7 +57,7 @@ class IntegrationTicketController extends Controller
         ]);
     }
 
-    public function store(Request $request, IntegrationSettings $settings, TicketNotifier $notifier): JsonResponse
+    public function store(Request $request, IntegrationSettings $settings, TicketNotifier $notifier, PriorityDeadlines $deadlines): JsonResponse
     {
         $data = $request->validate([
             'external_reference' => ['nullable', 'string', 'max:255'],
@@ -101,13 +102,14 @@ class IntegrationTicketController extends Controller
         }
         $departmentId ??= Department::query()->where('active', true)->orderBy('id')->value('id');
 
-        $create = function () use ($data, $integration, $externalUserId, $externalReference, $status, $departmentId): Ticket {
+        $create = function () use ($data, $integration, $externalUserId, $externalReference, $status, $departmentId, $deadlines): Ticket {
             return Ticket::create([
                 'number' => Ticket::nextNumber(),
                 'origin' => 'integration',
                 'title' => $data['title'],
                 'description' => $data['description'],
                 'priority' => $data['priority'] ?? 'normal',
+                'due_at' => $deadlines->dueAt($data['priority'] ?? 'normal'),
                 'status_id' => $status->id,
                 'creator_id' => null,
                 'assignee_id' => null,
@@ -454,6 +456,7 @@ class IntegrationTicketController extends Controller
             'title' => $ticket->title,
             'description' => $ticket->description,
             'priority' => $ticket->priority,
+            'due_at' => $ticket->due_at?->toIso8601String(),
             'status' => $ticket->status?->name,
             'status_key' => $ticket->status?->system_key,
             'last_public_reply_by' => $lastReplyBy,

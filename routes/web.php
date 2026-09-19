@@ -4,6 +4,8 @@ use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController
 use App\Http\Controllers\Admin\IntegrationController as AdminIntegrationController;
 use App\Http\Controllers\Admin\LabelController as AdminLabelController;
 use App\Http\Controllers\Admin\MailSettingsController as AdminMailSettingsController;
+use App\Http\Controllers\Admin\PrioritySettingsController as AdminPrioritySettingsController;
+use App\Http\Controllers\Admin\WhatsAppSettingsController as AdminWhatsAppSettingsController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
@@ -111,6 +113,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/usuarios/{user}/redefinir-confirmacao', [AdminUserController::class, 'resetVerificationAndResend'])
         ->middleware('throttle:3,1')
         ->name('admin.users.reset-verification');
+
+    Route::get('/admin/configuracoes/prioridades', [AdminPrioritySettingsController::class, 'edit'])->name('admin.settings.priorities.edit');
+    Route::patch('/admin/configuracoes/prioridades', [AdminPrioritySettingsController::class, 'update'])->name('admin.settings.priorities.update');
+    Route::get('/admin/configuracoes/whatsapp', [AdminWhatsAppSettingsController::class, 'edit'])->name('admin.settings.whatsapp.edit');
+    Route::patch('/admin/configuracoes/whatsapp', [AdminWhatsAppSettingsController::class, 'update'])->name('admin.settings.whatsapp.update');
+    Route::post('/admin/configuracoes/whatsapp/qrcode', [AdminWhatsAppSettingsController::class, 'qrCode'])->middleware('throttle:6,1')->name('admin.settings.whatsapp.qrcode');
+    Route::post('/admin/configuracoes/whatsapp/status', [AdminWhatsAppSettingsController::class, 'status'])->middleware('throttle:12,1')->name('admin.settings.whatsapp.status');
 
     Route::get('/admin/configuracoes/email', [AdminMailSettingsController::class, 'edit'])->name('admin.settings.mail.edit');
     Route::patch('/admin/configuracoes/email', [AdminMailSettingsController::class, 'update'])->name('admin.settings.mail.update');
