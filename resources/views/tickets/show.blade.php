@@ -60,7 +60,7 @@
 <div class="ticket-summary-strip" aria-label="Resumo do ticket">
     <div class="ticket-summary-item"><small>Prioridade</small><strong>{{ $priorityLabel }}</strong></div>
     <div class="ticket-summary-item"><small>Responsável</small><strong>{{ $ticket->assignee?->name ?? 'Não atribuído' }}</strong></div>
-    <div class="ticket-summary-item"><small>Prazo</small><strong>{{ $ticket->due_at?->format('d/m/Y H:i') ?? 'Sem prazo' }}</strong></div>
+    <div class="ticket-summary-item"><small>Prazo</small><strong>{{ $ticket->due_at?->format('d/m/Y') ?? 'Sem prazo' }}</strong></div>
     <div class="ticket-summary-item"><small>Solicitante</small><strong>{{ $ticket->requester_name ?? 'Não informado' }}</strong></div>
 </div>
 
@@ -217,7 +217,7 @@
                 <dt>Prioridade</dt><dd>{{ $priorityLabel }}</dd>
                 <dt>Departamento</dt><dd>{{ $ticket->department?->name ?? 'Não definido' }}</dd>
                 <dt>Responsável</dt><dd>{{ $ticket->assignee?->name ?? 'Não atribuído' }}</dd>
-                <dt>Prazo</dt><dd>{{ $ticket->due_at?->format('d/m/Y H:i') ?? 'Sem prazo' }}</dd>
+                <dt>Prazo</dt><dd>{{ $ticket->due_at?->format('d/m/Y') ?? 'Sem prazo' }}</dd>
                 <dt>Origem</dt><dd>{{ $ticket->origin==='internal'?'Interno':'Integração' }}</dd>
                 @if($ticket->system)<dt>Integração</dt><dd>{{ $ticket->system->name }}</dd>@endif
                 @if($ticket->requester_name)<dt>Solicitante</dt><dd>{{ $ticket->requester_name }}@if($ticket->requester_email)<small style="display:block">{{ $ticket->requester_email }}</small>@endif</dd>@endif
