@@ -68,7 +68,7 @@ class RememberLoginTest extends TestCase
 
         $this->withCookie($recallerName, $recaller->getValue())
             ->get('/')
-            ->assertOk();
+            ->assertRedirect(route('boxes.mine'));
 
         $this->assertAuthenticatedAs($user);
         $this->assertTrue(Auth::guard()->viaRemember());
