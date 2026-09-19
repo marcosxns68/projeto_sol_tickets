@@ -28,9 +28,9 @@ class DailyAssignedTicketsSummary extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $mail = (new MailMessage)
-            ->subject('Seu resumo diário: '.$this->total.' tickets em aberto')
+            ->subject('Seu resumo semanal: '.$this->total.' tickets em aberto')
             ->greeting('Olá, '.$notifiable->name.'!')
-            ->line('Resumo de '.$this->date.' do Sutoorii Tickets.')
+            ->line('Resumo da semana de '.$this->date.' do Sutoorii Tickets.')
             ->line('Você tem '.$this->total.' tickets em aberto atribuídos a você.');
 
         foreach ($this->tickets as $ticket) {

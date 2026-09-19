@@ -10,6 +10,7 @@ use App\Notifications\DailyAssignedTicketsSummary;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class DailyAssigneeSummaryTest extends TestCase
@@ -47,6 +48,26 @@ class DailyAssigneeSummaryTest extends TestCase
         ]);
     }
 
+
+    public function test_weekly_summary_is_sent_only_once_per_monday_and_can_be_sent_again_next_week(): void
+    {
+        Notification::fake();
+        Carbon::setTestNow(Carbon::parse('2026-09-21 08:00:00', 'America/Sao_Paulo'));
+        try {
+            $recipient = $this->user('semanal@sutoorii.com');
+
+            $this->artisan('tickets:daily-assignee-summary')->assertSuccessful();
+            $this->artisan('tickets:daily-assignee-summary')->assertSuccessful();
+            Carbon::setTestNow(Carbon::parse('2026-09-28 08:00:00', 'America/Sao_Paulo'));
+            $this->artisan('tickets:daily-assignee-summary')->assertSuccessful();
+
+            Notification::assertSentToTimes($recipient, DailyAssignedTicketsSummary::class, 2);
+            $this->assertSame('2026-W40', Setting::getValue('weekly_assignee_summary.last_sent.'.$recipient->id));
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_daily_email_counts_only_active_assigned_tickets_and_is_sent_once_per_day(): void
     {
         Notification::fake();
@@ -81,7 +102,7 @@ class DailyAssigneeSummaryTest extends TestCase
             return true;
         });
 
-        $this->assertSame(now(config('app.timezone'))->toDateString(), Setting::getValue('daily_assignee_summary.last_sent.'.$recipient->id));
+        $this->assertSame(now(config('app.timezone'))->format('o-\\WW'), Setting::getValue('weekly_assignee_summary.last_sent.'.$recipient->id));
     }
 
     public function test_daily_email_also_informs_users_who_have_zero_assigned_tickets(): void
@@ -103,7 +124,7 @@ class DailyAssigneeSummaryTest extends TestCase
     {
         $schedule = file_get_contents(base_path('routes/console.php'));
         $this->assertStringContainsString("tickets:daily-assignee-summary", $schedule);
-        $this->assertStringContainsString("dailyAt('08:00')", $schedule);
+        $this->assertStringContainsString("weeklyOn(1, '08:00')", $schedule);
         $this->assertStringContainsString("timezone('America/Sao_Paulo')", $schedule);
         $this->assertStringContainsString("tickets:maintenance", $schedule);
         $this->assertStringContainsString("tickets:process-recurrences", $schedule);
