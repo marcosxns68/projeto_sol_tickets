@@ -51,7 +51,7 @@
         <select name="department">
             <option value="">Todos</option>
             @foreach($departments as $filterDepartment)
-                <option value="{{ $filterDepartment->id }}" @selected((string)request('department') === (string)$filterDepartment->id)>{{ $filterDepartment->name }}</option>
+                <option value="{{ $filterDepartment->id }}" @selected((string)request('department') === (string)$filterDepartment->id)>{{ $filterDepartment->name }} ({{ $filterDepartment->open_tickets_count }})</option>
             @endforeach
         </select>
     </label>
@@ -102,7 +102,7 @@
                 <select name="department">
                     <option value="">Todos</option>
                     @foreach($departments as $filterDepartment)
-                        <option value="{{ $filterDepartment->id }}" @selected((string)request('department') === (string)$filterDepartment->id)>{{ $filterDepartment->name }}</option>
+                        <option value="{{ $filterDepartment->id }}" @selected((string)request('department') === (string)$filterDepartment->id)>{{ $filterDepartment->name }} ({{ $filterDepartment->open_tickets_count }})</option>
                     @endforeach
                 </select>
             </label>

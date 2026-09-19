@@ -199,4 +199,29 @@ class TicketBoxTest extends TestCase
 
         $this->actingAs($user)->get('/todos-os-tickets')->assertForbidden();
     }
+
+    public function test_department_filter_shows_active_ticket_counts_for_viewable_departments_on_desktop_and_mobile(): void
+    {
+        $support = Department::create(['name' => 'Suporte contador', 'active' => true]);
+        $development = Department::create(['name' => 'Desenvolvimento contador', 'active' => true]);
+        $other = Department::create(['name' => 'Restrito contador', 'active' => true]);
+        $user = $this->user($support);
+        $this->associate($user, $development, 'view');
+
+        $this->ticket($support, 'Aberto próprio', 'new', $user);
+        $this->ticket($support, 'Aberto de outro responsável', 'in_progress');
+        $this->ticket($support, 'Fechado', 'closed');
+        $trashed = $this->ticket($support, 'Na lixeira', 'new');
+        $trashed->update(['trashed_at' => now()]);
+        $this->ticket($other, 'Restrito', 'new');
+
+        $response = $this->actingAs($user)->get('/minha-caixa');
+        $response->assertOk()
+            ->assertSee('Suporte contador (2)')
+            ->assertSee('Desenvolvimento contador (0)')
+            ->assertDontSee('Restrito contador');
+
+        $this->assertSame(2, substr_count($response->getContent(), 'Suporte contador (2)'));
+    }
+
 }

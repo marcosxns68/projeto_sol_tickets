@@ -20,6 +20,7 @@ class TicketBoxController extends Controller
             ->where('active', true)
             ->whereIn('id', $viewableIds)
             ->orderBy('name')
+            ->withCount(['tickets as open_tickets_count' => fn (Builder $tickets) => $tickets->activeForBox()])
             ->get();
 
         $query = Ticket::query()->myBox($user);
