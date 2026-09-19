@@ -39,4 +39,39 @@ class RememberLoginTest extends TestCase
         $response->assertCookie(Auth::guard()->getRecallerName());
         $this->assertAuthenticatedAs($user);
     }
+
+    public function test_remember_cookie_restores_login_after_primary_session_is_lost(): void
+    {
+        $user = User::create([
+            'name' => 'Usuário Persistente',
+            'email' => 'persistente@sutoorii.com',
+            'email_verified_at' => now(),
+            'password' => 'SenhaTeste123',
+            'active' => true,
+        ]);
+
+        $response = $this->post('/entrar', [
+            'email' => $user->email,
+            'password' => 'SenhaTeste123',
+            'remember' => '1',
+        ]);
+
+        $recallerName = Auth::guard()->getRecallerName();
+        $recaller = $response->getCookie($recallerName);
+
+        $this->assertNotNull($recaller);
+        $this->assertGreaterThan(now()->addDays(300)->timestamp, $recaller->getExpiresTime());
+
+        $this->app['session']->forget(Auth::guard()->getName());
+        $this->app['session']->save();
+        $this->app['auth']->forgetGuards();
+
+        $this->withCookie($recallerName, $recaller->getValue())
+            ->get('/')
+            ->assertOk();
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertTrue(Auth::guard()->viaRemember());
+    }
+
 }
