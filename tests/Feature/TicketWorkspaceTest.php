@@ -147,11 +147,11 @@ class TicketWorkspaceTest extends TestCase
         $department = Department::create(['name' => 'Suporte histórico']);
         $status = $this->ticketStatus('new', 'Novo');
         $user = $this->user($department, ['tickets.view_department']);
+        $company = \App\Models\Company::create(['name' => 'Cliente Histórico', 'active' => true]);
         $integration = \App\Models\ConnectedSystem::create([
             'name' => 'Estúdio França',
-            'company_id' => null,
+            'company_id' => $company->id,
             'active' => true,
-            'api_key_hash' => hash('sha256', 'historico-test-key'),
         ]);
         $ticket = Ticket::create([
             'number' => Ticket::nextNumber(),
