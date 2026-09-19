@@ -127,6 +127,11 @@
             <textarea name="description" rows="6" required placeholder="Explique o contexto, os detalhes e o resultado esperado">{{ old('description') }}</textarea>
         </label>
 
+        <label>WhatsApp do solicitante (opcional)
+            <input type="tel" name="requester_whatsapp" value="{{ old('requester_whatsapp') }}" inputmode="tel" autocomplete="tel" maxlength="35" placeholder="(15) 99999-8888">
+            <small class="muted">Se informado, o solicitante receberá uma confirmação de abertura por WhatsApp. Informe o DDD.</small>
+        </label>
+
         <div class="grid form-grid request-meta-grid">
             <label>Prioridade
                 <select name="priority">
