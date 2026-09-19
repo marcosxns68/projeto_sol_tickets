@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\DepartmentAccess;
 use App\Services\IntegrationSettings;
+use App\Services\PriorityDeadlines;
 use App\Services\IntegrationUserDirectory;
 use App\Services\IntegrationWebhookDispatcher;
 use App\Services\TicketEventRecorder;
@@ -52,6 +53,7 @@ class TicketController extends Controller
         IntegrationUserDirectory $directory,
         DepartmentAccess $departmentAccess,
         TicketNotifier $notifier,
+        PriorityDeadlines $deadlines,
     ) {
         $actor = $request->user();
         abort_unless($actor->hasPermission('tickets.create'), 403);
@@ -60,7 +62,7 @@ class TicketController extends Controller
             'title' => ['required', 'string', 'max:180'],
             'description' => ['required', 'string'],
             'priority' => ['required', Rule::in(['low', 'normal', 'high', 'urgent'])],
-            'due_at' => ['required', 'date', 'after:now'],
+            'due_at' => ['nullable', 'date', 'after:now'],
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'source_mode' => ['nullable', Rule::in(['internal', 'integration'])],
             'system_id' => ['nullable', 'integer'],
@@ -206,6 +208,7 @@ class TicketController extends Controller
             $settings,
             $events,
             $target,
+            $deadlines,
         ) {
             $ticket = Ticket::create([
                 'number' => Ticket::nextNumber(),
@@ -223,7 +226,7 @@ class TicketController extends Controller
                 'requester_email' => $requesterEmail,
                 'requester_user_id' => $requesterUser?->id,
                 'external_requester_id' => $externalRequesterId,
-                'due_at' => $data['due_at'],
+                'due_at' => !empty($data['due_at']) ? $data['due_at'] : $deadlines->dueAt($data['priority']),
             ]);
 
             $participantRows = [];
