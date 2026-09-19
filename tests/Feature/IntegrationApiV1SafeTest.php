@@ -359,4 +359,37 @@ class IntegrationApiV1SafeTest extends TestCase
         Notification::assertSentTo($assignee, TicketActivityNotification::class);
     }
 
+
+    public function test_integration_creation_applies_saved_smtp_settings_and_persists_department_follower_alert(): void
+    {
+        $this->makeStatus();
+        $department = Department::create(['name' => 'Suporte com alerta', 'active' => true]);
+        $integration = $this->integration('Estúdio França', 'token-alerta');
+        $follower = $this->internalUser('Acompanhante SMTP');
+        $follower->departments()->attach($department->id, [
+            'access_level' => 'view',
+            'follow_department' => true,
+        ]);
+        DB::table('settings')->insert([
+            ['key' => 'integration.'.$integration->id.'.department_id', 'value' => (string) $department->id, 'created_at' => now(), 'updated_at' => now()],
+            ['key' => 'mail.host', 'value' => 'smtp-configurado.sutoorii.test', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        config(['mail.default' => 'array', 'mail.mailers.smtp.host' => 'smtp-antigo.sutoorii.test']);
+
+        $response = $this->withHeaders($this->headers('token-alerta', '153'))
+            ->postJson('/api/v1/tickets', $this->payload());
+
+        $response->assertCreated();
+        $this->assertSame('smtp-configurado.sutoorii.test', config('mail.mailers.smtp.host'));
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_type' => User::class,
+            'notifiable_id' => $follower->id,
+        ]);
+        $this->assertSame(
+            'ticket.created',
+            $follower->notifications()->firstOrFail()->data['event']
+        );
+    }
+
 }
