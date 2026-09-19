@@ -190,4 +190,17 @@ class RequesterPortalV2Test extends TestCase
         Notification::assertSentTo($assignee, TicketActivityNotification::class);
     }
 
+
+    public function test_requester_reply_on_closed_ticket_does_not_reopen_it_automatically(): void
+    {
+        $ticket = $this->ticket('cliente@example.com', 'Ticket encerrado', 'closed');
+        $url = URL::signedRoute('requester.comments.store', [
+            'ticket' => $ticket->id,
+            'email' => 'cliente@example.com',
+        ]);
+
+        $this->post($url, ['body' => 'Ainda tenho outra dúvida.'])->assertRedirect();
+        $this->assertSame(Status::system('closed')->id, $ticket->fresh()->status_id);
+    }
+
 }
