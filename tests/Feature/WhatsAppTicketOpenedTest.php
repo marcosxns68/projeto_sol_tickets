@@ -79,7 +79,7 @@ class WhatsAppTicketOpenedTest extends TestCase
         Http::assertSent(fn($request)=>$request->url()==='https://evolution.example.test/message/sendText/sutoorii-tickets'
             && $request->hasHeader('apikey','chave-teste')
             && $request['number']==='5515999998888'
-            && $request['text']==="Sutoorii Tickets\n\nSeu ticket de número 26091234 foi aberto com sucesso.");
+            && $request['text']==="> Sutoorii Tickets\n\nSeu ticket de número 26091234 foi aberto com sucesso.");
         $this->assertNotNull($ticket->fresh()->whatsapp_opened_sent_at);
     }
 
