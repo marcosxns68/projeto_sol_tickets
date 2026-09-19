@@ -228,7 +228,7 @@ class IntegrationTicketController extends Controller
             'message_id' => $messageId,
         ]);
 
-        $replyWorkflow->resumeIfWaitingForCustomer($ticket);
+        $replyWorkflow->markRequesterReplied($ticket);
 
         $notifier->publicComment($ticket, null, [
             'requester' => false,
