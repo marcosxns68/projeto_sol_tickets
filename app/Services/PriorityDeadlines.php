@@ -38,8 +38,7 @@ class PriorityDeadlines
     {
         return Carbon::now(config('app.timezone', 'America/Sao_Paulo'))
             ->addDays($this->days($priority))
-            ->endOfDay()
-            ->setSecond(0);
+            ->endOfDay();
     }
 
     public function save(array $days): void
