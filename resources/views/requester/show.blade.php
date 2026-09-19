@@ -22,7 +22,7 @@
         <div class="requester-meta">
             <div><small>Departamento</small><strong>{{ $ticket->department?->name ?? 'Não definido' }}</strong></div>
             <div><small>Prioridade</small><strong>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</strong></div>
-            <div><small>Prazo</small><strong>{{ $ticket->due_at?->format('d/m/Y H:i') ?? 'Sem prazo' }}</strong></div>
+            <div><small>Prazo</small><strong>{{ $ticket->due_at?->format('d/m/Y') ?? 'Sem prazo' }}</strong></div>
         </div>
     </section>
 
