@@ -39,4 +39,46 @@ class RememberLoginTest extends TestCase
         $response->assertCookie(Auth::guard()->getRecallerName());
         $this->assertAuthenticatedAs($user);
     }
+
+    public function test_remember_cookie_restores_login_after_primary_session_is_lost(): void
+    {
+        $user = User::create([
+            'name' => 'Usuário Persistente',
+            'email' => 'persistente@sutoorii.com',
+            'email_verified_at' => now(),
+            'password' => 'SenhaTeste123',
+            'active' => true,
+        ]);
+
+        $response = $this->post('/entrar', [
+            'email' => $user->email,
+            'password' => 'SenhaTeste123',
+            'remember' => '1',
+        ]);
+
+        $recallerName = Auth::guard()->getRecallerName();
+        $recaller = $response->getCookie($recallerName);
+
+        $this->assertNotNull($recaller);
+        $this->assertGreaterThan(now()->addDays(300)->timestamp, $recaller->getExpiresTime());
+
+        $this->app['session']->forget(Auth::guard()->getName());
+        $this->app['session']->save();
+        $this->app['auth']->forgetGuards();
+
+        $this->withCookie($recallerName, $recaller->getValue())
+            ->get('/')
+            ->assertRedirect(route('boxes.mine'));
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertTrue(Auth::guard()->viaRemember());
+    }
+
+
+    public function test_primary_session_is_long_lived_for_installed_mobile_app(): void
+    {
+        $this->assertFalse((bool) config('session.expire_on_close'));
+        $this->assertGreaterThanOrEqual(43200, (int) config('session.lifetime'));
+    }
+
 }
