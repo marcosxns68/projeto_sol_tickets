@@ -162,8 +162,10 @@ class TicketWorkspaceTest extends TestCase
             'status_id' => $status->id,
             'department_id' => $department->id,
             'system_id' => $integration->id,
-            'created_at' => \Illuminate\Support\Carbon::parse('2026-09-17 14:35:00', 'America/Sao_Paulo'),
         ]);
+        $ticket->forceFill([
+            'created_at' => \Illuminate\Support\Carbon::parse('2026-09-17 14:35:00', 'America/Sao_Paulo'),
+        ])->save();
 
         $this->actingAs($user)->get('/tickets/'.$ticket->id)
             ->assertOk()
