@@ -49,7 +49,9 @@ class WhatsAppConnection
         $response = $this->request('connect');
         $qr = data_get($response, 'base64')
             ?? data_get($response, 'qrcode.base64')
+            ?? data_get($response, 'data.qrcode.base64')
             ?? data_get($response, 'data.base64')
+            ?? data_get($response, 'qrcode')
             ?? data_get($response, 'data.code');
 
         if (!is_string($qr)) {
