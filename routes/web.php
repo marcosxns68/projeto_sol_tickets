@@ -72,6 +72,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('integrations.users.search');
 
     Route::get('/notificacoes', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notificacoes/contador', [NotificationController::class, 'count'])->name('notifications.count');
     Route::post('/notificacoes/ler-todas', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('/notificacoes/{notification}/ler', [NotificationController::class, 'read'])->name('notifications.read');
 
