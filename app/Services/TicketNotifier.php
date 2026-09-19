@@ -309,6 +309,16 @@ class TicketNotifier
         string $event = 'ticket.activity',
         ?string $actorName = null,
     ): void {
+        // Chamadas da API não usam o middleware web; aplicar SMTP salvo também nelas.
+        try {
+            app(MailSettings::class)->apply();
+        } catch (Throwable $exception) {
+            Log::warning('Não foi possível aplicar as configurações de e-mail.', [
+                'ticket_id' => $ticket->id,
+                'exception' => $exception::class,
+            ]);
+        }
+
         foreach ($recipients as $recipient) {
             try {
                 $notification = new TicketActivityNotification(
