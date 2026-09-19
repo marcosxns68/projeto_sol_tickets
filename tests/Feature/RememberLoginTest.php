@@ -74,4 +74,11 @@ class RememberLoginTest extends TestCase
         $this->assertTrue(Auth::guard()->viaRemember());
     }
 
+
+    public function test_primary_session_is_long_lived_for_installed_mobile_app(): void
+    {
+        $this->assertFalse((bool) config('session.expire_on_close'));
+        $this->assertGreaterThanOrEqual(43200, (int) config('session.lifetime'));
+    }
+
 }
