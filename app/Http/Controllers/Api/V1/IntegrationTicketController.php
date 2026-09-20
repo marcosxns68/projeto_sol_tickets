@@ -81,6 +81,12 @@ class IntegrationTicketController extends Controller
             });
         }
 
+        // A caixa de entrada do sistema integrado omite cancelados por padrão,
+        // mas permite consultá-los explicitamente sem afetar a paginação.
+        if (empty($filters['status'])) {
+            $query->whereHas('status', fn (Builder $builder) => $builder->where('category', '!=', 'cancelled'));
+        }
+
         $perPage = (int) ($filters['per_page'] ?? 25);
         $page = (int) ($filters['page'] ?? 1);
         $paginator = $query->orderByDesc('id')->paginate($perPage, ['*'], 'page', $page);
