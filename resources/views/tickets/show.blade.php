@@ -124,6 +124,14 @@
                     </label>
                 </div>
 
+                @if($canUpdate && $canStatus)
+                <label class="ticket-composer-status">Status
+                    <select name="status_id" aria-label="Status do ticket">
+                        @foreach($statuses as $status)<option value="{{ $status->id }}" @selected((int) old('status_id',$ticket->status_id)===(int) $status->id)>{{ $status->name }}</option>@endforeach
+                    </select>
+                </label>
+                @endif
+
                 @if($hasRequesterEmail || $ticket->assignee || $ticket->participants->isNotEmpty())
                 <details class="composer-options" id="commentNotifyOptions">
                     <summary>Notificações desta resposta</summary>
@@ -162,12 +170,16 @@
                         </select>
                         @unless($canPriority)<input type="hidden" name="priority" value="{{ $ticket->priority }}">@endunless
                     </label>
+                    @if($canStatus && ($canComment || $canInternal))
+                    <label>Status atual <strong>{{ $ticket->status?->name ?? 'Sem status' }}</strong></label>
+                    @else
                     <label>Status
                         <select name="status_id" @disabled(!$canStatus)>
-                            @foreach($statuses as $status)<option value="{{ $status->id }}" @selected($ticket->status_id===$status->id)>{{ $status->name }}</option>@endforeach
+                            @foreach($statuses as $status)<option value="{{ $status->id }}" @selected((int) old('status_id',$ticket->status_id)===(int) $status->id)>{{ $status->name }}</option>@endforeach
                         </select>
                         @unless($canStatus)<input type="hidden" name="status_id" value="{{ $ticket->status_id }}">@endunless
                     </label>
+                    @endif
                     <label>Prazo<input type="datetime-local" name="due_at" value="{{ old('due_at',$ticket->due_at?->format('Y-m-d\TH:i')) }}" @readonly(!$canDue)></label>
                 </div>
                 @if($hasRequesterEmail)
