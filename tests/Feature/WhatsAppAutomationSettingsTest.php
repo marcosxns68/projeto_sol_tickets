@@ -280,6 +280,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
             ->assertSee('css/notification-settings.css', false)
             ->assertSee('class="notification-settings-page"', false)
             ->assertSee('class="notification-automation"', false)
+            ->assertSee('class="notification-summary-copy"', false)
             ->assertSee('name="automations[opened][message]"', false)
             ->assertSee('name="automations[closed][message]"', false)
             ->assertSee('name="automations[comment][message]"', false)
