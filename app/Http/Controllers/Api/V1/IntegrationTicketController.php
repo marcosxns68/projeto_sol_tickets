@@ -294,12 +294,7 @@ class IntegrationTicketController extends Controller
             ]);
         }
 
-        $notifier->publicComment($ticket, null, [
-            'requester' => false,
-            'responsible' => true,
-            'collaborators' => true,
-            'followers' => true,
-        ], $ticket->requester_email);
+        $notifier->requesterReplied($ticket, null, $ticket->requester_email);
 
         return response()->json([
             'comment' => [
