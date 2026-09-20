@@ -47,7 +47,12 @@ class TicketNotifier
 
     public function closed(Ticket $ticket): void
     {
-        if ($ticket->requester_whatsapp && app(TicketWhatsAppAutomations::class)->enabled('closed')) {
+        if (!app(TicketWhatsAppAutomations::class)->enabled('closed')) {
+            return;
+        }
+
+        $this->fillMissingIntegrationWhatsapp($ticket);
+        if ($ticket->requester_whatsapp) {
             SendTicketWhatsAppAutomation::dispatch($ticket->id, 'closed')->afterCommit();
         }
     }
@@ -95,23 +100,50 @@ class TicketNotifier
     {
         // Respostas escritas pelo próprio solicitante não geram WhatsApp para ele.
         if (!$actor || (int) $ticket->requester_user_id === (int) $actor->id
-            || !$ticket->requester_whatsapp
             || !app(TicketWhatsAppAutomations::class)->enabled('comment')) {
             return;
         }
 
-        SendTicketWhatsAppAutomation::dispatch($ticket->id, 'comment', $commentId)->afterCommit();
+        $this->fillMissingIntegrationWhatsapp($ticket);
+        if ($ticket->requester_whatsapp) {
+            SendTicketWhatsAppAutomation::dispatch($ticket->id, 'comment', $commentId)->afterCommit();
+        }
     }
 
     public function statusWhatsAppChanged(Ticket $ticket, int $eventId): void
     {
         // Fechamento tem uma mensagem própria. Não gerar dois avisos no mesmo evento.
-        if (!$ticket->requester_whatsapp || $ticket->status?->system_key === 'closed'
+        if ($ticket->status?->system_key === 'closed'
             || !app(TicketWhatsAppAutomations::class)->enabled('status')) {
             return;
         }
 
-        SendTicketWhatsAppAutomation::dispatch($ticket->id, 'status', $eventId, $ticket->status?->name)->afterCommit();
+        $this->fillMissingIntegrationWhatsapp($ticket);
+        if ($ticket->requester_whatsapp) {
+            SendTicketWhatsAppAutomation::dispatch($ticket->id, 'status', $eventId, $ticket->status?->name)->afterCommit();
+        }
+    }
+
+    private function fillMissingIntegrationWhatsapp(Ticket $ticket): void
+    {
+        if ($ticket->requester_whatsapp || !$ticket->system_id || !$ticket->external_requester_id) {
+            return;
+        }
+
+        try {
+            $system = $ticket->system ?: $ticket->system()->first();
+            if ($system && app(IntegrationRequesterWhatsAppSync::class)->syncRequester(
+                $system,
+                (string) $ticket->external_requester_id
+            ) > 0) {
+                $ticket->refresh();
+            }
+        } catch (Throwable $exception) {
+            Log::warning('Não foi possível atualizar WhatsApp de ticket antigo', [
+                'ticket_id' => $ticket->id,
+                'exception_class' => get_class($exception),
+            ]);
+        }
     }
 
     public function requesterChanged(Ticket $ticket, ?User $actor, string $headline = 'Ticket atualizado'): void
