@@ -29,6 +29,10 @@
                         <p class="muted">Enviada quando um novo ticket é aberto.</p>
                     @elseif($event === 'closed')
                         <p class="muted">Enviada quando um ticket passa para Fechado. Apenas marcar como Resolvido não dispara este aviso.</p>
+                    @elseif($event === 'comment')
+                        <p class="muted">Enviada ao solicitante quando a equipe publica uma resposta. Notas internas e respostas do próprio solicitante não disparam este aviso.</p>
+                    @elseif($event === 'status')
+                        <p class="muted">Enviada ao solicitante quando a equipe altera o status. O fechamento possui notificação própria.</p>
                     @endif
                 </div>
             </div>
@@ -39,14 +43,14 @@
             </label>
             <label for="message-{{ $event }}">Mensagem automática</label>
             <textarea id="message-{{ $event }}" name="message" rows="6" maxlength="2000" required style="width:100%;margin-top:8px;white-space:pre-wrap">{{ old('automation_event') === $event ? old('message', $configuration['message']) : $configuration['message'] }}</textarea>
-            <p class="muted" style="margin:10px 0 0">Use <code>{numero}</code> para inserir automaticamente o número do ticket. As quebras de linha e o formato do texto serão mantidos.</p>
+            <p class="muted" style="margin:10px 0 0">Variáveis: <code>{numero}</code> (número do ticket), <code>{assunto}</code> (assunto informado pelo cliente) e <code>{status}</code> (status atual). As quebras de linha serão mantidas.</p>
             <div class="sticky-actions"><button class="button" type="submit">Salvar {{ strtolower($configuration['label']) }}</button></div>
         </article>
     </form>
 @endforeach
 
 <article class="panel">
-    <p class="muted">As mensagens são enviadas somente ao WhatsApp cadastrado para o solicitante. Sem número válido ou sem conexão ativa na Evolution API, o ticket continua funcionando, mas o aviso não é entregue. Cada confirmação é enviada uma vez por ticket.</p>
+    <p class="muted">As mensagens são enviadas somente ao WhatsApp cadastrado para o solicitante. Sem número válido ou sem conexão ativa na Evolution API, o ticket continua funcionando, mas o aviso não é entregue. A confirmação de abertura e a de fechamento são enviadas uma vez por ticket. Comentários e mudanças de status geram avisos por ocorrência, quando habilitados.</p>
     <a href="{{ route('admin.settings.whatsapp.edit') }}">Configurar conexão do WhatsApp</a>
 </article>
 @endsection
