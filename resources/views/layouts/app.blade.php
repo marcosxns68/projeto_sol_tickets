@@ -7,6 +7,8 @@
 <title>@yield('title','Sutoorii Tickets')</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
+<link rel="stylesheet" href="{{ asset('css/boxes-ordering.css') }}?v={{ filemtime(public_path('css/boxes-ordering.css')) }}">
+<link rel="stylesheet" href="{{ asset('css/settings-hub.css') }}?v={{ filemtime(public_path('css/settings-hub.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/responsive-shell.css') }}?v={{ filemtime(public_path('css/responsive-shell.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/responsive-admin.css') }}?v={{ filemtime(public_path('css/responsive-admin.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/labels.css') }}?v={{ filemtime(public_path('css/labels.css')) }}">
@@ -17,6 +19,7 @@
 @php($me = auth()->user())
 @php($departmentMenuIds = app(\App\Services\DepartmentAccess::class)->sendableIds($me))
 @php($unreadNotifications = $me->unreadNotifications()->count())
+@php($canSettingsHub = $me->role?->name === 'Super Admin' || ($me->hasPermission('users.manage') && $me->hasPermission('permissions.manage')) || $me->hasPermission('integrations.manage'))
 <div class="app-shell" id="appShell">
     <aside class="app-sidebar" id="appSidebar" aria-label="Menu principal">
         <div class="sidebar-brand-row">
@@ -34,7 +37,6 @@
         <nav class="sidebar-nav" aria-label="Navegação principal">
             <p class="sidebar-label">CAIXAS</p>
             <a href="{{ route('boxes.mine') }}" class="sidebar-link {{ request()->routeIs('boxes.mine') ? 'active' : '' }}">Minha Caixa</a>
-            <a href="{{ route('notifications.index') }}" class="sidebar-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}"><span>Notificações</span><span class="notification-count" data-notification-count @if($unreadNotifications === 0) hidden @endif>{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span></a>
             @if($me->hasPermission('tickets.view_all'))
                 <a href="{{ route('boxes.all') }}" class="sidebar-link {{ request()->routeIs('boxes.all') ? 'active' : '' }}">Todos os tickets</a>
             @endif
@@ -42,19 +44,11 @@
                 <a href="{{ route('departments.index') }}" class="sidebar-link {{ request()->routeIs('departments.*') || request()->routeIs('boxes.department') ? 'active' : '' }}">Departamentos</a>
             @endif
 
-            @if($me->hasPermission('users.manage') || $me->hasPermission('roles.manage') || $me->hasPermission('integrations.manage') || $me->hasPermission('labels.manage'))
+            @if($me->hasPermission('users.manage') || $me->hasPermission('roles.manage') || $me->hasPermission('labels.manage') || $canSettingsHub)
                 <p class="sidebar-label admin-label">ADMINISTRAÇÃO</p>
             @endif
             @if($me->hasPermission('users.manage'))
                 <a href="{{ route('admin.users.index') }}" class="sidebar-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Usuários</a>
-            @endif
-            @if($me->role?->name === 'Super Admin')
-                <a href="{{ route('admin.settings.priorities.edit') }}" class="sidebar-link {{ request()->routeIs('admin.settings.priorities.*') ? 'active' : '' }}">Prazos por prioridade</a>
-                <a href="{{ route('admin.settings.whatsapp.edit') }}" class="sidebar-link {{ request()->routeIs('admin.settings.whatsapp.*') ? 'active' : '' }}">WhatsApp</a>
-                <a href="{{ route('admin.settings.notifications.edit') }}" class="sidebar-link {{ request()->routeIs('admin.settings.notifications.*') ? 'active' : '' }}">Configurações de notificações</a>
-            @endif
-            @if($me->hasPermission('users.manage') && $me->hasPermission('permissions.manage'))
-                <a href="{{ route('admin.settings.mail.edit') }}" class="sidebar-link {{ request()->routeIs('admin.settings.mail.*') ? 'active' : '' }}">Configurações de e-mail</a>
             @endif
             @if($me->hasPermission('roles.manage'))
                 <a href="{{ route('admin.roles.index') }}" class="sidebar-link {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">Cargos</a>
@@ -62,8 +56,8 @@
             @if($me->hasPermission('labels.manage'))
                 <a href="{{ route('admin.labels.index') }}" class="sidebar-link {{ request()->routeIs('admin.labels.*') ? 'active' : '' }}">Etiquetas</a>
             @endif
-            @if($me->hasPermission('integrations.manage'))
-                <a href="{{ route('admin.integrations.index') }}" class="sidebar-link {{ request()->routeIs('admin.integrations.*') ? 'active' : '' }}">Integrações</a>
+            @if($canSettingsHub)
+                <a href="{{ route('admin.settings.index') }}" class="sidebar-link {{ request()->routeIs('admin.settings.*') || request()->routeIs('admin.integrations.*') ? 'active' : '' }}">Configurações</a>
             @endif
         </nav>
 
