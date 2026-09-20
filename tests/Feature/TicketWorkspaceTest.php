@@ -173,4 +173,39 @@ class TicketWorkspaceTest extends TestCase
             ->assertSee('Origem: integração Estúdio França');
     }
 
+
+    public function test_terminal_ticket_actions_require_explicit_confirmation(): void
+    {
+        $department = Department::create(['name' => 'Segurança de ações']);
+        $status = $this->ticketStatus('in_progress', 'Em andamento', 'in_progress');
+        $user = $this->user($department, [
+            'tickets.view_department',
+            'tickets.request_completion',
+            'tickets.resolve',
+            'tickets.cancel',
+        ]);
+        $user->departments()->syncWithoutDetaching([
+            $department->id => ['access_level' => 'edit', 'follow_department' => false],
+        ]);
+        $ticket = Ticket::create([
+            'number' => Ticket::nextNumber(),
+            'origin' => 'internal',
+            'title' => 'Confirmar ações sensíveis',
+            'description' => 'Evitar conclusão ou cancelamento acidental',
+            'priority' => 'normal',
+            'status_id' => $status->id,
+            'department_id' => $department->id,
+            'assignee_id' => $user->id,
+        ]);
+
+        $this->actingAs($user)->get('/tickets/'.$ticket->id)
+            ->assertOk()
+            ->assertSee('data-confirm-ticket-action', false)
+            ->assertSee('Deseja solicitar a conclusão deste ticket?')
+            ->assertSee('Tem certeza de que deseja resolver este ticket?')
+            ->assertSee('Tem certeza de que deseja cancelar este ticket? Esta ação alterará o status do atendimento.')
+            ->assertSee('data-confirm-cancel-label="Voltar"', false)
+            ->assertSee('data-confirm-submit-label="Confirmar"', false);
+    }
+
 }
