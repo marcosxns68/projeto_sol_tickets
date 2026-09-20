@@ -118,6 +118,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/admin/configuracoes/prioridades', [AdminPrioritySettingsController::class, 'edit'])->name('admin.settings.priorities.edit');
     Route::patch('/admin/configuracoes/prioridades', [AdminPrioritySettingsController::class, 'update'])->name('admin.settings.priorities.update');
     Route::get('/admin/configuracoes/notificacoes', [AdminNotificationSettingsController::class, 'edit'])->name('admin.settings.notifications.edit');
+    Route::patch('/admin/configuracoes/notificacoes', [AdminNotificationSettingsController::class, 'updateAll'])->name('admin.settings.notifications.update-all');
     Route::patch('/admin/configuracoes/notificacoes/whatsapp/{event}', [AdminNotificationSettingsController::class, 'update'])->name('admin.settings.notifications.update');
 
     Route::get('/admin/configuracoes/whatsapp', [AdminWhatsAppSettingsController::class, 'edit'])->name('admin.settings.whatsapp.edit');
