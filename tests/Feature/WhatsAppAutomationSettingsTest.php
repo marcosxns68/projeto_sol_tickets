@@ -214,7 +214,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         Http::assertSent(fn ($request) => $request['text'] === "Sutoorii Tickets\n\nO ticket {$ticket->number} foi fechado.");
         $this->assertNotNull($ticket->fresh()->whatsapp_closed_sent_at);
     }
-    public function test_automation_cards_have_one_save_and_only_opening_starts_expanded(): void
+    public function test_automation_cards_have_one_save_and_all_start_collapsed_without_leading_icons(): void
     {
         $admin = $this->user();
         $page = $this->actingAs($admin)->get('/admin/configuracoes/notificacoes')->assertOk();
@@ -225,6 +225,11 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->assertSame(1, substr_count($html, 'Salvar configurações'));
         $this->assertSame(1, substr_count($html, 'Variáveis:'));
         $this->assertStringContainsString('data-notification-automation="opened"', $html);
+        $this->assertStringNotContainsString('data-notification-automation="opened" open', $html);
+        $this->assertStringNotContainsString('notification-summary-icon', $html);
+        $this->assertStringNotContainsString('↗', $html);
+        $this->assertStringNotContainsString('☏', $html);
+        $this->assertStringNotContainsString('↻', $html);
         $this->assertStringNotContainsString('data-notification-automation="closed" open', $html);
         $this->assertStringNotContainsString('data-notification-automation="comment" open', $html);
         $this->assertStringNotContainsString('data-notification-automation="status" open', $html);
@@ -271,7 +276,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
     }
 
 
-    public function test_notifications_page_has_its_own_styles_and_shows_the_opening_editor_immediately(): void
+    public function test_notifications_page_has_its_own_styles_and_keeps_the_editors_collapsed(): void
     {
         $admin = $this->user();
 
@@ -294,6 +299,8 @@ class WhatsAppAutomationSettingsTest extends TestCase
 
         $blade = file_get_contents(resource_path('views/admin/settings/notifications.blade.php'));
         $this->assertStringContainsString("\$event === 'opened'", $blade);
+        $this->assertStringNotContainsString("=== 'opened' ||", $blade);
+        $this->assertStringNotContainsString('class="notification-summary-icon"', $blade);
         $this->assertStringNotContainsString('class="ticket-disclosure"', $blade);
     }
 
