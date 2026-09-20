@@ -65,12 +65,14 @@ class WhatsAppAutomationSettingsTest extends TestCase
         return $connection;
     }
 
-    public function test_super_admin_only_can_manage_two_automation_messages_independently(): void
+    public function test_super_admin_only_can_manage_four_automation_messages_independently(): void
     {
         $service = app(TicketWhatsAppAutomations::class);
         $this->assertTrue($service->enabled('opened'));
         $this->assertFalse($service->enabled('closed'));
-        $this->assertSame("> Sutoorii Tickets\n\nSeu ticket de número {numero} foi aberto com sucesso.", $service->template('opened'));
+        $this->assertFalse($service->enabled('comment'));
+        $this->assertFalse($service->enabled('status'));
+        $this->assertSame("> Sutoorii Tickets\n\nSeu ticket de número {numero} foi aberto com sucesso.\nAssunto: {assunto}", $service->template('opened'));
 
         $manager = $this->user('Gestor');
         $this->actingAs($manager)->get('/admin/configuracoes/notificacoes')->assertForbidden();
@@ -81,6 +83,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $admin = $this->user();
         $this->actingAs($admin)->get('/admin/configuracoes/notificacoes')
             ->assertOk()->assertSee('Abertura do ticket')->assertSee('Fechamento do ticket')
+            ->assertSee('Novo comentário público')->assertSee('Mudança de status')
             ->assertSee('admin/configuracoes/notificacoes/whatsapp/closed', false);
 
         $this->actingAs($admin)->patch('/admin/configuracoes/notificacoes/whatsapp/closed', [
@@ -91,7 +94,8 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->assertTrue($service->enabled('opened'));
         $this->assertTrue($service->enabled('closed'));
         $this->assertSame("> Sutoorii Tickets\n\nO ticket {numero} foi encerrado.", $service->template('closed'));
-        $this->assertSame("> Sutoorii Tickets\n\nO ticket 26091234 foi encerrado.", $service->render('closed', '26091234'));
+        $ticket = $this->ticket();
+        $this->assertSame("> Sutoorii Tickets\n\nO ticket {$ticket->number} foi encerrado.", $service->render('closed', $ticket));
 
         $this->actingAs($admin)->patch('/admin/configuracoes/notificacoes/whatsapp/opened', [
             'message' => 'Recebemos o chamado {numero}.',
