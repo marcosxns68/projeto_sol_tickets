@@ -70,6 +70,10 @@
 
 <div class="ticket-layout workspace ticket-layout-v2">
 <section class="ticket-primary-column">
+    @if($canUpdate)
+    <form action="{{ route('tickets.update',$ticket) }}" method="post" id="ticketUnifiedForm" class="ticket-unified-form">
+        @csrf @method('PATCH')
+    @endif
     <article class="panel ticket-conversation-panel" data-ticket-conversation>
         <div class="ticket-conversation-head">
             <div>
@@ -107,25 +111,36 @@
 
         @if($canComment || $canInternal)
         <div class="ticket-composer" data-ticket-composer>
-            <form action="{{ route('tickets.comments.store',$ticket) }}" method="post" class="form ticket-composer-form" id="ticketActivityForm">@csrf
+            @if(!$canUpdate)
+            <form action="{{ route('tickets.comments.store',$ticket) }}" method="post" class="form ticket-composer-form" id="ticketActivityForm">
+                @csrf
+            @endif
                 <div class="ticket-composer-main">
                     <label class="ticket-composer-type">Tipo
-                        <select name="visibility" id="ticketActivityVisibility">
+                        <select name="{{ $canUpdate ? 'comment_visibility' : 'visibility' }}" id="ticketActivityVisibility">
                             @if($canComment)<option value="public">Comentário público</option>@endif
                             @if($canInternal)<option value="internal">Nota interna</option>@endif
                         </select>
                     </label>
                     <label class="ticket-composer-message">Mensagem
-                        <textarea name="body" rows="4" placeholder="Escreva uma resposta..." required></textarea>
+                        <textarea name="{{ $canUpdate ? 'comment_body' : 'body' }}" rows="4" placeholder="Escreva uma resposta..." @required(!$canUpdate)>{{ old('comment_body') }}</textarea>
                     </label>
                 </div>
+
+                @if($canUpdate && $canStatus)
+                <label class="ticket-composer-status">Status
+                    <select name="status_id" aria-label="Status do ticket">
+                        @foreach($statuses as $status)<option value="{{ $status->id }}" @selected((int) old('status_id',$ticket->status_id)===(int) $status->id)>{{ $status->name }}</option>@endforeach
+                    </select>
+                </label>
+                @endif
 
                 @if($hasRequesterEmail || $ticket->assignee || $ticket->participants->isNotEmpty())
                 <details class="composer-options" id="commentNotifyOptions">
                     <summary>Notificações desta resposta</summary>
                     <div class="notify-options composer-notify-grid">
                         <span>Enviar e-mail para</span>
-                        @if($hasRequesterEmail)<label><input type="checkbox" name="notify_requester" value="1" checked> Solicitante</label>@endif
+                        @if($hasRequesterEmail)<label><input type="checkbox" name="{{ $canUpdate ? 'comment_notify_requester' : 'notify_requester' }}" value="1" checked> Solicitante</label>@endif
                         @if($ticket->assignee)<label><input type="checkbox" name="notify_responsible" value="1"> Responsável</label>@endif
                         @if($ticket->participants->where('pivot.type','collaborator')->isNotEmpty())<label><input type="checkbox" name="notify_collaborators" value="1"> Colaboradores</label>@endif
                         @if($ticket->participants->where('pivot.type','follower')->isNotEmpty())<label><input type="checkbox" name="notify_followers" value="1"> Seguidores</label>@endif
@@ -133,10 +148,10 @@
                 </details>
                 @endif
 
-                <div class="ticket-composer-actions">
-                    <button class="button" type="submit">Enviar comentário</button>
-                </div>
-            </form>
+                @unless($canUpdate)
+                <div class="ticket-composer-actions"><button class="button" type="submit">Salvar</button></div>
+                </form>
+                @endunless
         </div>
         @endif
     </article>
@@ -148,8 +163,7 @@
         </summary>
         <div class="ticket-disclosure-content">
             @if($canUpdate)
-            <form action="{{ route('tickets.update',$ticket) }}" method="post" class="form compact-form">
-                @csrf @method('PATCH')
+            <div class="form compact-form">
                 <label>Título<input name="title" value="{{ old('title',$ticket->title) }}" @readonly(!$canContent) required></label>
                 <label>Descrição<textarea name="description" rows="5" @readonly(!$canContent) required>{{ old('description',$ticket->description) }}</textarea></label>
                 <div class="grid form-grid">
@@ -159,24 +173,31 @@
                         </select>
                         @unless($canPriority)<input type="hidden" name="priority" value="{{ $ticket->priority }}">@endunless
                     </label>
+                    @if($canStatus && ($canComment || $canInternal))
+                    <label>Status atual <strong>{{ $ticket->status?->name ?? 'Sem status' }}</strong></label>
+                    @else
                     <label>Status
                         <select name="status_id" @disabled(!$canStatus)>
-                            @foreach($statuses as $status)<option value="{{ $status->id }}" @selected($ticket->status_id===$status->id)>{{ $status->name }}</option>@endforeach
+                            @foreach($statuses as $status)<option value="{{ $status->id }}" @selected((int) old('status_id',$ticket->status_id)===(int) $status->id)>{{ $status->name }}</option>@endforeach
                         </select>
                         @unless($canStatus)<input type="hidden" name="status_id" value="{{ $ticket->status_id }}">@endunless
                     </label>
+                    @endif
                     <label>Prazo<input type="datetime-local" name="due_at" value="{{ old('due_at',$ticket->due_at?->format('Y-m-d\TH:i')) }}" @readonly(!$canDue)></label>
                 </div>
                 @if($hasRequesterEmail)
                 <div class="notify-options"><span>Notificação</span><label><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante sobre esta alteração</label></div>
                 @endif
-                <div class="actions"><button class="button" type="submit">Salvar alterações</button></div>
-            </form>
+            </div>
             @else
                 <p class="description-text">{{ $ticket->description }}</p>
             @endif
         </div>
     </details>
+    @if($canUpdate)
+        <div class="ticket-unified-actions"><button class="button" type="submit">Salvar alterações</button></div>
+    </form>
+    @endif
 
     <details class="ticket-disclosure" data-ticket-tool="history">
         <summary class="ticket-disclosure-summary">

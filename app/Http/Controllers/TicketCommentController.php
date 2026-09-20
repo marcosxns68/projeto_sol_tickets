@@ -68,6 +68,9 @@ class TicketCommentController extends Controller
                 'collaborators' => $request->boolean('notify_collaborators'),
                 'followers' => $request->boolean('notify_followers'),
             ]);
+            if (!$isRequester) {
+                $notifier->publicCommentWhatsApp($ticket, $actor, $comment->id);
+            }
         }
 
         return redirect()->route('tickets.show', $ticket)->with('success', $data['visibility'] === 'public' ? 'Comentário adicionado.' : 'Nota interna adicionada.');

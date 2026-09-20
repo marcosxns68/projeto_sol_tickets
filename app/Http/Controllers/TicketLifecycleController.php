@@ -119,9 +119,9 @@ class TicketLifecycleController extends Controller
         abort_unless($status, 500, 'Status Em andamento não configurado.');
         $oldStatus = $ticket->status?->name;
 
-        DB::transaction(function () use ($ticket, $actor, $status, $oldStatus, $events) {
+        $transitionEvent = DB::transaction(function () use ($ticket, $actor, $status, $oldStatus, $events) {
             $ticket->update(['status_id' => $status->id, 'completed_at' => null]);
-            $events->record($ticket, $actor, 'reopened', ['old_status' => $oldStatus, 'new_status' => $status->name]);
+            return $events->record($ticket, $actor, 'reopened', ['old_status' => $oldStatus, 'new_status' => $status->name]);
         });
 
         $ticket->refresh()->load('status');
@@ -129,6 +129,7 @@ class TicketLifecycleController extends Controller
             'previous_status' => $oldStatus,
         ]);
         $notifier->statusChanged($ticket, $actor, 'Ticket reaberto');
+        $notifier->statusWhatsAppChanged($ticket, $transitionEvent->id);
 
         if ($this->shouldNotifyRequester($request)) {
             $notifier->requesterChanged($ticket, $actor, 'Ticket reaberto');
@@ -154,13 +155,14 @@ class TicketLifecycleController extends Controller
         abort_unless($status, 500, 'Status necessário não configurado.');
         $oldStatus = $ticket->status?->name;
         $wasClosed = $ticket->status?->system_key === 'closed';
+        $previousSystemKey = $ticket->status?->system_key;
 
-        DB::transaction(function () use ($ticket, $actor, $status, $oldStatus, $events, $event, $complete) {
+        $transitionEvent = DB::transaction(function () use ($ticket, $actor, $status, $oldStatus, $events, $event, $complete) {
             $ticket->update([
                 'status_id' => $status->id,
                 'completed_at' => $complete ? now() : $ticket->completed_at,
             ]);
-            $events->record($ticket, $actor, $event, ['old_status' => $oldStatus, 'new_status' => $status->name]);
+            return $events->record($ticket, $actor, $event, ['old_status' => $oldStatus, 'new_status' => $status->name]);
         });
 
         $ticket->refresh()->load('status');
@@ -168,6 +170,9 @@ class TicketLifecycleController extends Controller
             'previous_status' => $oldStatus,
         ]);
         $notifier->statusChanged($ticket, $actor);
+        if ($previousSystemKey !== $systemKey && $systemKey !== 'closed') {
+            $notifier->statusWhatsAppChanged($ticket, $transitionEvent->id);
+        }
 
         if ($systemKey === 'closed' && !$wasClosed) {
             $notifier->closed($ticket);

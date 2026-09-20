@@ -42,9 +42,9 @@ class NotificationSettingsController extends Controller
         // que erros de digitação enviem variáveis não substituídas ao cliente.
         if (preg_match_all('/\{([^{}]+)\}/u', $message, $matches)) {
             foreach ($matches[1] as $name) {
-                if ($name !== 'numero') {
+                if (!in_array($name, TicketWhatsAppAutomations::VARIABLES, true)) {
                     throw ValidationException::withMessages([
-                        'message' => 'Use apenas a variável {numero} para inserir o número do ticket.',
+                        'message' => 'Use apenas as variáveis {numero}, {assunto} e {status} disponíveis nesta página.',
                     ]);
                 }
             }
@@ -53,7 +53,7 @@ class NotificationSettingsController extends Controller
         $automations->save($event, $request->boolean('enabled'), $message);
 
         return redirect()->route('admin.settings.notifications.edit')
-            ->with('success', 'Notificação de '.($event === 'opened' ? 'abertura' : 'fechamento').' atualizada.');
+            ->with('success', 'Mensagem e ativação de "'.TicketWhatsAppAutomations::LABELS[$event].'" atualizadas.');
     }
 
     private function authorizeAdmin(Request $request): void
