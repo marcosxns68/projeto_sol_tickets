@@ -21,9 +21,8 @@
     @csrf
     @method('PATCH')
     @foreach($automations as $event => $configuration)
-    <details class="notification-automation" data-notification-automation="{{ $event }}" @if($event === 'opened' || $errors->has('automations.'.$event.'.message') || $errors->has('automations.'.$event.'.enabled')) open @endif>
+    <details class="notification-automation" data-notification-automation="{{ $event }}" @if($errors->has('automations.'.$event.'.message') || $errors->has('automations.'.$event.'.enabled')) open @endif>
         <summary>
-            <span class="notification-summary-icon" aria-hidden="true">{{ ['opened'=>'↗', 'closed'=>'✓', 'comment'=>'☏', 'status'=>'↻'][$event] }}</span>
             <span class="notification-summary-copy"><strong>{{ $configuration['label'] }}</strong><small>WhatsApp · solicitante</small></span>
             <span class="notification-summary-state {{ $configuration['enabled'] ? 'is-enabled' : '' }}">{{ $configuration['enabled'] ? 'Ativada' : 'Desativada' }}</span>
             <span class="notification-summary-chevron" aria-hidden="true">›</span>

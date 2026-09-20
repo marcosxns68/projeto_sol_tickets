@@ -72,7 +72,7 @@
             <div class="sidebar-user-copy"><strong>{{ $me->name }}</strong><small>{{ $me->role?->name ?? 'Usuário' }}</small></div>
             <form action="{{ route('logout') }}" method="post">@csrf<button class="sidebar-logout" title="Sair">Sair</button></form>
         </div>
-        <div class="sidebar-version">Versão 1.0.13</div>
+        <div class="sidebar-version">Versão 1.0.14</div>
     </aside>
 
     <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Fechar menu"></button>
