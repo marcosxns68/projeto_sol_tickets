@@ -86,11 +86,19 @@ class IntegrationUserDirectory
                 $email = null;
             }
 
-            $users[] = [
+            $user = [
                 'id' => $id,
                 'name' => $name,
                 'email' => $email ?: null,
             ];
+
+            // O telefone nunca deve aparecer na busca de nomes do painel.
+            // Ele é aceito somente na consulta assinada por um ID específico.
+            if (isset($parameters['id'])) {
+                $user['whatsapp'] = WhatsAppConnection::normalizeNumber($item['whatsapp'] ?? null);
+            }
+
+            $users[] = $user;
         }
 
         return $users;
