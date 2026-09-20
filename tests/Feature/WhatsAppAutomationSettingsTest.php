@@ -84,7 +84,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->actingAs($admin)->get('/admin/configuracoes/notificacoes')
             ->assertOk()->assertSee('Abertura do ticket')->assertSee('Fechamento do ticket')
             ->assertSee('Novo comentário público')->assertSee('Mudança de status')
-            ->assertSee('admin/configuracoes/notificacoes/whatsapp/closed', false);
+            ->assertSee('name="automations[closed][message]"', false);
 
         $this->actingAs($admin)->patch('/admin/configuracoes/notificacoes/whatsapp/closed', [
             'enabled' => '1',
