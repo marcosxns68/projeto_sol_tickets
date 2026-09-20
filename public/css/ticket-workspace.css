@@ -520,3 +520,11 @@
         justify-content: flex-end;
     }
 }
+
+/* Edição conjunta da conversa e das informações do ticket. */
+.ticket-unified-form{display:grid;gap:12px;min-width:0}
+.ticket-composer-status{display:grid;gap:7px;margin-top:12px;font-weight:700;font-size:13px}
+.ticket-composer-status select{min-height:42px;width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:#fff;color:inherit}
+.ticket-unified-actions{display:flex;justify-content:flex-end;padding:0 1px 10px}
+.ticket-unified-actions .button{min-height:44px;min-width:170px}
+@media(max-width:900px){.ticket-unified-actions .button{width:100%;min-height:48px}}
