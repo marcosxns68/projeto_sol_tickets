@@ -61,7 +61,7 @@ class IntegrationUserDirectory
             ->get($url, $parameters);
 
         if (!$response->successful()) {
-            throw new RuntimeException('O diretório de usuários da integração está indisponível.');
+            throw new RuntimeException('O diretório de usuários da integração respondeu HTTP '.$response->status().'.');
         }
 
         $data = $response->json('data');
