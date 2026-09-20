@@ -43,7 +43,8 @@
             <input name="name" value="{{ old('name') }}" placeholder="Ex.: Estúdio França" required>
         </label>
         <label>Endereço do sistema <small class="muted">opcional</small>
-            <input name="base_url" value="{{ old('base_url') }}" placeholder="https://...">
+            <input name="base_url" value="{{ old('base_url') }}" placeholder="sistema.exemplo.com.br">
+            <small class="muted">Pode informar apenas o domínio. O sistema adiciona https:// automaticamente.</small>
         </label>
         <label>Webhook de retorno <small class="muted">opcional</small>
             <input name="webhook_url" value="{{ old('webhook_url') }}" placeholder="https://.../webhook">
@@ -105,7 +106,7 @@
                             <form action="{{ route('admin.integrations.update',$integration) }}" method="post" class="grid" style="gap:8px;margin-top:12px;">
                                 @csrf @method('PATCH')
                                 <label>Nome<input name="name" value="{{ $integration->name }}" required></label>
-                                <label>Endereço do sistema<input name="base_url" value="{{ $integration->base_url }}" placeholder="https://..."></label>
+                                <label>Endereço do sistema<input name="base_url" value="{{ $integration->base_url }}" placeholder="sistema.exemplo.com.br"><small class="muted">O domínio sem protocolo recebe https:// automaticamente.</small></label>
                                 <label>Webhook de retorno<input name="webhook_url" value="{{ $integration->webhook_url }}" placeholder="https://.../webhook"></label>
                                 <label>Departamento padrão
                                     <select name="department_id" required>
@@ -163,7 +164,7 @@
                 <form action="{{ route('admin.integrations.update',$integration) }}" method="post" class="grid" style="gap:8px;margin-top:12px;">
                     @csrf @method('PATCH')
                     <label>Nome<input name="name" value="{{ $integration->name }}" required></label>
-                    <label>Endereço do sistema<input name="base_url" value="{{ $integration->base_url }}" placeholder="https://..."></label>
+                    <label>Endereço do sistema<input name="base_url" value="{{ $integration->base_url }}" placeholder="sistema.exemplo.com.br"><small class="muted">O domínio sem protocolo recebe https:// automaticamente.</small></label>
                     <label>Webhook de retorno<input name="webhook_url" value="{{ $integration->webhook_url }}" placeholder="https://.../webhook"></label>
                     <label>Departamento padrão
                         <select name="department_id" required>
