@@ -91,6 +91,29 @@ class TicketNotifier
         );
     }
 
+    public function publicCommentWhatsApp(Ticket $ticket, ?User $actor, int $commentId): void
+    {
+        // Respostas escritas pelo próprio solicitante não geram WhatsApp para ele.
+        if (!$actor || (int) $ticket->requester_user_id === (int) $actor->id
+            || !$ticket->requester_whatsapp
+            || !app(TicketWhatsAppAutomations::class)->enabled('comment')) {
+            return;
+        }
+
+        SendTicketWhatsAppAutomation::dispatch($ticket->id, 'comment', $commentId)->afterCommit();
+    }
+
+    public function statusWhatsAppChanged(Ticket $ticket, int $eventId): void
+    {
+        // Fechamento tem uma mensagem própria. Não gerar dois avisos no mesmo evento.
+        if (!$ticket->requester_whatsapp || $ticket->status?->system_key === 'closed'
+            || !app(TicketWhatsAppAutomations::class)->enabled('status')) {
+            return;
+        }
+
+        SendTicketWhatsAppAutomation::dispatch($ticket->id, 'status', $eventId, $ticket->status?->name)->afterCommit();
+    }
+
     public function requesterChanged(Ticket $ticket, ?User $actor, string $headline = 'Ticket atualizado'): void
     {
         $ticket->loadMissing('requesterUser');
