@@ -66,7 +66,7 @@ class WhatsAppConnection
     {
         $normalized = self::normalizeNumber($phone);
         if ($normalized === null) {
-            throw new \InvalidArgumentException('WhatsApp do solicitante inválido.');
+            throw new \InvalidArgumentException('Número de WhatsApp inválido.');
         }
 
         $data = $this->values();
