@@ -1,0 +1,61 @@
+/* Página exclusiva de Configurações de notificações. Não depende dos estilos da tela de tickets. */
+.notification-settings-page { max-width: 1040px; margin-inline: auto; }
+.notification-settings-page .admin-editor { display: grid; gap: 14px; }
+.notification-settings-page .notification-automation {
+    border: 1px solid #e6e0ef; border-radius: 14px; background: #fff;
+    box-shadow: 0 4px 16px rgba(34, 19, 52, .055); overflow: hidden;
+}
+.notification-settings-page .notification-automation > summary {
+    display: flex; flex-wrap: nowrap; gap: 14px; align-items: center;
+    cursor: pointer; list-style: none; padding: 19px 20px; min-height: 72px;
+    background: #fff; transition: background .15s ease; user-select: none;
+}
+.notification-settings-page .notification-automation > summary::-webkit-details-marker { display: none; }
+.notification-settings-page .notification-automation > summary:hover,
+.notification-settings-page .notification-automation[open] > summary { background: #fbf9ff; }
+.notification-settings-page .notification-summary-icon {
+    display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px;
+    border-radius: 12px; background: #eee7fa; color: #6835b3; font-size: 19px;
+}
+.notification-settings-page .notification-summary-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.notification-settings-page .notification-summary-copy strong { color: #30263b; font-size: 15px; line-height: 1.35; font-weight: 750; }
+.notification-settings-page .notification-summary-copy small { color: #777181; font-size: 12px; line-height: 1.3; }
+.notification-settings-page .notification-summary-state {
+    flex: 0 0 auto; display: inline-flex; align-items: center; border-radius: 100px;
+    padding: 6px 10px; font-size: 11px; font-weight: 750; background: #f1f1f4; color: #6d6a78; white-space: nowrap;
+}
+.notification-settings-page .notification-summary-state.is-enabled { background: #e9f8ef; color: #216f48; }
+.notification-settings-page .notification-summary-chevron {
+    color: #6b587e; flex: 0 0 14px; font-size: 25px; line-height: 1; transition: transform .15s ease;
+}
+.notification-settings-page .notification-automation[open] .notification-summary-chevron { transform: rotate(90deg); }
+.notification-settings-page .notification-automation-content { display: grid; gap: 17px; padding: 20px; border-top: 1px solid #eae6f0; }
+.notification-settings-page .notification-automation-content > .muted { margin: 0; line-height: 1.55; }
+.notification-settings-page .notification-enable {
+    display: flex; align-items: center; gap: 11px; min-height: 45px; width: fit-content;
+    cursor: pointer; font-weight: 700; color: #33263f; margin: 0;
+}
+.notification-settings-page .notification-enable input { width: 19px; height: 19px; margin: 0; accent-color: #6531cc; flex: 0 0 auto; }
+.notification-settings-page .notification-message-field { display: grid; gap: 9px; font-weight: 700; color: #342d40; font-size: 13px; }
+.notification-settings-page .notification-message-field textarea {
+    display: block; width: 100%; min-height: 164px; resize: vertical; line-height: 1.65;
+    border-radius: 10px; border: 1px solid #d8d1e3; background: #fff;
+    font: inherit; font-size: 14px; padding: 13px 15px; color: #2a2431; white-space: pre-wrap;
+}
+.notification-settings-page .notification-message-field textarea:focus-visible,
+.notification-settings-page .notification-automation > summary:focus-visible { outline: 3px solid #d8c6ff; outline-offset: 2px; }
+.notification-settings-page .notification-settings-help { margin-top: 20px; padding: 22px; line-height: 1.65; }
+.notification-settings-page .notification-settings-help p { margin: 0 0 12px; }
+.notification-settings-page .notification-settings-help p:last-of-type { margin-bottom: 16px; }
+.notification-settings-page .notification-settings-actions { margin-top: 17px; bottom: 14px; padding: 13px 16px; }
+.notification-settings-page .notification-settings-actions .button { min-height: 41px; }
+@media(max-width: 640px) {
+    .notification-settings-page .notification-automation > summary { gap: 9px; padding: 14px 12px; min-height: 68px; }
+    .notification-settings-page .notification-summary-icon { flex-basis: 34px; width: 34px; height: 34px; font-size: 16px; }
+    .notification-settings-page .notification-summary-copy strong { font-size: 13px; }
+    .notification-settings-page .notification-summary-copy small { font-size: 11px; }
+    .notification-settings-page .notification-summary-state { font-size: 10px; padding: 5px 7px; }
+    .notification-settings-page .notification-automation-content { padding: 15px 12px; }
+    .notification-settings-page .notification-settings-help { padding: 16px 13px; }
+    .notification-settings-page .notification-settings-actions .button { width: 100%; }
+}
