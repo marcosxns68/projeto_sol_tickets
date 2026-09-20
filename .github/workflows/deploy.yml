@@ -113,10 +113,10 @@ jobs:
           try {
               $backfillExit = $kernel->call('tickets:backfill-requester-whatsapp', ['--limit' => 5]);
               $backfillResult = trim($kernel->output());
-              echo "migration-ok\\n";
-              echo 'whatsapp-backfill-exit='.$backfillExit.' '.str_replace(["\\r", "\\n"], ' ', $backfillResult);
+              echo "migration-ok\n";
+              echo 'whatsapp-backfill-exit='.$backfillExit.' '.str_replace(["\r", "\n"], ' ', $backfillResult);
           } catch (Throwable $exception) {
-              echo "migration-ok\\nwhatsapp-backfill-failed";
+              echo "migration-ok\nwhatsapp-backfill-failed";
           }
           PHP
 
