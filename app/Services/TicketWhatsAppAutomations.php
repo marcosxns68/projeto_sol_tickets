@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Setting;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class TicketWhatsAppAutomations
