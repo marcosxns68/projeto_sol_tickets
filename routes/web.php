@@ -14,6 +14,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntegrationUserDirectoryController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\UserNotificationProfileController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\RequesterPortalController;
 use App\Http\Controllers\TicketAssignmentController;
@@ -75,6 +76,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware(RequireIntegrationTicketPermission::class)
         ->name('integrations.users.search');
 
+    Route::get('/meu-perfil/notificacoes', [UserNotificationProfileController::class, 'edit'])->name('profile.notifications.edit');
+    Route::patch('/meu-perfil/notificacoes', [UserNotificationProfileController::class, 'update'])->name('profile.notifications.update');
     Route::get('/notificacoes', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notificacoes/contador', [NotificationController::class, 'count'])->name('notifications.count');
     Route::post('/notificacoes/ler-todas', [NotificationController::class, 'readAll'])->name('notifications.read-all');
