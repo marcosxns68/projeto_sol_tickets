@@ -242,13 +242,13 @@ O padrão de interface do Sutoorii Tickets é **uma única caixa “Notificar so
 
 ### 6.3 Resposta do cliente
 
-Uma resposta feita pelo cliente no sistema integrado gera alerta para a equipe elegível, com o solicitante excluído dos destinatários do próprio comentário. **Não enviar WhatsApp ao cliente informando que ele mesmo respondeu.** A interface local passa a indicar a última resposta pública.
+Uma resposta pública feita pelo cliente no sistema integrado, no portal assinado ou no Tickets **avisa automaticamente o responsável** por e-mail e pelo sininho, sem checkbox do cliente. Também tenta enviar **WhatsApp ao número próprio do responsável**, quando cadastrado e válido, com conexão Evolution API operacional, preferência pessoal ativada e automação global “Resposta do solicitante ao responsável” habilitada. Os demais participantes da equipe continuam sujeitos às preferências existentes. **Não enviar WhatsApp ao cliente informando que ele mesmo respondeu.** A interface local passa a indicar a última resposta pública. O WhatsApp enviado à equipe informa o número e assunto do ticket, sem copiar o corpo do comentário; o destinatário abre a conversa autenticada para ler os detalhes.
 
 ### 6.4 Configuração e processamento
 
-O painel administrativo do Tickets oferece quatro automações de WhatsApp independentes: **abertura**, **fechamento**, **comentário público** e **mudança de status**, cada uma com ativação e template próprios. No código, abertura inicia habilitada por padrão; as outras iniciam desabilitadas **até serem configuradas**. Nunca deduzir que a automação de comentário está ligada só porque a abertura funciona.
+O painel administrativo do Tickets oferece cinco automações de WhatsApp independentes: **abertura**, **fechamento**, **comentário público da equipe para o solicitante**, **mudança de status** e **resposta pública do solicitante ao responsável**. No código, abertura e resposta ao responsável iniciam habilitadas por padrão; fechamento, comentário ao solicitante e status iniciam desabilitados até configuração. O último evento é **independente** da automação de comentários destinada ao cliente e da caixa “Notificar solicitante”. Nunca deduzir que os outros canais estão funcionando apenas porque a confirmação de abertura chega.
 
-A integração de WhatsApp é operada pelo Tickets (Evolution API); e-mail também é configurado no Tickets. Os jobs de WhatsApp utilizam marcadores/idempotência para evitar repetição; isso não equivale a garantia de entrega. **Jobs de comentários e status usam uma tentativa (`tries=1`) com registro de falha**, sem reenvio persistente automático; caso o negócio exija garantia, evoluir essa política separadamente.
+A integração de WhatsApp é operada pelo Tickets (Evolution API); e-mail também é configurado no Tickets. Os jobs de WhatsApp utilizam marcadores/idempotência para evitar repetição; isso não equivale a garantia de entrega. **Jobs de comentários, status e aviso WhatsApp ao responsável usam uma tentativa (`tries=1`) com registro de falha**, sem reenvio persistente automático; caso o negócio exija garantia, evoluir essa política separadamente.
 
 O agendador Laravel descreve worker/fila por minuto e outras tarefas, mas **publicar código pelo GitHub não prova que o cron está instalado/executando na hospedagem**. Validar fila, logs, SMTP, canal WhatsApp e entrega real com contas de teste de cada integração.
 
@@ -322,7 +322,9 @@ Quando configurado, o Tickets pode emitir webhooks assíncronos para alteraçõe
 
 **Fase D — comunicação e operação**
 
-- [ ] Confirmar e-mail SMTP e automação de abertura, comentário, status e fechamento, sem presumir que todas estão ligadas.
+- [ ] Confirmar e-mail SMTP e as cinco automações de WhatsApp, incluindo retorno do solicitante ao responsável, sem presumir que todas estão ligadas.
+- [ ] Cada responsável deve cadastrar o próprio WhatsApp em **Meu perfil → Notificações por WhatsApp** ou ter o número preenchido pelo administrador em **Usuários → Editar**. O número do cliente armazenado no ticket **não** substitui o número do funcionário.
+- [ ] Testar respostas enviadas pelo portal interno, pelo portal assinado e pela integração: e-mail + sininho para o responsável, WhatsApp separado quando elegível, sem enviar ao solicitante um aviso sobre a própria resposta.
 - [ ] Testar a caixa **“Notificar solicitante”** em comentário público marcada/desmarcada; validar e-mail e WhatsApp de maneira independente.
 - [ ] Testar resposta do próprio cliente: equipe recebe aviso e cliente **não** recebe confirmação redundante por resposta própria.
 - [ ] Testar comentário + mudança de status no mesmo salvamento, sem notificações duplicadas ou contrariando checkbox.

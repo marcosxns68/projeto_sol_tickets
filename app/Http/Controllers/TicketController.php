@@ -472,7 +472,7 @@ class TicketController extends Controller
             if ($isRequester) {
                 // O retorno do solicitante precisa chegar ao responsável mesmo
                 // quando o formulário não oferece opções de notificação de equipe.
-                $notifier->requesterReplied($ticket, $actor);
+                $notifier->requesterReplied($ticket, $actor, null, $comment->id);
             } else {
                 $notifier->publicComment($ticket, $actor, [
                     'requester' => $commentNotifyRequester,

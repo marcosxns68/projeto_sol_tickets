@@ -82,7 +82,7 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
                 <span class="notification-count" data-notification-count @if($unreadNotifications === 0) hidden @endif>{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
             </a>
-            <div class="topbar-user"><span>{{ $me->name }}</span></div>
+            <div class="topbar-user"><a href="{{ route('profile.notifications.edit') }}" class="topbar-profile-link" title="Meu perfil e WhatsApp">{{ $me->name }}</a></div>
         </header>
 
         <main class="workspace-content">

@@ -84,7 +84,7 @@ class RequesterPortalController extends Controller
             ],
         ]);
 
-        $notifier->requesterReplied($ticket, null, $email);
+        $notifier->requesterReplied($ticket, null, $email, $comment->id);
 
         return redirect(URL::signedRoute('requester.show', [
             'ticket' => $ticket->id,

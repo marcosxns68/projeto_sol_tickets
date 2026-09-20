@@ -32,7 +32,8 @@ class SendTicketWhatsAppAutomation implements ShouldQueue
 
     public function handle(WhatsAppConnection $connection): void
     {
-        if (!array_key_exists($this->event, TicketWhatsAppAutomations::LABELS)) {
+        // O evento da equipe possui tarefa própria e nunca deve usar o WhatsApp do solicitante.
+        if ($this->event === 'responsible_reply' || !array_key_exists($this->event, TicketWhatsAppAutomations::LABELS)) {
             return;
         }
 

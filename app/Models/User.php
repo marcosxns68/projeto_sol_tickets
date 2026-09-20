@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Notifications\ResetPasswordPtBrNotification;
 use App\Notifications\VerifyEmailPtBrNotification;
+use App\Services\WhatsAppConnection;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -13,7 +14,7 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'email_verified_at', 'password', 'role_id', 'department_id', 'active'];
+    protected $fillable = ['name', 'email', 'email_verified_at', 'password', 'role_id', 'department_id', 'active', 'whatsapp', 'whatsapp_reply_enabled'];
     protected $hidden = ['password', 'remember_token'];
 
     protected function casts(): array
@@ -22,7 +23,19 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'active' => 'boolean',
+            'whatsapp' => 'encrypted',
+            'whatsapp_reply_enabled' => 'boolean',
         ];
+    }
+
+    public function setWhatsappAttribute(?string $value): void
+    {
+        $this->attributes['whatsapp'] = $value === null || trim($value) === ''
+            ? null
+            : \Illuminate\Support\Facades\Crypt::encryptString(
+                WhatsAppConnection::normalizeNumber($value)
+                    ?? throw new \InvalidArgumentException('WhatsApp inválido.')
+            );
     }
 
     public function sendEmailVerificationNotification(): void

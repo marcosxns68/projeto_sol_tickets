@@ -65,7 +65,7 @@ class TicketCommentController extends Controller
             if ($isRequester) {
                 // O solicitante não precisa selecionar destinatários para avisar
                 // automaticamente o responsável pela sua resposta pública.
-                $notifier->requesterReplied($ticket, $actor);
+                $notifier->requesterReplied($ticket, $actor, null, $comment->id);
             } else {
                 $notifier->publicComment($ticket, $actor, [
                     'requester' => $request->boolean('notify_requester'),

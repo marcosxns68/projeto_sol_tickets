@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\SendTicketOpenedWhatsApp;
+use App\Jobs\SendAssigneeReplyWhatsApp;
 use App\Jobs\SendTicketWhatsAppAutomation;
 use App\Models\Ticket;
 use App\Models\User;
@@ -101,14 +102,35 @@ class TicketNotifier
      * equipe responsável, independentemente de caixas de seleção do formulário.
      * Nunca envia a notificação do próprio comentário ao solicitante.
      */
-    public function requesterReplied(Ticket $ticket, ?User $actor = null, ?string $actorEmail = null): void
-    {
+    public function requesterReplied(
+        Ticket $ticket,
+        ?User $actor = null,
+        ?string $actorEmail = null,
+        ?int $commentId = null,
+    ): void {
         $this->publicComment($ticket, $actor, [
             'requester' => false,
             'responsible' => true,
             'collaborators' => true,
             'followers' => true,
         ], $actorEmail);
+
+        // O canal destinado à equipe é independente do WhatsApp do solicitante
+        // e da automação de respostas do suporte.
+        if ($commentId === null || !$ticket->assignee_id ||
+            !app(TicketWhatsAppAutomations::class)->enabled('responsible_reply')) {
+            return;
+        }
+
+        $assignee = $ticket->assignee ?: $ticket->assignee()->first();
+        if (!$assignee || !$assignee->active || !$assignee->whatsapp_reply_enabled ||
+            WhatsAppConnection::normalizeNumber($assignee->whatsapp) === null ||
+            ($actor && $assignee->id === $actor->id) ||
+            ($actorEmail && strtolower(trim($assignee->email)) === strtolower(trim($actorEmail)))) {
+            return;
+        }
+
+        SendAssigneeReplyWhatsApp::dispatch($ticket->id, $commentId, $assignee->id)->afterCommit();
     }
 
     public function publicCommentWhatsApp(Ticket $ticket, ?User $actor, int $commentId): void
