@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\WhatsAppConnection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -46,6 +47,12 @@ class UserController extends Controller
             'role_id' => ['nullable', 'integer', 'exists:roles,id'],
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'active' => ['nullable', 'boolean'],
+            'whatsapp' => ['nullable', 'string', 'max:30', function ($field, $value, $fail) {
+                if (filled($value) && WhatsAppConnection::normalizeNumber($value) === null) {
+                    $fail('Informe um WhatsApp com DDD válido para este usuário.');
+                }
+            }],
+            'whatsapp_reply_enabled' => ['nullable', 'boolean'],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['nullable', Rule::in(['yes', 'no'])],
         ]);
@@ -74,6 +81,10 @@ class UserController extends Controller
                 'role_id' => $data['role_id'] ?? null,
                 'department_id' => $data['department_id'] ?? null,
                 'active' => $data['active'],
+                'whatsapp' => array_key_exists('whatsapp', $data) ? $data['whatsapp'] : $user->whatsapp,
+                'whatsapp_reply_enabled' => $request->has('whatsapp_reply_enabled')
+                    ? $request->boolean('whatsapp_reply_enabled')
+                    : $user->whatsapp_reply_enabled,
             ]);
 
             if ($request->has('permissions')) {
