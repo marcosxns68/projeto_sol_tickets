@@ -29,7 +29,7 @@ class IntegrationRequesterWhatsAppSync
             ->whereNull('requester_whatsapp')
             ->whereNull('trashed_at');
 
-        if (!(clone $pending())->exists()) {
+        if (!$pending()->exists()) {
             return 0;
         }
 
