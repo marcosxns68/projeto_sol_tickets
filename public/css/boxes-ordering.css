@@ -1,0 +1,19 @@
+/* Colunas centrais da Minha Caixa, Todos os tickets e caixas de departamento. */
+.tickets-table th.ticket-col-center,
+.tickets-table td.ticket-col-center { text-align: center; }
+.tickets-table td.ticket-col-center > .row-link {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+.tickets-table .ticket-deadline { white-space: nowrap; }
+.tickets-table .ticket-deadline-date { display: block; font-weight: 650; }
+.tickets-table .ticket-deadline-time { display: block; font-size: 11px; line-height: 1.3; }
+.helpdesk-toolbar .toolbar-sort { min-width: 172px; }
+.helpdesk-toolbar .toolbar-sort select { width: 100%; min-width: 172px; }
+.mobile-filter-grid .mobile-sort-field { grid-column: 1 / -1; }
+.mobile-filter-grid .mobile-sort-field select { width: 100%; }
