@@ -108,7 +108,16 @@ jobs:
               exit;
           }
 
-          echo 'migration-ok';
+          // Tenta preencher imediatamente os contatos legados após publicar o Estúdio França.
+          // Erros no diretório externo não podem derrubar o deploy do sistema.
+          try {
+              $backfillExit = $kernel->call('tickets:backfill-requester-whatsapp', ['--limit' => 5]);
+              $backfillResult = trim($kernel->output());
+              echo "migration-ok\\n";
+              echo 'whatsapp-backfill-exit='.$backfillExit.' '.str_replace(["\\r", "\\n"], ' ', $backfillResult);
+          } catch (Throwable $exception) {
+              echo "migration-ok\\nwhatsapp-backfill-failed";
+          }
           PHP
 
           sed -i "s/__DEPLOY_TOKEN_HASH__/${DEPLOY_TOKEN_HASH}/" .deploy/direct/public/deploy-migrate.php
