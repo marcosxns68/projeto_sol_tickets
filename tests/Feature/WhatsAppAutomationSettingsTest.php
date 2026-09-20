@@ -174,9 +174,10 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->withHeaders($headers)->postJson('/api/v1/tickets/'.$ticket->number.'/close')->assertOk();
         Bus::assertNotDispatched(SendTicketWhatsAppAutomation::class);
 
-        $ticket->update(['status_id'=>Status::system('new')->id,'completed_at'=>null]);
+        $this->withHeaders($headers)->postJson('/api/v1/tickets/'.$ticket->number.'/reopen')->assertOk()->assertJsonPath('ticket.status_key', 'new');
         app(TicketWhatsAppAutomations::class)->save('closed', true, 'Ticket {numero} fechado.');
-        $this->withHeaders($headers)->postJson('/api/v1/tickets/'.$ticket->number.'/close')->assertOk();
+        $this->assertTrue(app(TicketWhatsAppAutomations::class)->enabled('closed'));
+        $this->withHeaders($headers)->postJson('/api/v1/tickets/'.$ticket->number.'/close')->assertOk()->assertJsonPath('ticket.status_key', 'closed');
         $this->withHeaders($headers)->postJson('/api/v1/tickets/'.$ticket->number.'/close')->assertOk();
         Bus::assertDispatched(SendTicketWhatsAppAutomation::class, 1);
     }
