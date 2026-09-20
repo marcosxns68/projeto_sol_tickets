@@ -111,7 +111,10 @@
 
         @if($canComment || $canInternal)
         <div class="ticket-composer" data-ticket-composer>
-            @unless($canUpdate)<form action="{{ route('tickets.comments.store',$ticket) }}" method="post" class="form ticket-composer-form" id="ticketActivityForm">@csrf@endunless
+            @if(!$canUpdate)
+            <form action="{{ route('tickets.comments.store',$ticket) }}" method="post" class="form ticket-composer-form" id="ticketActivityForm">
+                @csrf
+            @endif
                 <div class="ticket-composer-main">
                     <label class="ticket-composer-type">Tipo
                         <select name="{{ $canUpdate ? 'comment_visibility' : 'visibility' }}" id="ticketActivityVisibility">
