@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\SendTicketOpenedWhatsApp;
+use App\Jobs\SendTicketWhatsAppAutomation;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Notifications\TicketActivityNotification;
@@ -39,8 +40,15 @@ class TicketNotifier
 
         // Canal WhatsApp: exclusivamente a confirmação inicial ao solicitante,
         // nunca ao responsável, seguidores ou demais participantes.
-        if ($ticket->requester_whatsapp) {
+        if ($ticket->requester_whatsapp && app(TicketWhatsAppAutomations::class)->enabled('opened')) {
             SendTicketOpenedWhatsApp::dispatch($ticket->id)->afterCommit();
+        }
+    }
+
+    public function closed(Ticket $ticket): void
+    {
+        if ($ticket->requester_whatsapp && app(TicketWhatsAppAutomations::class)->enabled('closed')) {
+            SendTicketWhatsAppAutomation::dispatch($ticket->id, 'closed')->afterCommit();
         }
     }
 
