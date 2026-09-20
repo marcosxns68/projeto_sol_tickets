@@ -96,6 +96,21 @@ class TicketNotifier
         );
     }
 
+    /**
+     * Uma resposta pública escrita pelo solicitante avisa automaticamente a
+     * equipe responsável, independentemente de caixas de seleção do formulário.
+     * Nunca envia a notificação do próprio comentário ao solicitante.
+     */
+    public function requesterReplied(Ticket $ticket, ?User $actor = null, ?string $actorEmail = null): void
+    {
+        $this->publicComment($ticket, $actor, [
+            'requester' => false,
+            'responsible' => true,
+            'collaborators' => true,
+            'followers' => true,
+        ], $actorEmail);
+    }
+
     public function publicCommentWhatsApp(Ticket $ticket, ?User $actor, int $commentId): void
     {
         // Respostas escritas pelo próprio solicitante não geram WhatsApp para ele.
