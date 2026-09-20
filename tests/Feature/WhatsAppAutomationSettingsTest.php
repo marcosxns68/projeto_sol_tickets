@@ -220,6 +220,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $page = $this->actingAs($admin)->get('/admin/configuracoes/notificacoes')->assertOk();
         $html = $page->getContent();
 
+        // Ao entrar na página, nenhum painel deve aparecer expandido.
         $this->assertSame(4, substr_count($html, 'data-notification-automation='));
         $this->assertSame(1, substr_count($html, 'class="admin-editor"'));
         $this->assertSame(1, substr_count($html, 'Salvar configurações'));
