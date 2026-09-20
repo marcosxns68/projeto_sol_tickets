@@ -214,7 +214,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         Http::assertSent(fn ($request) => $request['text'] === "Sutoorii Tickets\n\nO ticket {$ticket->number} foi fechado.");
         $this->assertNotNull($ticket->fresh()->whatsapp_closed_sent_at);
     }
-    public function test_all_automations_start_collapsed_and_one_save_updates_all_together(): void
+    public function test_automation_cards_have_one_save_and_only_opening_starts_expanded(): void
     {
         $admin = $this->user();
         $page = $this->actingAs($admin)->get('/admin/configuracoes/notificacoes')->assertOk();
@@ -224,7 +224,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->assertSame(1, substr_count($html, 'class="admin-editor"'));
         $this->assertSame(1, substr_count($html, 'Salvar configurações'));
         $this->assertSame(1, substr_count($html, 'Variáveis:'));
-        $this->assertStringNotContainsString('data-notification-automation="opened" open', $html);
+        $this->assertStringContainsString('data-notification-automation="opened" open', $html);
         $this->assertStringNotContainsString('data-notification-automation="closed" open', $html);
         $this->assertStringNotContainsString('data-notification-automation="comment" open', $html);
         $this->assertStringNotContainsString('data-notification-automation="status" open', $html);
@@ -293,7 +293,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->assertStringContainsString('@media(max-width: 640px)', $css);
 
         $blade = file_get_contents(resource_path('views/admin/settings/notifications.blade.php'));
-        $this->assertStringContainsString("$event === 'opened'", $blade);
+        $this->assertStringContainsString("\$event === 'opened'", $blade);
         $this->assertStringNotContainsString('class="ticket-disclosure"', $blade);
     }
 
