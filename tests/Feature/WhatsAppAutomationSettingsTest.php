@@ -270,4 +270,30 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->assertFalse($service->enabled('closed'));
     }
 
+
+    public function test_notifications_page_has_its_own_styles_and_shows_the_opening_editor_immediately(): void
+    {
+        $admin = $this->user();
+
+        $this->actingAs($admin)->get('/admin/configuracoes/notificacoes')
+            ->assertOk()
+            ->assertSee('css/notification-settings.css', false)
+            ->assertSee('class="notification-settings-page"', false)
+            ->assertSee('class="notification-automation"', false)
+            ->assertSee('name="automations[opened][message]"', false)
+            ->assertSee('name="automations[closed][message]"', false)
+            ->assertSee('name="automations[comment][message]"', false)
+            ->assertSee('name="automations[status][message]"', false)
+            ->assertSee('Salvar configurações');
+
+        $css = file_get_contents(public_path('css/notification-settings.css'));
+        $this->assertStringContainsString('.notification-automation > summary', $css);
+        $this->assertStringContainsString('.notification-automation-content', $css);
+        $this->assertStringContainsString('@media(max-width: 640px)', $css);
+
+        $blade = file_get_contents(resource_path('views/admin/settings/notifications.blade.php'));
+        $this->assertStringContainsString("$event === 'opened'", $blade);
+        $this->assertStringNotContainsString('class="ticket-disclosure"', $blade);
+    }
+
 }
