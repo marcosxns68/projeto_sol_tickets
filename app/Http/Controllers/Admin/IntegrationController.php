@@ -43,10 +43,12 @@ class IntegrationController extends Controller
     {
         $this->authorizeAccess($request);
 
+        $this->normalizeSubmittedUrls($request);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:160'],
-            'base_url' => ['nullable', 'url', 'max:255'],
-            'webhook_url' => ['nullable', 'url', 'max:255'],
+            'base_url' => ['nullable', 'url:http,https', 'max:255'],
+            'webhook_url' => ['nullable', 'url:https', 'max:255'],
             'department_id' => [
                 'required',
                 'integer',
@@ -55,6 +57,11 @@ class IntegrationController extends Controller
             'default_label_ids' => ['nullable', 'array'],
             'default_label_ids.*' => ['integer', 'distinct', 'exists:labels,id'],
             'active' => ['nullable', 'boolean'],
+        ], [
+            'base_url.url' => 'Informe um endereço válido para o sistema, por exemplo https://sistema.exemplo.com.br.',
+            'base_url.max' => 'O endereço do sistema deve ter no máximo 255 caracteres.',
+            'webhook_url.url' => 'Informe uma URL HTTPS válida para o webhook de retorno, por exemplo https://sistema.exemplo.com.br/webhook.',
+            'webhook_url.max' => 'O endereço do webhook deve ter no máximo 255 caracteres.',
         ]);
 
         $company = Company::firstOrCreate(
@@ -94,10 +101,12 @@ class IntegrationController extends Controller
     {
         $this->authorizeAccess($request);
 
+        $this->normalizeSubmittedUrls($request);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:160'],
-            'base_url' => ['nullable', 'url', 'max:255'],
-            'webhook_url' => ['nullable', 'url', 'max:255'],
+            'base_url' => ['nullable', 'url:http,https', 'max:255'],
+            'webhook_url' => ['nullable', 'url:https', 'max:255'],
             'department_id' => [
                 'required',
                 'integer',
@@ -106,6 +115,11 @@ class IntegrationController extends Controller
             'default_label_ids' => ['nullable', 'array'],
             'default_label_ids.*' => ['integer', 'distinct', 'exists:labels,id'],
             'active' => ['nullable', 'boolean'],
+        ], [
+            'base_url.url' => 'Informe um endereço válido para o sistema, por exemplo https://sistema.exemplo.com.br.',
+            'base_url.max' => 'O endereço do sistema deve ter no máximo 255 caracteres.',
+            'webhook_url.url' => 'Informe uma URL HTTPS válida para o webhook de retorno, por exemplo https://sistema.exemplo.com.br/webhook.',
+            'webhook_url.max' => 'O endereço do webhook deve ter no máximo 255 caracteres.',
         ]);
 
         $old = $integration->only(['name', 'base_url', 'webhook_url', 'active']);
@@ -161,6 +175,33 @@ class IntegrationController extends Controller
             ->with('success', 'Novo segredo de webhook gerado. Copie agora: ele não será exibido novamente.')
             ->with('generated_webhook_secret', $secret)
             ->with('generated_webhook_secret_for', $integration->id);
+    }
+
+    /**
+     * Domínios informados sem protocolo devem ser tratados como URLs HTTPS.
+     * O endereço é normalizado exclusivamente no backend para que a criação
+     * e a edição tenham o mesmo comportamento, mesmo sem JavaScript.
+     */
+    private function normalizeSubmittedUrls(Request $request): void
+    {
+        $normalized = [];
+
+        foreach (['base_url', 'webhook_url'] as $field) {
+            $raw = $request->input($field);
+            if (!is_string($raw)) {
+                continue;
+            }
+
+            $url = trim($raw);
+            if ($url !== '' && !preg_match('~^[a-z][a-z0-9+.-]*://~i', $url)
+                && !str_starts_with($url, '//')) {
+                $url = 'https://'.$url;
+            }
+
+            $normalized[$field] = $url === '' ? null : $url;
+        }
+
+        $request->merge($normalized);
     }
 
     private function authorizeAccess(Request $request): void
