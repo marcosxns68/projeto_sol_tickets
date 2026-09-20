@@ -112,6 +112,11 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->assertSame(TicketWhatsAppAutomations::DEFAULT_TEMPLATES['closed'],
             app(TicketWhatsAppAutomations::class)->template('closed'));
 
+        $this->actingAs($admin)->patch('/admin/configuracoes/notificacoes/whatsapp/closed', [
+            'enabled' => '1', 'message' => "   ",
+        ])->assertSessionHasErrors('message');
+        $this->assertFalse(app(TicketWhatsAppAutomations::class)->enabled('closed'));
+
         $this->actingAs($admin)->patch('/admin/configuracoes/notificacoes/whatsapp/unknown', [
             'enabled' => '1', 'message' => 'Texto {numero}',
         ])->assertNotFound();
@@ -149,6 +154,10 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $ticket = $this->ticket();
         $service = app(TicketWhatsAppAutomations::class);
         $service->save('closed', true, 'Fechado: {numero}');
+        $ticket->update(['assignee_id' => $admin->id]);
+        $this->actingAs($admin)->post('/tickets/'.$ticket->id.'/resolver')->assertRedirect();
+        $this->assertSame('resolved', $ticket->fresh()->status?->system_key);
+        Bus::assertNotDispatched(SendTicketWhatsAppAutomation::class);
 
         $this->actingAs($admin)->post('/tickets/'.$ticket->id.'/fechar')->assertRedirect();
         Bus::assertDispatched(SendTicketWhatsAppAutomation::class, 1);
