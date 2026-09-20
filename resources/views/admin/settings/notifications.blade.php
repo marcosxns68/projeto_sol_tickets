@@ -7,7 +7,7 @@
     <div>
         <p class="eyebrow">ADMINISTRAÇÃO</p>
         <h1>Configurações de notificações</h1>
-        <p class="muted">Personalize as mensagens automáticas de WhatsApp. As notificações por e-mail e do painel são configuradas separadamente.</p>
+        <p class="muted">Personalize as mensagens automáticas de WhatsApp para solicitantes e responsáveis. O envio por e-mail e os avisos do sininho continuam independentes.</p>
     </div>
 </div>
 
@@ -23,7 +23,7 @@
     @foreach($automations as $event => $configuration)
     <details class="notification-automation" data-notification-automation="{{ $event }}" @if($errors->has('automations.'.$event.'.message') || $errors->has('automations.'.$event.'.enabled')) open @endif>
         <summary>
-            <span class="notification-summary-copy"><strong>{{ $configuration['label'] }}</strong><small>WhatsApp · solicitante</small></span>
+            <span class="notification-summary-copy"><strong>{{ $configuration['label'] }}</strong><small>WhatsApp · {{ $event === 'responsible_reply' ? 'responsável' : 'solicitante' }}</small></span>
             <span class="notification-summary-state {{ $configuration['enabled'] ? 'is-enabled' : '' }}">{{ $configuration['enabled'] ? 'Ativada' : 'Desativada' }}</span>
             <span class="notification-summary-chevron" aria-hidden="true">›</span>
         </summary>
@@ -36,6 +36,8 @@
                 <p class="muted">Enviada quando a equipe publica um comentário. Notas internas e respostas do próprio solicitante não disparam este aviso.</p>
             @elseif($event === 'status')
                 <p class="muted">Enviada quando a equipe altera o status. O fechamento possui aviso próprio.</p>
+            @elseif($event === 'responsible_reply')
+                <p class="muted">Enviada automaticamente ao WhatsApp cadastrado do responsável quando o solicitante publica uma resposta no ticket. Não depende do botão “Notificar solicitante” nem da automação de comentário enviada ao cliente.</p>
             @endif
             <label class="notification-enable">
                 <input type="hidden" name="automations[{{ $event }}][enabled]" value="0">
@@ -51,7 +53,7 @@
 
     <article class="panel notification-settings-help">
         <p class="muted">Variáveis: <code>{numero}</code> (número do ticket), <code>{assunto}</code> (assunto informado pelo cliente) e <code>{status}</code> (status atual). As quebras de linha serão mantidas.</p>
-        <p class="muted">Os avisos são enviados somente ao WhatsApp do solicitante quando houver número válido e conexão ativa na Evolution API.</p>
+        <p class="muted">As automações do cliente usam o WhatsApp do solicitante. O aviso de resposta do cliente usa exclusivamente o WhatsApp cadastrado pelo responsável em Meu perfil → Notificações por WhatsApp, com conexão ativa na Evolution API.</p>
         <a href="{{ route('admin.settings.whatsapp.edit') }}">Configurar conexão do WhatsApp</a>
     </article>
     <div class="sticky-actions notification-settings-actions"><button class="button" type="submit">Salvar configurações</button></div>
