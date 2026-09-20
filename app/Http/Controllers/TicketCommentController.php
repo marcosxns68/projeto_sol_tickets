@@ -62,12 +62,18 @@ class TicketCommentController extends Controller
                 ],
             ]);
 
-            $notifier->publicComment($ticket, $actor, [
-                'requester' => $request->boolean('notify_requester'),
-                'responsible' => $request->boolean('notify_responsible'),
-                'collaborators' => $request->boolean('notify_collaborators'),
-                'followers' => $request->boolean('notify_followers'),
-            ]);
+            if ($isRequester) {
+                // O solicitante não precisa selecionar destinatários para avisar
+                // automaticamente o responsável pela sua resposta pública.
+                $notifier->requesterReplied($ticket, $actor);
+            } else {
+                $notifier->publicComment($ticket, $actor, [
+                    'requester' => $request->boolean('notify_requester'),
+                    'responsible' => $request->boolean('notify_responsible'),
+                    'collaborators' => $request->boolean('notify_collaborators'),
+                    'followers' => $request->boolean('notify_followers'),
+                ]);
+            }
             // A escolha do operador controla ambos os canais para esta resposta.
             // A automação de comentários continua respeitando a configuração global.
             if (!$isRequester && $request->boolean('notify_requester')) {
