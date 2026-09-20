@@ -362,7 +362,7 @@ class IntegrationTicketController extends Controller
         ]);
     }
 
-    public function close(Request $request, string $reference): JsonResponse
+    public function close(Request $request, string $reference, TicketNotifier $notifier): JsonResponse
     {
         $ticket = $this->findVisibleTicket($request, $reference);
         $status = Status::system('closed');
@@ -371,11 +371,15 @@ class IntegrationTicketController extends Controller
             return response()->json(['message' => 'Status Fechado não configurado.'], 503);
         }
 
+        $wasClosed = $ticket->status?->system_key === 'closed';
         $ticket->update([
             'status_id' => $status->id,
             'completed_at' => now(),
         ]);
         $ticket->load(['status', 'labels']);
+        if (!$wasClosed) {
+            $notifier->closed($ticket);
+        }
 
         return response()->json(['ticket' => $this->serializeTicket($ticket)]);
     }

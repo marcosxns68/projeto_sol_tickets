@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\LabelController as AdminLabelController;
 use App\Http\Controllers\Admin\MailSettingsController as AdminMailSettingsController;
 use App\Http\Controllers\Admin\PrioritySettingsController as AdminPrioritySettingsController;
 use App\Http\Controllers\Admin\WhatsAppSettingsController as AdminWhatsAppSettingsController;
+use App\Http\Controllers\Admin\NotificationSettingsController as AdminNotificationSettingsController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
@@ -116,6 +117,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/admin/configuracoes/prioridades', [AdminPrioritySettingsController::class, 'edit'])->name('admin.settings.priorities.edit');
     Route::patch('/admin/configuracoes/prioridades', [AdminPrioritySettingsController::class, 'update'])->name('admin.settings.priorities.update');
+    Route::get('/admin/configuracoes/notificacoes', [AdminNotificationSettingsController::class, 'edit'])->name('admin.settings.notifications.edit');
+    Route::patch('/admin/configuracoes/notificacoes/whatsapp/{event}', [AdminNotificationSettingsController::class, 'update'])->name('admin.settings.notifications.update');
+
     Route::get('/admin/configuracoes/whatsapp', [AdminWhatsAppSettingsController::class, 'edit'])->name('admin.settings.whatsapp.edit');
     Route::patch('/admin/configuracoes/whatsapp', [AdminWhatsAppSettingsController::class, 'update'])->name('admin.settings.whatsapp.update');
     Route::post('/admin/configuracoes/whatsapp/qrcode', [AdminWhatsAppSettingsController::class, 'qrCode'])->middleware('throttle:6,1')->name('admin.settings.whatsapp.qrcode');

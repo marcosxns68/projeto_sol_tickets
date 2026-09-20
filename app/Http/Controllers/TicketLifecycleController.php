@@ -153,6 +153,7 @@ class TicketLifecycleController extends Controller
         $status = Status::system($systemKey);
         abort_unless($status, 500, 'Status necessário não configurado.');
         $oldStatus = $ticket->status?->name;
+        $wasClosed = $ticket->status?->system_key === 'closed';
 
         DB::transaction(function () use ($ticket, $actor, $status, $oldStatus, $events, $event, $complete) {
             $ticket->update([
@@ -167,6 +168,10 @@ class TicketLifecycleController extends Controller
             'previous_status' => $oldStatus,
         ]);
         $notifier->statusChanged($ticket, $actor);
+
+        if ($systemKey === 'closed' && !$wasClosed) {
+            $notifier->closed($ticket);
+        }
 
         if ($notifyRequester) {
             $notifier->requesterChanged($ticket, $actor, 'Status do ticket atualizado');
