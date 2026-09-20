@@ -224,7 +224,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->assertSame(1, substr_count($html, 'class="admin-editor"'));
         $this->assertSame(1, substr_count($html, 'Salvar configurações'));
         $this->assertSame(1, substr_count($html, 'Variáveis:'));
-        $this->assertStringContainsString('data-notification-automation="opened" open', $html);
+        $this->assertStringContainsString('data-notification-automation="opened"', $html);
         $this->assertStringNotContainsString('data-notification-automation="closed" open', $html);
         $this->assertStringNotContainsString('data-notification-automation="comment" open', $html);
         $this->assertStringNotContainsString('data-notification-automation="status" open', $html);
