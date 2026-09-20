@@ -422,4 +422,40 @@ class IntegrationApiV1SafeTest extends TestCase
             ->assertJsonPath('ticket.last_public_reply_by', 'support');
     }
 
+    public function test_cancelled_tickets_are_hidden_by_default_but_explicit_filter_returns_them_with_correct_pagination(): void
+    {
+        $new = $this->makeStatus('new', 'Novo', 'open');
+        $cancelled = $this->makeStatus('cancelled', 'Cancelado', 'cancelled');
+        $customCancelled = $this->makeStatus('archived_cancelled', 'Outro cancelamento', 'cancelled');
+        $system = $this->integration('Estúdio França', 'token-cancelados');
+        $anotherSystem = $this->integration('Outro sistema', 'token-outro');
+
+        foreach ([
+            [$new, $system, 'Em aberto'],
+            [$cancelled, $system, 'Cancelado'],
+            [$customCancelled, $system, 'Cancelamento adicional'],
+            [$cancelled, $anotherSystem, 'De outro sistema'],
+        ] as [$status, $owner, $title]) {
+            Ticket::create([
+                'number' => Ticket::nextNumber(), 'origin' => 'integration',
+                'title' => $title, 'description' => 'Detalhes',
+                'priority' => 'normal', 'status_id' => $status->id,
+                'system_id' => $owner->id, 'external_requester_id' => 'estudio-franca-17',
+            ]);
+        }
+
+        $headers = $this->headers('token-cancelados', 'estudio-franca-17');
+        $this->withHeaders($headers)->getJson('/api/v1/tickets?per_page=1')
+            ->assertOk()->assertJsonPath('meta.total', 1)
+            ->assertJsonCount(1, 'data')->assertJsonPath('data.0.title', 'Em aberto');
+
+        $this->withHeaders($headers)->getJson('/api/v1/tickets?status=cancelled&per_page=1&page=1')
+            ->assertOk()->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('meta.last_page', 2)->assertJsonCount(1, 'data');
+
+        $this->withHeaders($headers)->getJson('/api/v1/tickets?status=cancelled&per_page=1&page=2')
+            ->assertOk()->assertJsonPath('meta.total', 2)->assertJsonCount(1, 'data');
+    }
+
+
 }

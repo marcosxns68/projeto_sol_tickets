@@ -68,7 +68,9 @@ class TicketCommentController extends Controller
                 'collaborators' => $request->boolean('notify_collaborators'),
                 'followers' => $request->boolean('notify_followers'),
             ]);
-            if (!$isRequester) {
+            // A escolha do operador controla ambos os canais para esta resposta.
+            // A automação de comentários continua respeitando a configuração global.
+            if (!$isRequester && $request->boolean('notify_requester')) {
                 $notifier->publicCommentWhatsApp($ticket, $actor, $comment->id);
             }
         }

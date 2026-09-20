@@ -77,8 +77,18 @@ class IntegrationTicketController extends Controller
         if (!empty($filters['status'])) {
             $status = $filters['status'];
             $query->whereHas('status', function (Builder $builder) use ($status) {
-                $builder->where('system_key', $status)->orWhere('name', $status);
+                if ($status === 'cancelled') {
+                    $builder->where('category', 'cancelled');
+                } else {
+                    $builder->where('system_key', $status)->orWhere('name', $status);
+                }
             });
+        }
+
+        // A caixa de entrada do sistema integrado omite cancelados por padrão,
+        // mas permite consultá-los explicitamente sem afetar a paginação.
+        if (empty($filters['status'])) {
+            $query->whereHas('status', fn (Builder $builder) => $builder->where('category', '!=', 'cancelled'));
         }
 
         $perPage = (int) ($filters['per_page'] ?? 25);
