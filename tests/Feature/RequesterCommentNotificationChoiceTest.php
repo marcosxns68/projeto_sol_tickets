@@ -63,7 +63,7 @@ class RequesterCommentNotificationChoiceTest extends TestCase
         $this->assertStringContainsString('Notificar solicitante', $html);
         $this->assertStringContainsString('name="comment_notify_requester"', $html);
         $this->assertStringNotContainsString('Enviar e-mail para</span>', $html);
-        $this->assertStringContainsString('Notificar equipe por e-mail', $html) === false;
+        $this->assertStringNotContainsString('Notificar equipe por e-mail', $html);
     }
 
     public function test_checked_comment_sends_requester_email_and_queues_whatsapp_when_enabled(): void
