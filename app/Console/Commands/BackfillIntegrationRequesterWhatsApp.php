@@ -57,12 +57,12 @@ class BackfillIntegrationRequesterWhatsApp extends Command
                 $errors++;
                 $message = $exception->getMessage();
                 // Código operacional resumido: nunca imprimir telefone, nome, URL ou segredo.
-                $reason = preg_match('/\\bHTTP ([1-5][0-9]{2})\\b/', $message, $matches)
+                $reason = preg_match('/\bHTTP ([1-5][0-9]{2})\b/', $message, $matches)
                     ? 'http_'.$matches[1]
                     : (str_contains($message, 'autenticação') ? 'sem_segredo'
                         : (str_contains($message, 'resolver o host') ? 'dns'
                             : (str_contains($message, 'privado') ? 'url_bloqueada'
-                                : ($exception instanceof \\Illuminate\\Http\\Client\\ConnectionException ? 'rede'
+                                : ($exception instanceof \Illuminate\Http\Client\ConnectionException ? 'rede'
                                     : 'outro_'.class_basename($exception)))));
                 $causes[$reason] = ($causes[$reason] ?? 0) + 1;
                 // Não registrar o número nem outros dados pessoais.
