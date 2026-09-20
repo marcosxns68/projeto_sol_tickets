@@ -95,7 +95,12 @@ class MailSettings
 
         $encryption = (string) ($stored[self::KEYS['encryption']] ?? $this->encryptionFromConfig());
 
+        // As configurações salvas nesta página devem usar SMTP mesmo se um
+        // MAIL_MAILER=log/array esquecido no ambiente impedir o envio real.
+        // MAIL_URL, quando definido, também pode sobrepor host/porta/senha.
         config([
+            'mail.default' => 'smtp',
+            'mail.mailers.smtp.url' => null,
             'mail.mailers.smtp.host' => $stored[self::KEYS['host']] ?? config('mail.mailers.smtp.host'),
             'mail.mailers.smtp.port' => (int) ($stored[self::KEYS['port']] ?? config('mail.mailers.smtp.port', 465)),
             'mail.mailers.smtp.username' => $stored[self::KEYS['username']] ?? config('mail.mailers.smtp.username'),
