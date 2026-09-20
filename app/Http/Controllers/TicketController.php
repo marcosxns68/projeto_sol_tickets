@@ -469,12 +469,18 @@ class TicketController extends Controller
         }
 
         if ($publicComment) {
-            $notifier->publicComment($ticket, $actor, [
-                'requester' => $commentNotifyRequester,
-                'responsible' => $request->boolean('notify_responsible'),
-                'collaborators' => $request->boolean('notify_collaborators'),
-                'followers' => $request->boolean('notify_followers'),
-            ]);
+            if ($isRequester) {
+                // O retorno do solicitante precisa chegar ao responsável mesmo
+                // quando o formulário não oferece opções de notificação de equipe.
+                $notifier->requesterReplied($ticket, $actor);
+            } else {
+                $notifier->publicComment($ticket, $actor, [
+                    'requester' => $commentNotifyRequester,
+                    'responsible' => $request->boolean('notify_responsible'),
+                    'collaborators' => $request->boolean('notify_collaborators'),
+                    'followers' => $request->boolean('notify_followers'),
+                ]);
+            }
         }
 
         if ($publicComment) {

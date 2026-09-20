@@ -84,12 +84,7 @@ class RequesterPortalController extends Controller
             ],
         ]);
 
-        $notifier->publicComment($ticket, null, [
-            'requester' => false,
-            'responsible' => true,
-            'collaborators' => true,
-            'followers' => true,
-        ], $email);
+        $notifier->requesterReplied($ticket, null, $email);
 
         return redirect(URL::signedRoute('requester.show', [
             'ticket' => $ticket->id,
