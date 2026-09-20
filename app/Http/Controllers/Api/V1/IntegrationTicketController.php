@@ -294,7 +294,7 @@ class IntegrationTicketController extends Controller
             ]);
         }
 
-        $notifier->requesterReplied($ticket, null, $ticket->requester_email);
+        $notifier->requesterReplied($ticket, null, $ticket->requester_email, $comment->id);
 
         return response()->json([
             'comment' => [
