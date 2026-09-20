@@ -21,6 +21,44 @@ use Illuminate\Support\Facades\Storage;
 
 class IntegrationTicketController extends Controller
 {
+    /**
+     * Recebe o contato do próprio usuário autenticado pelo sistema integrado.
+     * Nunca troca telefones existentes nem dispara avisos retroativos.
+     */
+    public function syncRequesterWhatsApp(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'requester_whatsapp' => ['required', 'string', 'max:35', function ($attribute, $value, $fail) {
+                if (WhatsAppConnection::normalizeNumber($value) === null) {
+                    $fail('Informe um WhatsApp brasileiro válido com DDD.');
+                }
+            }],
+        ]);
+
+        $externalId = $this->externalUserId($request);
+        if (!preg_match('/^estudio-franca-[1-9][0-9]*$/D', $externalId)) {
+            return response()->json(['message' => 'Identificador externo incompatível.'], 422);
+        }
+
+        $number = WhatsAppConnection::normalizeNumber($data['requester_whatsapp']);
+        $updated = 0;
+        Ticket::query()
+            ->where('system_id', $this->integration($request)->id)
+            ->where('external_requester_id', $externalId)
+            ->whereNull('requester_whatsapp')
+            ->whereNull('trashed_at')
+            ->orderBy('id')
+            ->chunkById(100, function ($tickets) use ($number, &$updated): void {
+                foreach ($tickets as $ticket) {
+                    $ticket->requester_whatsapp = $number;
+                    $ticket->save();
+                    $updated++;
+                }
+            });
+
+        return response()->json(['tickets_preenchidos' => $updated]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
