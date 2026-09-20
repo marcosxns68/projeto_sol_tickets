@@ -35,6 +35,7 @@ class BackfillIntegrationRequesterWhatsApp extends Command
         $seen = [];
         $updated = 0;
         $errors = 0;
+        $causes = [];
         $processed = 0;
         $lastId = $cursor;
 
@@ -54,6 +55,16 @@ class BackfillIntegrationRequesterWhatsApp extends Command
                 }
             } catch (Throwable $exception) {
                 $errors++;
+                $message = $exception->getMessage();
+                // Código operacional resumido: nunca imprimir telefone, nome, URL ou segredo.
+                $reason = preg_match('/\bHTTP ([1-5][0-9]{2})\b/', $message, $matches)
+                    ? 'http_'.$matches[1]
+                    : (str_contains($message, 'autenticação') ? 'sem_segredo'
+                        : (str_contains($message, 'resolver o host') ? 'dns'
+                            : (str_contains($message, 'privado') ? 'url_bloqueada'
+                                : ($exception instanceof \Illuminate\Http\Client\ConnectionException ? 'rede'
+                                    : 'outro_'.class_basename($exception)))));
+                $causes[$reason] = ($causes[$reason] ?? 0) + 1;
                 // Não registrar o número nem outros dados pessoais.
                 Log::warning('Falha na sincronização de contato de integração', [
                     'system_id' => $candidate->system_id,
@@ -78,7 +89,12 @@ class BackfillIntegrationRequesterWhatsApp extends Command
             ->exists();
         Setting::setValue($cursorKey, $hasMore ? $lastId : 0);
 
-        $this->info("solicitantes_verificados={$processed} tickets_preenchidos={$updated} falhas={$errors} proxima_varredura=".($hasMore ? 'pendente' : 'reinicio'));
+        $reasons = $causes === [] ? 'nenhuma' : implode(',', array_map(
+            fn ($reason, $count) => $reason.':'.$count,
+            array_keys($causes),
+            array_values($causes)
+        ));
+        $this->info("solicitantes_verificados={$processed} tickets_preenchidos={$updated} falhas={$errors} causas={$reasons} proxima_varredura=".($hasMore ? 'pendente' : 'reinicio'));
         return self::SUCCESS;
     }
 }
