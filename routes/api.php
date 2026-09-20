@@ -7,6 +7,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', fn () => ['status' => 'ok', 'service' => 'Sutoorii Tickets']);
 
     Route::middleware(['integration'])->group(function () {
+        Route::post('/requester/whatsapp', [IntegrationTicketController::class, 'syncRequesterWhatsApp']);
         Route::get('/tickets', [IntegrationTicketController::class, 'index']);
         Route::post('/tickets', [IntegrationTicketController::class, 'store']);
         Route::get('/tickets/{reference}', [IntegrationTicketController::class, 'show']);
