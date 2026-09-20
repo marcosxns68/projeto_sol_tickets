@@ -25,8 +25,12 @@ class TicketBoxOrderingAndSettingsHubTest extends TestCase
 
     private function user(array $permissionKeys, string $roleName = 'Operador testes'): User
     {
-        $role = Role::create(['name' => $roleName.uniqid(), 'active' => true]);
-        $role->permissions()->sync(Permission::whereIn('key', $permissionKeys)->pluck('id'));
+        $role = $roleName === 'Super Admin'
+            ? Role::where('name', 'Super Admin')->firstOrFail()
+            : Role::create(['name' => $roleName.uniqid(), 'active' => true]);
+        if ($roleName !== 'Super Admin') {
+            $role->permissions()->sync(Permission::whereIn('key', $permissionKeys)->pluck('id'));
+        }
 
         return User::create([
             'name' => 'Operador de teste',
