@@ -14,6 +14,7 @@ class TicketWhatsAppAutomations
         'closed' => "> Sutoorii Tickets\n\nSeu ticket de número {numero} foi fechado.\nAssunto: {assunto}",
         'comment' => "> Sutoorii Tickets\n\nSeu ticket de número {numero} recebeu uma nova resposta.\nAssunto: {assunto}",
         'status' => "> Sutoorii Tickets\n\nO status do seu ticket de número {numero} foi alterado para {status}.\nAssunto: {assunto}",
+        'responsible_reply' => "> Sutoorii Tickets\n\nUm cliente respondeu ao ticket #{numero} pelo sistema de suporte.\nAssunto: {assunto}\nAcesse tickets.sutoorii.com para acompanhar.",
     ];
 
     public const LABELS = [
@@ -21,6 +22,7 @@ class TicketWhatsAppAutomations
         'closed' => 'Fechamento do ticket',
         'comment' => 'Novo comentário público',
         'status' => 'Mudança de status',
+        'responsible_reply' => 'Resposta do solicitante ao responsável',
     ];
 
     public const VARIABLES = ['numero', 'assunto', 'status'];
@@ -36,7 +38,7 @@ class TicketWhatsAppAutomations
     {
         $this->ensureEvent($event);
         // Preserva abertura já existente; demais avisos começam desligados.
-        return (bool) Setting::getValue('whatsapp.automation.'.$event.'.enabled', $event === 'opened');
+        return (bool) Setting::getValue('whatsapp.automation.'.$event.'.enabled', in_array($event, ['opened', 'responsible_reply'], true));
     }
 
     public function template(string $event): string
