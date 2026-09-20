@@ -214,4 +214,61 @@ class WhatsAppAutomationSettingsTest extends TestCase
         Http::assertSent(fn ($request) => $request['text'] === "Sutoorii Tickets\n\nO ticket {$ticket->number} foi fechado.");
         $this->assertNotNull($ticket->fresh()->whatsapp_closed_sent_at);
     }
+
+    public function test_all_automations_start_collapsed_and_one_save_updates_all_together(): void
+    {
+        $admin = $this->user();
+        $page = $this->actingAs($admin)->get('/admin/configuracoes/notificacoes')->assertOk();
+        $html = $page->getContent();
+
+        $this->assertSame(4, substr_count($html, 'data-notification-automation='));
+        $this->assertSame(1, substr_count($html, 'class="admin-editor"'));
+        $this->assertSame(1, substr_count($html, 'Salvar configurações'));
+        $this->assertSame(1, substr_count($html, 'Variáveis:'));
+        $this->assertStringNotContainsString('data-notification-automation="opened" open', $html);
+        $this->assertStringNotContainsString('data-notification-automation="closed" open', $html);
+        $this->assertStringNotContainsString('data-notification-automation="comment" open', $html);
+        $this->assertStringNotContainsString('data-notification-automation="status" open', $html);
+
+        $payload = [
+            'automations' => [
+                'opened' => ['enabled' => '1', 'message' => 'Novo {numero}: {assunto}'],
+                'closed' => ['enabled' => '1', 'message' => 'Fechado {numero}: {assunto}'],
+                'comment' => ['enabled' => '0', 'message' => 'Comentário no {numero}: {assunto}'],
+                'status' => ['enabled' => '1', 'message' => '{numero} passou para {status}'],
+            ],
+        ];
+        $this->actingAs($this->user('Gestor'))
+            ->patch('/admin/configuracoes/notificacoes', $payload)->assertForbidden();
+
+        $this->actingAs($admin)->patch('/admin/configuracoes/notificacoes', $payload)
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $service = app(TicketWhatsAppAutomations::class);
+        $this->assertSame('Novo {numero}: {assunto}', $service->template('opened'));
+        $this->assertSame('Fechado {numero}: {assunto}', $service->template('closed'));
+        $this->assertSame('Comentário no {numero}: {assunto}', $service->template('comment'));
+        $this->assertSame('{numero} passou para {status}', $service->template('status'));
+        $this->assertTrue($service->enabled('opened'));
+        $this->assertTrue($service->enabled('closed'));
+        $this->assertFalse($service->enabled('comment'));
+        $this->assertTrue($service->enabled('status'));
+    }
+
+    public function test_invalid_message_does_not_partially_save_other_automations(): void
+    {
+        $admin = $this->user();
+        $messages = [];
+        foreach (TicketWhatsAppAutomations::DEFAULT_TEMPLATES as $event => $template) {
+            $messages[$event] = ['enabled' => '1', 'message' => $template];
+        }
+        $messages['opened']['message'] = 'Alterado {numero}';
+        $messages['status']['message'] = 'Status {variavel_inexistente}';
+
+        $this->actingAs($admin)->patch('/admin/configuracoes/notificacoes', ['automations' => $messages])
+            ->assertSessionHasErrors('automations.status.message');
+        $service = app(TicketWhatsAppAutomations::class);
+        $this->assertSame(TicketWhatsAppAutomations::DEFAULT_TEMPLATES['opened'], $service->template('opened'));
+        $this->assertFalse($service->enabled('closed'));
+    }
+
 }
