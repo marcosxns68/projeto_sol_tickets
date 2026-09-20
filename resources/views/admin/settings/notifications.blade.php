@@ -19,6 +19,7 @@
     <form class="admin-editor" method="post" action="{{ route('admin.settings.notifications.update', ['event' => $event]) }}">
         @csrf
         @method('PATCH')
+        <input type="hidden" name="automation_event" value="{{ $event }}">
         <article class="panel">
             <div class="section-title">
                 <div>
@@ -33,11 +34,11 @@
             </div>
             <label style="display:flex;align-items:center;gap:10px;margin:12px 0 20px">
                 <input type="hidden" name="enabled" value="0">
-                <input type="checkbox" name="enabled" value="1" style="width:auto" @checked(old('enabled', $configuration['enabled']))>
+                <input type="checkbox" name="enabled" value="1" style="width:auto" @checked(old('automation_event') === $event ? old('enabled', $configuration['enabled']) : $configuration['enabled'])>
                 <strong>Habilitar notificação</strong>
             </label>
             <label for="message-{{ $event }}">Mensagem automática</label>
-            <textarea id="message-{{ $event }}" name="message" rows="6" maxlength="2000" required style="width:100%;margin-top:8px;white-space:pre-wrap">{{ old('message', $configuration['message']) }}</textarea>
+            <textarea id="message-{{ $event }}" name="message" rows="6" maxlength="2000" required style="width:100%;margin-top:8px;white-space:pre-wrap">{{ old('automation_event') === $event ? old('message', $configuration['message']) : $configuration['message'] }}</textarea>
             <p class="muted" style="margin:10px 0 0">Use <code>{numero}</code> para inserir automaticamente o número do ticket. As quebras de linha e o formato do texto serão mantidos.</p>
             <div class="sticky-actions"><button class="button" type="submit">Salvar {{ strtolower($configuration['label']) }}</button></div>
         </article>
