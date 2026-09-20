@@ -23,7 +23,8 @@
     $canReassign = $me->hasPermission('tickets.reassign') && $canDepartmentEdit;
     $canForward = $me->hasPermission('tickets.forward') && $canDepartmentEdit;
     $canAssume = !$ticket->assignee && $ticket->department_id && $canDepartmentView && $me->hasPermission('tickets.assume');
-    $hasRequesterEmail = filled($ticket->requester_email);
+    $hasRequesterEmail = filled($ticket->requester_email) || filled($ticket->requesterUser?->email);
+    $canNotifyRequesterInComment = !$isRequester && ($hasRequesterEmail || filled($ticket->requester_whatsapp));
     $activeAttachments = $ticket->attachments->whereNull('deleted_at');
     $recurrence = $ticket->recurrence;
     $priorityLabel = ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority);
@@ -135,12 +136,18 @@
                 </label>
                 @endif
 
-                @if($hasRequesterEmail || $ticket->assignee || $ticket->participants->isNotEmpty())
+                @if($canNotifyRequesterInComment)
+                <label class="inline-check ticket-requester-notification" id="commentRequesterNotify">
+                    <input type="hidden" name="{{ $canUpdate ? 'comment_notify_requester' : 'notify_requester' }}" value="0">
+                    <input type="checkbox" name="{{ $canUpdate ? 'comment_notify_requester' : 'notify_requester' }}" value="1" @checked(old($canUpdate ? 'comment_notify_requester' : 'notify_requester', true))>
+                    Notificar solicitante
+                </label>
+                @endif
+
+                @if($ticket->assignee || $ticket->participants->isNotEmpty())
                 <details class="composer-options" id="commentNotifyOptions">
-                    <summary>Notificações desta resposta</summary>
+                    <summary>Notificar equipe por e-mail</summary>
                     <div class="notify-options composer-notify-grid">
-                        <span>Enviar e-mail para</span>
-                        @if($hasRequesterEmail)<label><input type="checkbox" name="{{ $canUpdate ? 'comment_notify_requester' : 'notify_requester' }}" value="1" checked> Solicitante</label>@endif
                         @if($ticket->assignee)<label><input type="checkbox" name="notify_responsible" value="1"> Responsável</label>@endif
                         @if($ticket->participants->where('pivot.type','collaborator')->isNotEmpty())<label><input type="checkbox" name="notify_collaborators" value="1"> Colaboradores</label>@endif
                         @if($ticket->participants->where('pivot.type','follower')->isNotEmpty())<label><input type="checkbox" name="notify_followers" value="1"> Seguidores</label>@endif
@@ -396,8 +403,13 @@
 (() => {
     const visibility = document.getElementById('ticketActivityVisibility');
     const options = document.getElementById('commentNotifyOptions');
-    if (!visibility || !options) return;
-    const sync = () => { options.hidden = visibility.value !== 'public'; };
+    const requesterOption = document.getElementById('commentRequesterNotify');
+    if (!visibility) return;
+    const sync = () => {
+        const isPublic = visibility.value === 'public';
+        if (options) options.hidden = !isPublic;
+        if (requesterOption) requesterOption.hidden = !isPublic;
+    };
     visibility.addEventListener('change', sync);
     sync();
 })();
