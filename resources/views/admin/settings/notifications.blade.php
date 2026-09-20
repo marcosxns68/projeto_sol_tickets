@@ -17,7 +17,7 @@
     </div>
 @endif
 
-<form class="notification-automation-list" method="post" action="{{ route('admin.settings.notifications.update-all') }}">
+<form class="admin-editor" method="post" action="{{ route('admin.settings.notifications.update-all') }}">
     @csrf
     @method('PATCH')
     @foreach($automations as $event => $configuration)
