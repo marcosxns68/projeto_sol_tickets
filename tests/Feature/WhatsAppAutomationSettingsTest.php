@@ -65,13 +65,14 @@ class WhatsAppAutomationSettingsTest extends TestCase
         return $connection;
     }
 
-    public function test_super_admin_only_can_manage_four_automation_messages_independently(): void
+    public function test_super_admin_only_can_manage_automation_messages_independently(): void
     {
         $service = app(TicketWhatsAppAutomations::class);
         $this->assertTrue($service->enabled('opened'));
         $this->assertFalse($service->enabled('closed'));
         $this->assertFalse($service->enabled('comment'));
         $this->assertFalse($service->enabled('status'));
+        $this->assertTrue($service->enabled('responsible_reply'));
         $this->assertSame("> Sutoorii Tickets\n\nSeu ticket de número {numero} foi aberto com sucesso.\nAssunto: {assunto}", $service->template('opened'));
 
         $manager = $this->user('Gestor');
@@ -84,6 +85,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->actingAs($admin)->get('/admin/configuracoes/notificacoes')
             ->assertOk()->assertSee('Abertura do ticket')->assertSee('Fechamento do ticket')
             ->assertSee('Novo comentário público')->assertSee('Mudança de status')
+            ->assertSee('Resposta do solicitante ao responsável')
             ->assertSee('name="automations[closed][message]"', false);
 
         $this->actingAs($admin)->patch('/admin/configuracoes/notificacoes/whatsapp/closed', [
@@ -221,7 +223,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $html = $page->getContent();
 
         // Ao entrar na página, nenhum painel deve aparecer expandido.
-        $this->assertSame(4, substr_count($html, 'data-notification-automation='));
+        $this->assertSame(5, substr_count($html, 'data-notification-automation='));
         $this->assertSame(1, substr_count($html, 'class="admin-editor"'));
         $this->assertSame(1, substr_count($html, 'Salvar configurações'));
         $this->assertSame(1, substr_count($html, 'Variáveis:'));
@@ -234,6 +236,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->assertStringNotContainsString('data-notification-automation="closed" open', $html);
         $this->assertStringNotContainsString('data-notification-automation="comment" open', $html);
         $this->assertStringNotContainsString('data-notification-automation="status" open', $html);
+        $this->assertStringNotContainsString('data-notification-automation="responsible_reply" open', $html);
 
         $payload = [
             'automations' => [
@@ -241,6 +244,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
                 'closed' => ['enabled' => '1', 'message' => 'Fechado {numero}: {assunto}'],
                 'comment' => ['enabled' => '0', 'message' => 'Comentário no {numero}: {assunto}'],
                 'status' => ['enabled' => '1', 'message' => '{numero} passou para {status}'],
+                'responsible_reply' => ['enabled' => '1', 'message' => 'Seu cliente respondeu ao chamado {numero}'], 
             ],
         ];
         $this->actingAs($this->user('Gestor'))
@@ -253,10 +257,12 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->assertSame('Fechado {numero}: {assunto}', $service->template('closed'));
         $this->assertSame('Comentário no {numero}: {assunto}', $service->template('comment'));
         $this->assertSame('{numero} passou para {status}', $service->template('status'));
+        $this->assertSame('Seu cliente respondeu ao chamado {numero}', $service->template('responsible_reply'));
         $this->assertTrue($service->enabled('opened'));
         $this->assertTrue($service->enabled('closed'));
         $this->assertFalse($service->enabled('comment'));
         $this->assertTrue($service->enabled('status'));
+        $this->assertTrue($service->enabled('responsible_reply'));
     }
 
     public function test_invalid_message_does_not_partially_save_other_automations(): void
@@ -291,6 +297,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
             ->assertSee('name="automations[closed][message]"', false)
             ->assertSee('name="automations[comment][message]"', false)
             ->assertSee('name="automations[status][message]"', false)
+            ->assertSee('name="automations[responsible_reply][message]"', false)
             ->assertSee('Salvar configurações');
 
         $css = file_get_contents(public_path('css/notification-settings.css'));
