@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\MailSettings;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
+use Throwable;
 
 class PasswordResetController extends Controller
 {
@@ -26,7 +29,35 @@ class PasswordResetController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        $status = Password::sendResetLink($request->only('email'));
+        try {
+            // A recuperação acontece antes do login: aplicar a mesma configuração
+            // SMTP administrativa usada nos demais e-mails do Tickets.
+            app(MailSettings::class)->apply();
+
+            if (app()->environment('production') && config('mail.default') !== 'smtp') {
+                Log::error('Recuperação de senha: transporte de e-mail não é SMTP.', [
+                    'mailer' => (string) config('mail.default'),
+                ]);
+
+                return back()->withInput($request->only('email'))->withErrors([
+                    'email' => 'O serviço de recuperação de senha está temporariamente indisponível. Tente novamente mais tarde.',
+                ]);
+            }
+
+            // Evita reutilizar uma conexão SMTP criada com configuração antiga.
+            app('mail.manager')->purge('smtp');
+            $status = Password::sendResetLink($request->only('email'));
+        } catch (Throwable $exception) {
+            // Nunca registrar e-mail, token de redefinição ou credenciais SMTP.
+            Log::error('Falha ao processar envio de recuperação de senha.', [
+                'exception_class' => get_class($exception),
+                'exception_code' => (string) $exception->getCode(),
+            ]);
+
+            return back()->withInput($request->only('email'))->withErrors([
+                'email' => 'O serviço de recuperação de senha está temporariamente indisponível. Tente novamente mais tarde.',
+            ]);
+        }
 
         if ($status === Password::RESET_THROTTLED) {
             return back()
