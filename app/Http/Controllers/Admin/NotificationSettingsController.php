@@ -34,6 +34,9 @@ class NotificationSettingsController extends Controller
         ]);
 
         $message = trim($data['message']);
+        if ($message === '') {
+            throw ValidationException::withMessages(['message' => 'Escreva o texto da mensagem automática.']);
+        }
 
         // Neste momento só há um campo dinâmico autorizado, evitando
         // que erros de digitação enviem variáveis não substituídas ao cliente.
