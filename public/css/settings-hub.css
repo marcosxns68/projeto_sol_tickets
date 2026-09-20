@@ -1,0 +1,8 @@
+.settings-hub-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:1120px}
+.settings-hub-card{display:flex;justify-content:space-between;align-items:center;gap:18px;min-height:114px;padding:20px 21px;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);text-decoration:none;transition:border-color .17s ease,box-shadow .17s ease,transform .17s ease}
+.settings-hub-card:hover,.settings-hub-card:focus-visible{border-color:#b9a3e0;box-shadow:0 7px 22px rgba(88,57,139,.09);transform:translateY(-1px)}
+.settings-hub-copy{display:grid;gap:7px;min-width:0}
+.settings-hub-copy strong{font-size:15px;color:#241b31}
+.settings-hub-copy small{font-size:12px;line-height:1.55;color:var(--muted)}
+.settings-hub-arrow{font-size:23px;font-weight:750;color:var(--purple)}
+@media(max-width:760px){.settings-hub-grid{grid-template-columns:1fr}.settings-hub-card{min-height:90px;padding:16px}}

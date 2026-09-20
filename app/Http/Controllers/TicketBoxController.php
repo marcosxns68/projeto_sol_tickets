@@ -34,7 +34,7 @@ class TicketBoxController extends Controller
         $this->applyFilters($query, $request, true);
 
         return view('boxes.index', [
-            'tickets' => $query->with(['status', 'assignee', 'department', 'labels'])->latest()->paginate(20)->withQueryString(),
+            'tickets' => $this->orderTickets($query, $request)->with(['status', 'assignee', 'department', 'labels'])->paginate(20)->withQueryString(),
             'statuses' => Status::orderBy('position')->get(),
             'labels' => Label::query()->orderBy('name')->get(),
             'departments' => $departments,
@@ -52,7 +52,7 @@ class TicketBoxController extends Controller
         $this->applyFilters($query, $request, false);
 
         return view('boxes.index', [
-            'tickets' => $query->with(['status', 'assignee', 'department', 'labels'])->latest()->paginate(20)->withQueryString(),
+            'tickets' => $this->orderTickets($query, $request)->with(['status', 'assignee', 'department', 'labels'])->paginate(20)->withQueryString(),
             'statuses' => Status::orderBy('position')->get(),
             'labels' => Label::query()->orderBy('name')->get(),
             'departments' => collect(),
@@ -74,7 +74,7 @@ class TicketBoxController extends Controller
         $this->applyFilters($query, $request, false);
 
         return view('boxes.index', [
-            'tickets' => $query->with(['status', 'assignee', 'department', 'labels'])->latest()->paginate(20)->withQueryString(),
+            'tickets' => $this->orderTickets($query, $request)->with(['status', 'assignee', 'department', 'labels'])->paginate(20)->withQueryString(),
             'statuses' => Status::orderBy('position')->get(),
             'labels' => Label::query()->orderBy('name')->get(),
             'departments' => collect(),
@@ -82,6 +82,28 @@ class TicketBoxController extends Controller
             'boxKind' => 'department',
             'department' => $department,
         ]);
+    }
+
+    /**
+     * Ordena antes de paginar; em prioridade de atendimento, tickets vencidos
+     * vêm primeiro, depois o prazo mais próximo e, por último, tickets sem prazo.
+     * O operador pode escolher a idade do ticket em ordem crescente/decrescente.
+     */
+    private function orderTickets(Builder $query, Request $request): Builder
+    {
+        $sort = (string) $request->query('sort', 'due_soon');
+
+        return match ($sort) {
+            'oldest' => $query->orderBy('created_at')->orderBy('id'),
+            'newest' => $query->orderByDesc('created_at')->orderByDesc('id'),
+            'due_late' => $query->orderByRaw('CASE WHEN due_at IS NULL THEN 1 ELSE 0 END')
+                ->orderByDesc('due_at')->orderByDesc('id'),
+            default => $query->orderByRaw('CASE WHEN due_at IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('due_at')
+                ->orderByRaw("CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 WHEN 'low' THEN 3 ELSE 4 END")
+                ->orderBy('created_at')
+                ->orderBy('id'),
+        };
     }
 
     private function applyFilters(Builder $query, Request $request, bool $mine): void

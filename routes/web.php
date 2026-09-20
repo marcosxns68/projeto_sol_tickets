@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\PrioritySettingsController as AdminPrioritySettin
 use App\Http\Controllers\Admin\WhatsAppSettingsController as AdminWhatsAppSettingsController;
 use App\Http\Controllers\Admin\NotificationSettingsController as AdminNotificationSettingsController;
 use App\Http\Controllers\Admin\RoleController as AdminRoleController;
+use App\Http\Controllers\Admin\SettingsHubController as AdminSettingsHubController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
@@ -115,6 +116,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('throttle:3,1')
         ->name('admin.users.reset-verification');
 
+    Route::get('/admin/configuracoes', AdminSettingsHubController::class)->name('admin.settings.index');
     Route::get('/admin/configuracoes/prioridades', [AdminPrioritySettingsController::class, 'edit'])->name('admin.settings.priorities.edit');
     Route::patch('/admin/configuracoes/prioridades', [AdminPrioritySettingsController::class, 'update'])->name('admin.settings.priorities.update');
     Route::get('/admin/configuracoes/notificacoes', [AdminNotificationSettingsController::class, 'edit'])->name('admin.settings.notifications.edit');

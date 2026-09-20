@@ -81,6 +81,14 @@
             @endforeach
         </select>
     </label>
+    <label class="toolbar-field toolbar-sort">Ordenar por
+        <select name="sort">
+            <option value="due_soon" @selected(!request('sort') || request('sort')==='due_soon')>Prazo: mais próximo</option>
+            <option value="oldest" @selected(request('sort')==='oldest')>Idade: mais antigos</option>
+            <option value="newest" @selected(request('sort')==='newest')>Idade: mais recentes</option>
+            <option value="due_late" @selected(request('sort')==='due_late')>Prazo: mais distante</option>
+        </select>
+    </label>
     @if($boxKind === 'mine' && request('relation'))<input type="hidden" name="relation" value="{{ request('relation') }}">@endif
     <label class="toolbar-check"><input type="checkbox" name="unassigned" value="1" @checked(request()->boolean('unassigned'))> Não atribuídos</label>
     <label class="toolbar-check"><input type="checkbox" name="overdue" value="1" @checked(request()->boolean('overdue'))> Atrasados</label>
@@ -94,7 +102,7 @@
         <input name="q" value="{{ request('q') }}" placeholder="Buscar nesta caixa..." aria-label="Buscar nesta caixa">
         <button class="button compact" type="submit">Buscar</button>
     </div>
-    <details class="mobile-filters" @if(request('department') || request('status') || request('priority') || request('label') || request()->boolean('unassigned') || request()->boolean('overdue')) open @endif>
+    <details class="mobile-filters" @if(request('department') || request('status') || request('priority') || request('label') || request('sort') || request()->boolean('unassigned') || request()->boolean('overdue')) open @endif>
         <summary>Filtros</summary>
         <div class="mobile-filter-grid">
             @if($boxKind === 'mine' && $departments->isNotEmpty())
@@ -132,6 +140,14 @@
                     @endforeach
                 </select>
             </label>
+            <label class="toolbar-field mobile-sort-field">Ordenar por
+                <select name="sort">
+                    <option value="due_soon" @selected(!request('sort') || request('sort')==='due_soon')>Prazo: mais próximo</option>
+                    <option value="oldest" @selected(request('sort')==='oldest')>Idade: mais antigos</option>
+                    <option value="newest" @selected(request('sort')==='newest')>Idade: mais recentes</option>
+                    <option value="due_late" @selected(request('sort')==='due_late')>Prazo: mais distante</option>
+                </select>
+            </label>
             <div class="mobile-filter-checks">
                 <label class="toolbar-check"><input type="checkbox" name="unassigned" value="1" @checked(request()->boolean('unassigned'))> Não atribuídos</label>
                 <label class="toolbar-check"><input type="checkbox" name="overdue" value="1" @checked(request()->boolean('overdue'))> Atrasados</label>
@@ -151,26 +167,26 @@
         <table class="tickets-table">
             <thead>
                 <tr>
-                    <th>Número</th>
+                    <th class="ticket-col-center">Número</th>
                     <th>Título</th>
-                    <th>Status</th>
-                    <th>Prioridade</th>
-                    <th>Departamento</th>
-                    <th>Responsável</th>
-                    <th>Prazo</th>
+                    <th class="ticket-col-center">Status</th>
+                    <th class="ticket-col-center">Prioridade</th>
+                    <th class="ticket-col-center">Departamento</th>
+                    <th class="ticket-col-center">Responsável</th>
+                    <th class="ticket-col-center">Prazo</th>
                 </tr>
             </thead>
             <tbody>
             @forelse($tickets as $ticket)
                 @php($ticketUrl = route('tickets.show',$ticket))
                 <tr class="ticket-row">
-                    <td><a class="row-link ticket-number" href="{{ $ticketUrl }}">#{{ $ticket->number }}</a></td>
+                    <td class="ticket-col-center"><a class="row-link ticket-number" href="{{ $ticketUrl }}">#{{ $ticket->number }}</a></td>
                     <td><a class="row-link ticket-title-cell" href="{{ $ticketUrl }}"><strong>{{ $ticket->title }}</strong><small>{{ Str::limit($ticket->description,72) }}</small>@if($ticket->labels->isNotEmpty())<span class="ticket-labels">@foreach($ticket->labels as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</span>@endif</a></td>
-                    <td><a class="row-link" href="{{ $ticketUrl }}"><span class="status" style="--status:{{ $ticket->status?->color ?? '#6d28d9' }}">{{ $ticket->status?->name ?? 'Sem status' }}</span></a></td>
-                    <td><a class="row-link" href="{{ $ticketUrl }}"><span class="priority-badge {{ $ticket->priority }}"><i></i>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</span></a></td>
-                    <td><a class="row-link" href="{{ $ticketUrl }}">{{ $ticket->department?->name ?? 'Sem departamento' }}</a></td>
-                    <td><a class="row-link" href="{{ $ticketUrl }}">{{ $ticket->assignee?->name ?? 'Não atribuído' }}</a></td>
-                    <td><a class="row-link {{ $ticket->due_at && $ticket->due_at->isPast() ? 'overdue' : '' }}" href="{{ $ticketUrl }}">{{ $ticket->due_at?->format('d/m/Y H:i') ?? 'Sem prazo' }}</a></td>
+                    <td class="ticket-col-center"><a class="row-link" href="{{ $ticketUrl }}"><span class="status" style="--status:{{ $ticket->status?->color ?? '#6d28d9' }}">{{ $ticket->status?->name ?? 'Sem status' }}</span></a></td>
+                    <td class="ticket-col-center"><a class="row-link" href="{{ $ticketUrl }}"><span class="priority-badge {{ $ticket->priority }}"><i></i>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</span></a></td>
+                    <td class="ticket-col-center"><a class="row-link" href="{{ $ticketUrl }}">{{ $ticket->department?->name ?? 'Sem departamento' }}</a></td>
+                    <td class="ticket-col-center"><a class="row-link" href="{{ $ticketUrl }}">{{ $ticket->assignee?->name ?? 'Não atribuído' }}</a></td>
+                    <td class="ticket-col-center"><a class="row-link ticket-deadline {{ $ticket->due_at && $ticket->due_at->isPast() ? 'overdue' : '' }}" href="{{ $ticketUrl }}">@if($ticket->due_at)<span class="ticket-deadline-date">{{ $ticket->due_at->format('d/m/Y') }}</span><span class="ticket-deadline-time">{{ $ticket->due_at->format('H:i') }}</span>@else<span>Sem prazo</span>@endif</a></td>
                 </tr>
             @empty
                 <tr><td colspan="7"><div class="table-empty"><span>✓</span><strong>Nenhum ticket nesta caixa</strong><small>Ajuste os filtros ou aguarde novos tickets.</small></div></td></tr>
