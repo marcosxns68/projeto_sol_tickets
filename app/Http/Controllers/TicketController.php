@@ -458,26 +458,31 @@ class TicketController extends Controller
         }
 
         $notifyRequester = !array_key_exists('notify_requester', $data) || (bool) $data['notify_requester'];
-        if ($changes !== [] && $notifyRequester) {
+        $commentNotifyRequester = $publicComment && !$isRequester
+            && $request->boolean('comment_notify_requester');
+
+        // Uma resposta pública usa a escolha "Notificar solicitante" para ambos
+        // os canais, mesmo se o status foi alterado no mesmo salvamento.
+        // Não enviar também um segundo e-mail genérico de alteração.
+        if ($changes !== [] && $notifyRequester && !$publicComment) {
             $notifier->requesterChanged($ticket, $actor);
         }
 
         if ($publicComment) {
             $notifier->publicComment($ticket, $actor, [
-                'requester' => $request->boolean('comment_notify_requester')
-                    && !($changes !== [] && $notifyRequester),
+                'requester' => $commentNotifyRequester,
                 'responsible' => $request->boolean('notify_responsible'),
                 'collaborators' => $request->boolean('notify_collaborators'),
                 'followers' => $request->boolean('notify_followers'),
             ]);
         }
 
-        // Mesmo salvando comentário e status simultaneamente, somente um aviso
-        // é escolhido para o WhatsApp do solicitante.
-        $commentWhatsApp = $publicComment && !$isRequester
-            && app(\App\Services\TicketWhatsAppAutomations::class)->enabled('comment');
-        if ($commentWhatsApp) {
-            $notifier->publicCommentWhatsApp($ticket, $actor, $comment->id);
+        if ($publicComment) {
+            // Com resposta pública, nunca substituir a escolha do operador por
+            // uma automação de status disparada no mesmo salvamento.
+            if ($commentNotifyRequester) {
+                $notifier->publicCommentWhatsApp($ticket, $actor, $comment->id);
+            }
         } elseif (isset($changes['status'])) {
             $notifier->statusWhatsAppChanged($ticket, $updateEvent->id);
         }
