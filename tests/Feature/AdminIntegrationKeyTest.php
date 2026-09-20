@@ -183,4 +183,88 @@ class AdminIntegrationKeyTest extends TestCase
             ->get('/admin/integracoes')
             ->assertForbidden();
     }
+    public function test_user_can_create_integration_with_domain_without_https_and_optional_webhook(): void
+    {
+        $department = $this->department();
+        $this->actingAs($this->admin())
+            ->post('/admin/integracoes', [
+                'name' => 'INC Idiomas',
+                'base_url' => ' sistema.incidiomas.com ',
+                'webhook_url' => '',
+                'department_id' => $department->id,
+                'active' => '1',
+            ])
+            ->assertRedirect('/admin/integracoes')
+            ->assertSessionHasNoErrors();
+
+        $integration = ConnectedSystem::where('name', 'INC Idiomas')->firstOrFail();
+        $this->assertSame('https://sistema.incidiomas.com', $integration->base_url);
+        $this->assertNull($integration->webhook_url);
+        $this->assertTrue((bool) $integration->api_token_hash);
+    }
+
+    public function test_update_accepts_domain_without_scheme_and_normalizes_optional_webhook(): void
+    {
+        $department = $this->department();
+        $admin = $this->admin();
+        $this->actingAs($admin)->post('/admin/integracoes', [
+            'name' => 'INC Idiomas',
+            'base_url' => 'https://sistema.incidiomas.com',
+            'department_id' => $department->id,
+            'active' => '1',
+        ])->assertRedirect('/admin/integracoes');
+
+        $integration = ConnectedSystem::where('name', 'INC Idiomas')->firstOrFail();
+
+        $this->actingAs($admin)->patch('/admin/integracoes/'.$integration->id, [
+            'name' => 'INC Idiomas',
+            'base_url' => ' sistema.incidiomas.com/sistema/ ',
+            'webhook_url' => ' sistema.incidiomas.com/api/suporte/webhook ',
+            'department_id' => $department->id,
+            'active' => '1',
+        ])->assertRedirect('/admin/integracoes')->assertSessionHasNoErrors();
+
+        $integration->refresh();
+        $this->assertSame('https://sistema.incidiomas.com/sistema/', $integration->base_url);
+        $this->assertSame('https://sistema.incidiomas.com/api/suporte/webhook', $integration->webhook_url);
+    }
+
+    public function test_invalid_urls_show_portuguese_errors_without_creating_integration(): void
+    {
+        $department = $this->department();
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post('/admin/integracoes', [
+            'name' => 'INC Idiomas inválido',
+            'base_url' => 'ftp://sistema.incidiomas.com',
+            'webhook_url' => 'http://sistema.incidiomas.com/webhook',
+            'department_id' => $department->id,
+            'active' => '1',
+        ])->assertRedirect()
+            ->assertSessionHasErrors([
+                'base_url' => 'Informe um endereço válido para o sistema, por exemplo https://sistema.exemplo.com.br.',
+                'webhook_url' => 'Informe uma URL HTTPS válida para o webhook de retorno, por exemplo https://sistema.exemplo.com.br/webhook.',
+            ]);
+
+        $this->assertDatabaseMissing('systems', ['name' => 'INC Idiomas inválido']);
+        $response = $this->actingAs($admin)->get('/admin/integracoes')->assertOk();
+        $response->assertSee('Pode informar apenas o domínio.')
+            ->assertDontSee('validation.url');
+    }
+
+    public function test_existing_https_addresses_are_preserved_without_double_prefix(): void
+    {
+        $department = $this->department();
+        $this->actingAs($this->admin())->post('/admin/integracoes', [
+            'name' => 'Sistema seguro',
+            'base_url' => 'https://sistema.incidiomas.com/sistema',
+            'webhook_url' => 'https://sistema.incidiomas.com/webhook',
+            'department_id' => $department->id,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $integration = ConnectedSystem::where('name', 'Sistema seguro')->firstOrFail();
+        $this->assertSame('https://sistema.incidiomas.com/sistema', $integration->base_url);
+        $this->assertSame('https://sistema.incidiomas.com/webhook', $integration->webhook_url);
+    }
+
 }
