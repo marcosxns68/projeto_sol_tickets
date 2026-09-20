@@ -329,15 +329,37 @@ class TicketController extends Controller
             'status_id' => ['required', 'integer', 'exists:statuses,id'],
             'due_at' => ['nullable', 'date'],
             'notify_requester' => ['nullable', 'boolean'],
+            'comment_body' => ['nullable', 'string', 'max:10000'],
+            'comment_visibility' => ['nullable', Rule::in(['public', 'internal'])],
+            'comment_notify_requester' => ['nullable', 'boolean'],
+            'notify_responsible' => ['nullable', 'boolean'],
+            'notify_collaborators' => ['nullable', 'boolean'],
+            'notify_followers' => ['nullable', 'boolean'],
         ]);
 
         $actor = $request->user();
         if ($ticket->department_id && !$actor->hasPermission('tickets.view_all')) {
-            abort_unless($departmentAccess->canEdit($actor, $ticket->department_id) || $ticket->assignee_id === $actor->id, 403);
+            abort_unless(
+                $departmentAccess->canEdit($actor, $ticket->department_id) || $ticket->assignee_id === $actor->id,
+                403
+            );
+        }
+
+        $commentBody = trim((string) ($data['comment_body'] ?? ''));
+        if (filled($data['comment_body'] ?? null) && $commentBody === '') {
+            throw ValidationException::withMessages(['comment_body' => 'Escreva a mensagem do comentário.']);
+        }
+        $commentVisibility = $data['comment_visibility'] ?? 'public';
+        $isRequester = (int) $ticket->requester_user_id === (int) $actor->id;
+        if ($commentBody !== '') {
+            $permission = $commentVisibility === 'public' ? 'tickets.comment' : 'tickets.internal_note';
+            abort_unless(
+                $actor->hasPermission($permission) || ($commentVisibility === 'public' && $isRequester),
+                403
+            );
         }
 
         $changes = [];
-
         if ($data['title'] !== $ticket->title || $data['description'] !== $ticket->description) {
             abort_unless($actor->hasPermission('tickets.edit'), 403);
             $changes['content'] = [
@@ -355,7 +377,9 @@ class TicketController extends Controller
             abort_unless($actor->hasPermission('tickets.change_status'), 403);
             $nextStatus = Status::findOrFail($data['status_id']);
             if (in_array($nextStatus->system_key, ['resolved', 'closed', 'cancelled'], true)) {
-                return back()->withErrors(['status_id' => 'Use as ações Resolver, Fechar ou Cancelar para este status.'])->withInput();
+                return back()->withErrors([
+                    'status_id' => 'Use as ações Resolver, Fechar ou Cancelar para este status.',
+                ])->withInput();
             }
             $changes['status'] = ['old' => $ticket->status?->name, 'new' => $nextStatus->name];
         }
@@ -367,35 +391,101 @@ class TicketController extends Controller
             $changes['due_at'] = ['old' => $oldDue, 'new' => $newDue];
         }
 
-        DB::transaction(function () use ($ticket, $data, $changes, $events, $actor) {
-            $ticket->update([
-                'title' => $data['title'],
-                'description' => $data['description'],
-                'priority' => $data['priority'],
-                'status_id' => $data['status_id'],
-                'due_at' => $data['due_at'] ?: null,
-            ]);
+        if ($changes === [] && $commentBody === '') {
+            return redirect()->route('tickets.show', $ticket)->with('success', 'Nenhuma alteração para salvar.');
+        }
 
-            if ($changes) {
-                $events->record($ticket, $actor, 'ticket.updated', ['changes' => $changes]);
+        // Comentário e alterações são persistidos juntos. Se houver erro, nada é salvo.
+        [$updateEvent, $comment] = DB::transaction(function () use (
+            $ticket, $data, $changes, $events, $actor, $commentBody, $commentVisibility, $isRequester
+        ) {
+            $updateEvent = null;
+            $comment = null;
+
+            if ($changes !== []) {
+                $ticket->update([
+                    'title' => $data['title'],
+                    'description' => $data['description'],
+                    'priority' => $data['priority'],
+                    'status_id' => $data['status_id'],
+                    'due_at' => $data['due_at'] ?: null,
+                ]);
+                $updateEvent = $events->record($ticket, $actor, 'ticket.updated', ['changes' => $changes]);
             }
+
+            if ($commentBody !== '') {
+                $comment = $ticket->comments()->create([
+                    'user_id' => $actor->id,
+                    'visibility' => $commentVisibility,
+                    'body' => $commentBody,
+                    'source' => 'web',
+                ]);
+                $events->record($ticket, $actor,
+                    $commentVisibility === 'public' ? 'comment.public' : 'comment.internal',
+                    ['comment_id' => $comment->id],
+                );
+
+                if ($commentVisibility === 'public' && $isRequester
+                    && app(\App\Services\RequesterReplyWorkflow::class)->markRequesterReplied($ticket)) {
+                    $events->record($ticket, $actor, 'status.changed', [
+                        'source' => 'requester_reply',
+                        'automatic' => true,
+                        'status' => $ticket->status?->name,
+                    ]);
+                }
+            }
+
+            return [$updateEvent, $comment];
         });
 
+        $ticket->refresh()->load('status');
+        $publicComment = $comment && $commentVisibility === 'public';
+
         if (isset($changes['status'])) {
-            $ticket->refresh()->load('status');
             $webhooks->dispatch($ticket, 'ticket.status.changed', [
                 'previous_status' => $changes['status']['old'],
             ]);
             $notifier->statusChanged($ticket, $actor);
         }
 
+        if ($publicComment) {
+            $webhooks->dispatch($ticket, 'ticket.comment.created', [
+                'comment' => [
+                    'body' => $comment->body,
+                    'created_at' => $comment->created_at?->toIso8601String(),
+                ],
+            ]);
+        }
+
         $notifyRequester = !array_key_exists('notify_requester', $data) || (bool) $data['notify_requester'];
         if ($changes !== [] && $notifyRequester) {
-            $ticket->refresh()->loadMissing('requesterUser');
             $notifier->requesterChanged($ticket, $actor);
         }
 
-        return redirect()->route('tickets.show', $ticket)->with('success', 'Ticket atualizado.');
+        if ($publicComment) {
+            $notifier->publicComment($ticket, $actor, [
+                'requester' => $request->boolean('comment_notify_requester')
+                    && !($changes !== [] && $notifyRequester),
+                'responsible' => $request->boolean('notify_responsible'),
+                'collaborators' => $request->boolean('notify_collaborators'),
+                'followers' => $request->boolean('notify_followers'),
+            ]);
+        }
+
+        // Mesmo salvando comentário e status simultaneamente, somente um aviso
+        // é escolhido para o WhatsApp do solicitante.
+        $commentWhatsApp = $publicComment && !$isRequester
+            && app(\App\Services\TicketWhatsAppAutomations::class)->enabled('comment');
+        if ($commentWhatsApp) {
+            $notifier->publicCommentWhatsApp($ticket, $actor, $comment->id);
+        } elseif (isset($changes['status'])) {
+            $notifier->statusWhatsAppChanged($ticket, $updateEvent->id);
+        }
+
+        return redirect()->route('tickets.show', $ticket)->with(
+            'success',
+            $comment ? 'Alterações e mensagem salvas com sucesso.' : 'Ticket atualizado.',
+        );
     }
 
     private function activeUsersByIds(array $ids)
