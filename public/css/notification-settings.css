@@ -1,6 +1,6 @@
 /* Página exclusiva de Configurações de notificações. Não depende dos estilos da tela de tickets. */
 .notification-settings-page { max-width: 1040px; margin-inline: auto; }
-.notification-settings-page .notification-automation-list { display: grid; gap: 14px; }
+.notification-settings-page .admin-editor { display: grid; gap: 14px; }
 .notification-settings-page .notification-automation {
     border: 1px solid #e6e0ef; border-radius: 14px; background: #fff;
     box-shadow: 0 4px 16px rgba(34, 19, 52, .055); overflow: hidden;
