@@ -64,9 +64,9 @@ class RequesterReplyAutomaticAssigneeNotificationTest extends TestCase
             ])
             ->assertRedirect();
 
-        Notification::assertSentTo($assignee, TicketActivityNotification::class, function ($notification) {
+        Notification::assertSentTo($assignee, TicketActivityNotification::class, function ($notification) use ($assignee) {
             return $notification->event === 'ticket.comment.public'
-                && $notification->via($this->user('Conta teste não envolvida')) === ['database', 'mail'];
+                && $notification->via($assignee) === ['database', 'mail'];
         });
         Notification::assertNotSentTo($requester, TicketActivityNotification::class);
     }
