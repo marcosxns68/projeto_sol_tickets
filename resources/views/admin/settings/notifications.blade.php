@@ -5,52 +5,51 @@
     <div>
         <p class="eyebrow">ADMINISTRAÇÃO</p>
         <h1>Configurações de notificações</h1>
-        <p class="muted">Personalize cada mensagem automática do WhatsApp. As notificações de e-mail e do painel continuam funcionando independentemente destas opções.</p>
+        <p class="muted">Personalize as mensagens automáticas de WhatsApp. As notificações por e-mail e do painel são configuradas separadamente.</p>
     </div>
 </div>
 
 @if($errors->any())
-    <div class="alert error-box"><strong>Confira a mensagem antes de salvar.</strong>
+    <div class="alert error-box"><strong>Confira as mensagens antes de salvar.</strong>
         <ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
     </div>
 @endif
 
-@foreach($automations as $event => $configuration)
-    <form class="admin-editor" method="post" action="{{ route('admin.settings.notifications.update', ['event' => $event]) }}">
-        @csrf
-        @method('PATCH')
-        <input type="hidden" name="automation_event" value="{{ $event }}">
-        <article class="panel">
-            <div class="section-title">
-                <div>
-                    <p class="eyebrow">WHATSAPP · SOLICITANTE</p>
-                    <h2>{{ $configuration['label'] }}</h2>
-                    @if($event === 'opened')
-                        <p class="muted">Enviada quando um novo ticket é aberto.</p>
-                    @elseif($event === 'closed')
-                        <p class="muted">Enviada quando um ticket passa para Fechado. Apenas marcar como Resolvido não dispara este aviso.</p>
-                    @elseif($event === 'comment')
-                        <p class="muted">Enviada ao solicitante quando a equipe publica uma resposta. Notas internas e respostas do próprio solicitante não disparam este aviso.</p>
-                    @elseif($event === 'status')
-                        <p class="muted">Enviada ao solicitante quando a equipe altera o status. O fechamento possui notificação própria.</p>
-                    @endif
-                </div>
-            </div>
-            <label style="display:flex;align-items:center;gap:10px;margin:12px 0 20px">
-                <input type="hidden" name="enabled" value="0">
-                <input type="checkbox" name="enabled" value="1" style="width:auto" @checked(old('automation_event') === $event ? old('enabled', $configuration['enabled']) : $configuration['enabled'])>
+<form class="admin-editor" method="post" action="{{ route('admin.settings.notifications.update-all') }}">
+    @csrf
+    @method('PATCH')
+    @foreach($automations as $event => $configuration)
+    <details class="ticket-disclosure" data-notification-automation="{{ $event }}" @if($errors->has('automations.'.$event.'.message') || $errors->has('automations.'.$event.'.enabled')) open @endif>
+        <summary class="ticket-disclosure-summary">
+            <span class="ticket-disclosure-copy"><strong>{{ $configuration['label'] }}</strong><small>WhatsApp · solicitante</small></span>
+            <span class="ticket-disclosure-chevron" aria-hidden="true">›</span>
+        </summary>
+        <div class="ticket-disclosure-content">
+            @if($event === 'opened')
+                <p class="muted">Enviada quando um novo ticket é aberto.</p>
+            @elseif($event === 'closed')
+                <p class="muted">Enviada quando um ticket é fechado. Marcar como resolvido não dispara este aviso.</p>
+            @elseif($event === 'comment')
+                <p class="muted">Enviada quando a equipe publica um comentário. Notas internas e respostas do próprio solicitante não disparam este aviso.</p>
+            @elseif($event === 'status')
+                <p class="muted">Enviada quando a equipe altera o status. O fechamento possui aviso próprio.</p>
+            @endif
+            <label style="display:flex;align-items:center;gap:10px;margin:14px 0 20px">
+                <input type="hidden" name="automations[{{ $event }}][enabled]" value="0">
+                <input type="checkbox" name="automations[{{ $event }}][enabled]" value="1" style="width:auto" @checked(old('automations.'.$event.'.enabled', $configuration['enabled']))>
                 <strong>Habilitar notificação</strong>
             </label>
-            <label for="message-{{ $event }}">Mensagem automática</label>
-            <textarea id="message-{{ $event }}" name="message" rows="6" maxlength="2000" required style="width:100%;margin-top:8px;white-space:pre-wrap">{{ old('automation_event') === $event ? old('message', $configuration['message']) : $configuration['message'] }}</textarea>
-            <p class="muted" style="margin:10px 0 0">Variáveis: <code>{numero}</code> (número do ticket), <code>{assunto}</code> (assunto informado pelo cliente) e <code>{status}</code> (status atual). As quebras de linha serão mantidas.</p>
-            <div class="sticky-actions"><button class="button" type="submit">Salvar {{ strtolower($configuration['label']) }}</button></div>
-        </article>
-    </form>
-@endforeach
+            <label for="notification-message-{{ $event }}">Mensagem automática</label>
+            <textarea id="notification-message-{{ $event }}" name="automations[{{ $event }}][message]" rows="6" maxlength="2000" required style="width:100%;margin-top:8px;white-space:pre-wrap">{{ old('automations.'.$event.'.message', $configuration['message']) }}</textarea>
+        </div>
+    </details>
+    @endforeach
 
-<article class="panel">
-    <p class="muted">As mensagens são enviadas somente ao WhatsApp cadastrado para o solicitante. Sem número válido ou sem conexão ativa na Evolution API, o ticket continua funcionando, mas o aviso não é entregue. A confirmação de abertura e a de fechamento são enviadas uma vez por ticket. Comentários e mudanças de status geram avisos por ocorrência, quando habilitados.</p>
-    <a href="{{ route('admin.settings.whatsapp.edit') }}">Configurar conexão do WhatsApp</a>
-</article>
+    <article class="panel">
+        <p class="muted">Variáveis: <code>{numero}</code> (número do ticket), <code>{assunto}</code> (assunto informado pelo cliente) e <code>{status}</code> (status atual). As quebras de linha serão mantidas.</p>
+        <p class="muted">Os avisos são enviados somente ao WhatsApp do solicitante quando houver número válido e conexão ativa na Evolution API.</p>
+        <a href="{{ route('admin.settings.whatsapp.edit') }}">Configurar conexão do WhatsApp</a>
+    </article>
+    <div class="sticky-actions"><button class="button" type="submit">Salvar configurações</button></div>
+</form>
 @endsection
