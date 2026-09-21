@@ -528,3 +528,78 @@
 .ticket-unified-actions{display:flex;justify-content:flex-end;padding:0 1px 10px}
 .ticket-unified-actions .button{min-height:44px;min-width:170px}
 @media(max-width:900px){.ticket-unified-actions .button{width:100%;min-height:48px}}
+
+
+.ticket-action-confirm {
+    width: min(440px, calc(100% - 32px));
+    padding: 0;
+    border: 0;
+    border-radius: 18px;
+    background: transparent;
+    color: var(--ink, #17141f);
+    box-shadow: 0 24px 70px rgba(28, 18, 48, .24);
+}
+
+.ticket-action-confirm::backdrop {
+    background: rgba(20, 14, 31, .56);
+    backdrop-filter: blur(3px);
+}
+
+.ticket-action-confirm-card {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 18px;
+    padding: 26px;
+    border: 1px solid rgba(109, 40, 217, .12);
+    border-radius: 18px;
+    background: #fff;
+}
+
+.ticket-action-confirm-card h2 {
+    margin: 3px 0 8px;
+    font-size: 20px;
+}
+
+.ticket-action-confirm-card p:last-child {
+    margin: 0;
+    color: var(--muted, #6b6675);
+    line-height: 1.55;
+}
+
+.ticket-action-confirm-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #f3edff;
+    color: #6d28d9;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.ticket-action-confirm-buttons {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 4px;
+}
+
+@media (max-width: 600px) {
+    .ticket-action-confirm-card {
+        grid-template-columns: 38px minmax(0, 1fr);
+        gap: 14px;
+        padding: 21px;
+    }
+
+    .ticket-action-confirm-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .ticket-action-confirm-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+}
