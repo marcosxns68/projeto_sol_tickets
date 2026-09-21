@@ -379,16 +379,16 @@
         </summary>
         <div class="ticket-disclosure-content action-stack">
         @if($me->hasPermission('tickets.request_completion') && ($ticket->assignee_id===$me->id || $ticket->participants->contains(fn($p)=>$p->id===$me->id && $p->pivot->type==='collaborator')))
-            <form method="post" action="{{ route('tickets.completion.request',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="secondary-button full">Solicitar conclusão</button></form>
+            <form method="post" action="{{ route('tickets.completion.request',$ticket) }}" data-confirm-ticket-action data-confirm-message="Deseja solicitar a conclusão deste ticket?">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="secondary-button full">Solicitar conclusão</button></form>
         @endif
         @if($me->hasPermission('tickets.resolve') && $ticket->assignee_id===$me->id && !in_array($ticket->status?->system_key,['resolved','closed','cancelled']))
-            <form method="post" action="{{ route('tickets.resolve',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="button full">Resolver ticket</button></form>
+            <form method="post" action="{{ route('tickets.resolve',$ticket) }}" data-confirm-ticket-action data-confirm-message="Tem certeza de que deseja resolver este ticket?">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="button full">Resolver ticket</button></form>
         @endif
         @if($me->hasPermission('tickets.close') && $ticket->status?->system_key==='resolved')
             <form method="post" action="{{ route('tickets.close',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="secondary-button full">Fechar ticket</button></form>
         @endif
         @if($me->hasPermission('tickets.cancel') && $ticket->status?->system_key!=='cancelled')
-            <form method="post" action="{{ route('tickets.cancel',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="danger-button full">Cancelar ticket</button></form>
+            <form method="post" action="{{ route('tickets.cancel',$ticket) }}" data-confirm-ticket-action data-confirm-message="Tem certeza de que deseja cancelar este ticket? Esta ação alterará o status do atendimento.">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="danger-button full">Cancelar ticket</button></form>
         @endif
         @if($me->hasPermission('tickets.reopen') && in_array($ticket->status?->system_key,['resolved','closed','cancelled']))
             <form method="post" action="{{ route('tickets.reopen',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="secondary-button full">Reabrir ticket</button></form>
@@ -398,9 +398,60 @@
 </aside>
 </div>
 
+<dialog class="ticket-action-confirm" id="ticketActionConfirm" aria-labelledby="ticketActionConfirmTitle" aria-describedby="ticketActionConfirmMessage">
+    <form method="dialog" class="ticket-action-confirm-card">
+        <div class="ticket-action-confirm-icon" aria-hidden="true">!</div>
+        <div>
+            <p class="eyebrow">CONFIRMAÇÃO</p>
+            <h2 id="ticketActionConfirmTitle">Confirme esta ação</h2>
+            <p id="ticketActionConfirmMessage"></p>
+        </div>
+        <div class="ticket-action-confirm-buttons">
+            <button class="secondary-button" type="button" data-confirm-cancel-label="Voltar">Voltar</button>
+            <button class="button" type="button" data-confirm-submit-label="Confirmar">Confirmar</button>
+        </div>
+    </form>
+</dialog>
+
 <script src="{{ asset('js/user-autocomplete.js') }}?v={{ filemtime(public_path('js/user-autocomplete.js')) }}" defer></script>
 <script>
 (() => {
+    const dialog = document.getElementById('ticketActionConfirm');
+    const message = document.getElementById('ticketActionConfirmMessage');
+    const cancelButton = dialog?.querySelector('[data-confirm-cancel-label]');
+    const confirmButton = dialog?.querySelector('[data-confirm-submit-label]');
+    let pendingForm = null;
+
+    document.querySelectorAll('[data-confirm-ticket-action]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (form.dataset.confirmed === 'true') return;
+            event.preventDefault();
+            pendingForm = form;
+            message.textContent = form.dataset.confirmMessage || 'Confirma esta ação?';
+            dialog.showModal();
+        });
+    });
+
+    cancelButton?.addEventListener('click', () => {
+        pendingForm = null;
+        dialog.close();
+    });
+
+    confirmButton?.addEventListener('click', () => {
+        if (!pendingForm) return;
+        const form = pendingForm;
+        pendingForm = null;
+        form.dataset.confirmed = 'true';
+        const submitButton = form.querySelector('button[type="submit"], button:not([type])');
+        if (submitButton) submitButton.disabled = true;
+        dialog.close();
+        form.requestSubmit();
+    });
+
+    dialog?.addEventListener('cancel', () => {
+        pendingForm = null;
+    });
+
     const visibility = document.getElementById('ticketActivityVisibility');
     const options = document.getElementById('commentNotifyOptions');
     const requesterOption = document.getElementById('commentRequesterNotify');
