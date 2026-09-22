@@ -15,6 +15,7 @@
         @error('email')
             <div class="error">{{ $message }}</div>
         @enderror
+        @include('auth.turnstile')
         <button class="button full">Enviar link de recuperação</button>
     </form>
 
