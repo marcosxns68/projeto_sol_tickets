@@ -39,8 +39,23 @@ class DepartmentController extends Controller
 
         $departments = $query->get();
         $viewable = $access->viewableIds($user);
+        $unseenCounts = [];
+        foreach ($departments as $department) {
+            $membership = $department->users->firstWhere('id', $user->id);
+            $seen = $membership?->pivot?->last_seen_at;
+            if (!$membership || !$membership->pivot->follow_department || !$seen
+                || !in_array($department->id, $viewable, true)) {
+                continue;
+            }
+            $unseenCounts[$department->id] = $department->tickets()
+                ->activeForBox()
+                ->where(fn ($q) => $q->where('created_at', '>', $seen)
+                    ->orWhere('updated_at', '>', $seen))
+                ->count();
+        }
 
         return view('admin.departments.index', [
+            'unseenCounts' => $unseenCounts,
             'departments' => $departments,
             'canManage' => $canManage,
             'viewableDepartmentIds' => $viewable,
