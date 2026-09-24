@@ -45,7 +45,7 @@ class PwaPushController extends Controller
                 'device_label' => substr((string) ($data['device_label'] ?? 'PWA'), 0, 120),
             ]);
             $ids = PwaPushSubscription::where('user_id', $request->user()->id)
-                ->orderByDesc('id')->skip(10)->pluck('id');
+                ->orderByDesc('id')->skip(10)->take(100)->pluck('id');
             if ($ids->isNotEmpty()) {
                 PwaPushSubscription::whereIn('id', $ids)->delete();
             }
