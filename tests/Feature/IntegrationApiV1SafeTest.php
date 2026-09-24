@@ -392,7 +392,7 @@ class IntegrationApiV1SafeTest extends TestCase
             'notifiable_id' => $follower->id,
         ]);
         $this->assertSame(
-            'ticket.created',
+            'ticket.department.created',
             $follower->notifications()->firstOrFail()->data['event']
         );
     }
