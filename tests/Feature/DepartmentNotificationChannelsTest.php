@@ -247,6 +247,29 @@ class DepartmentNotificationChannelsTest extends TestCase
             ->assertOk()->assertJsonPath('unread', 0)->assertJsonCount(0, 'department_alerts');
     }
 
+    public function test_ticket_participant_also_following_department_receives_only_one_reply_email(): void
+    {
+        Notification::fake();
+        $department = Department::create(['name' => 'Atendimento', 'active' => true]);
+        $person = $this->user('Seguidor e participante');
+        $this->subscribe($person, $department);
+        $this->actingAs($person)->patch('/departamentos/'.$department->id.'/acompanhar', [
+            'notify_email' => 1, 'notify_whatsapp' => 0, 'notify_push' => 1,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $ticket = $this->ticket($department);
+        $ticket->participants()->attach($person->id, [
+            'type' => 'follower',
+            'notify_status' => true,
+            'notify_comments' => true,
+            'notify_attachments' => true,
+        ]);
+
+        app(TicketNotifier::class)->requesterReplied($ticket, null, 'cliente@example.test');
+        Notification::assertSentTo($person, TicketActivityNotification::class, 1);
+    }
+
+
     public function test_department_cancelled_event_remains_available_to_existing_followers(): void
     {
         Notification::fake();
