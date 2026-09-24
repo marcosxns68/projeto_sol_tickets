@@ -192,7 +192,7 @@
                 @php($isNewForDepartment = $boxKind === 'department' && !empty($departmentSeenAt) && ($ticket->created_at?->greaterThan(\Illuminate\Support\Carbon::parse($departmentSeenAt)) || $ticket->updated_at?->greaterThan(\Illuminate\Support\Carbon::parse($departmentSeenAt))))
                 <tr class="ticket-row {{ $isNewForDepartment ? 'department-ticket-new' : '' }}">
                     <td class="ticket-col-center"><a class="row-link ticket-number" href="{{ $ticketUrl }}">#{{ $ticket->number }}</a></td>
-                    <td><a class="row-link ticket-title-cell" href="{{ $ticketUrl }}"><strong>{{ $ticket->title }} @if($isNewForDepartment)<span class="department-new-ticket-badge">Novo na caixa</span>@endif</strong><small>{{ Str::limit($ticket->description,72) }}</small>@if($ticket->labels->isNotEmpty())<span class="ticket-labels">@foreach($ticket->labels as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</span>@endif</a></td>
+                    <td><a class="row-link ticket-title-cell" href="{{ $ticketUrl }}"><strong>{{ $ticket->title }} @if($isNewForDepartment)<span class="department-new-ticket-badge">{{ $ticket->created_at?->greaterThan(\Illuminate\Support\Carbon::parse($departmentSeenAt)) ? 'Novo ticket' : 'Atualizado' }}</span>@endif</strong><small>{{ Str::limit($ticket->description,72) }}</small>@if($ticket->labels->isNotEmpty())<span class="ticket-labels">@foreach($ticket->labels as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</span>@endif</a></td>
                     <td class="ticket-col-center"><a class="row-link" href="{{ $ticketUrl }}"><span class="status" style="--status:{{ $ticket->status?->color ?? '#6d28d9' }}">{{ $ticket->status?->name ?? 'Sem status' }}</span></a></td>
                     <td class="ticket-col-center"><a class="row-link" href="{{ $ticketUrl }}"><span class="priority-badge {{ $ticket->priority }}"><i></i>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</span></a></td>
                     <td class="ticket-col-center"><a class="row-link" href="{{ $ticketUrl }}">{{ $ticket->department?->name ?? 'Sem departamento' }}</a></td>
@@ -215,7 +215,7 @@
                     <strong class="ticket-number">#{{ $ticket->number }}</strong>
                     <span class="status" style="--status:{{ $ticket->status?->color ?? '#6d28d9' }}">{{ $ticket->status?->name ?? 'Sem status' }}</span>
                 </div>
-                <strong class="mobile-ticket-card-title">{{ $ticket->title }} @if($isNewForDepartment)<span class="department-new-ticket-badge">Novo na caixa</span>@endif</strong>
+                <strong class="mobile-ticket-card-title">{{ $ticket->title }} @if($isNewForDepartment)<span class="department-new-ticket-badge">{{ $ticket->created_at?->greaterThan(\Illuminate\Support\Carbon::parse($departmentSeenAt)) ? 'Novo ticket' : 'Atualizado' }}</span>@endif</strong>
                 @if($ticket->labels->isNotEmpty())<div class="ticket-labels">@foreach($ticket->labels as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</div>@endif
                 <div class="mobile-ticket-card-meta">
                     <span class="priority-badge {{ $ticket->priority }}"><i></i>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</span>
