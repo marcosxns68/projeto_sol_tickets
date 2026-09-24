@@ -26,7 +26,7 @@
     @endphp
     <article class="panel department-card" data-department-card>
         <button type="button" class="department-summary" data-department-toggle aria-expanded="false">
-            <span class="department-title"><strong>{{ $department->name }}</strong><small>{{ $department->active ? 'Ativo' : 'Inativo' }}</small></span>
+            <span class="department-title"><strong>{{ $department->name }} @if(($unseenCounts[$department->id] ?? 0) > 0)<span class="department-new-count">{{ $unseenCounts[$department->id] }} {{ $unseenCounts[$department->id] === 1 ? 'novidade' : 'novidades' }}</span>@endif</strong><small>{{ $department->active ? 'Ativo' : 'Inativo' }}</small></span>
             @if($canViewTickets)
                 <span class="department-stat"><b>Abertos</b><strong>{{ $department->open_tickets_count }}</strong></span>
                 <span class="department-stat"><b>Concluídos</b><strong>{{ $department->completed_tickets_count }}</strong></span>
@@ -47,10 +47,28 @@
 
             @if($myMembership && in_array($myMembership->pivot->access_level, ['view','edit'], true))
                 <form method="post" action="{{ route('departments.follow',$department) }}" class="follow-department-form">@csrf @method('PATCH')
-                    <input type="hidden" name="follow_department" value="{{ $myMembership->pivot->follow_department ? 0 : 1 }}">
-                    <div><strong>Acompanhar departamento</strong><small class="muted">Receba e-mail quando um ticket entrar ou sair desta caixa.</small></div>
-                    <button class="secondary-button compact" type="submit">{{ $myMembership->pivot->follow_department ? 'Desativar' : 'Ativar' }}</button>
+                    <div class="follow-department-heading">
+                        <strong>Acompanhar {{ $department->name }}</strong>
+                        <small class="muted">Escolha como receber avisos quando chegar um ticket, ele for encaminhado para cá ou o cliente responder.</small>
+                    </div>
+                    <div class="department-channel-options">
+                        <label><input type="hidden" name="notify_email" value="0"><input type="checkbox" name="notify_email" value="1" @checked($myMembership->pivot->notify_email)> E-mail</label>
+                        <label><input type="hidden" name="notify_whatsapp" value="0"><input type="checkbox" name="notify_whatsapp" value="1" @checked($myMembership->pivot->notify_whatsapp)> WhatsApp</label>
+                        <label><input type="hidden" name="notify_push" value="0"><input type="checkbox" name="notify_push" value="1" @checked($myMembership->pivot->notify_push)> Push no navegador (com o app aberto)</label>
+                    </div>
+                    <small class="muted">O WhatsApp utiliza o número em <a href="{{ route('profile.notifications.edit') }}">Meu perfil</a>. Para alertas do navegador, autorize as notificações neste dispositivo. O sininho permanece disponível para outros avisos de tickets.</small>
+                    <div class="department-follow-actions">
+                        <button class="secondary-button compact" type="submit">Salvar preferências</button>
+                        @if($myMembership->pivot->follow_department)
+                            <a class="subtle-link" href="{{ route('boxes.department', ['department' => $department, 'novos' => 1]) }}">Ver novidades ({{ $unseenCounts[$department->id] ?? 0 }})</a>
+                        @endif
+                    </div>
                 </form>
+                @if($myMembership->pivot->follow_department)
+                    <form action="{{ route('departments.mark-seen', $department) }}" method="post" class="department-seen-form">@csrf
+                        <button class="secondary-button compact" type="submit">Marcar novidades como vistas</button>
+                    </form>
+                @endif
             @endif
 
             <div class="department-members">
@@ -69,7 +87,7 @@
                         @else
                             <span>{{ ['send'=>'Enviar tickets','view'=>'Visualizar tickets','edit'=>'Editar tickets'][$member->pivot->access_level] ?? $member->pivot->access_level }}</span>
                         @endif
-                        <span>{{ in_array($member->pivot->access_level,['view','edit'],true) ? ($member->pivot->follow_department ? 'Acompanhando' : 'Não acompanha') : 'Indisponível' }}</span>
+                        <span>{{ in_array($member->pivot->access_level,['view','edit'],true) ? ($member->pivot->follow_department ? collect(['E-mail' => $member->pivot->notify_email, 'WhatsApp' => $member->pivot->notify_whatsapp, 'Push' => $member->pivot->notify_push])->filter()->keys()->join(', ') : 'Não acompanha') : 'Indisponível' }}</span>
                         @if($canManage)
                             <form method="post" action="{{ route('admin.departments.users.destroy',[$department,$member]) }}" onsubmit="return confirm('Remover esta pessoa do departamento?')">@csrf @method('DELETE')<button class="text-danger" type="submit">Remover</button></form>
                         @else<span></span>@endif
@@ -105,7 +123,7 @@
 </div>
 
 <style>
-.department-list{display:grid;gap:12px}.department-card{padding:0;overflow:visible}.department-summary{width:100%;border:0;background:transparent;display:grid;grid-template-columns:minmax(180px,2fr) repeat(3,minmax(100px,1fr)) auto;gap:18px;align-items:center;padding:18px 20px;text-align:left;cursor:pointer}.department-title,.department-stat{display:grid;gap:3px}.department-title small,.department-stat small{color:#756d7b}.department-stat b{font-size:.72rem;text-transform:uppercase;color:#766d7c;letter-spacing:.04em}.department-stat strong{font-size:1.15rem}.department-expand{color:#6843a8;font-weight:700}.department-details{padding:0 20px 20px;border-top:1px solid #eee8f2}.department-shortcuts{display:flex;gap:8px;flex-wrap:wrap;padding:16px 0}.follow-department-form{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:13px 0;border-bottom:1px solid #eee8f2}.follow-department-form div{display:grid;gap:3px}.department-members{margin-top:12px}.member-row{display:grid;grid-template-columns:minmax(180px,2fr) minmax(150px,1fr) minmax(130px,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #f0ebf3}.member-row>div:first-child{display:grid}.member-row small{color:#756d7b}.member-head{font-size:.75rem;text-transform:uppercase;font-weight:700;color:#766d7c}.member-access-form select{margin:0}.department-add-user{display:grid;grid-template-columns:minmax(240px,2fr) minmax(170px,1fr) auto;gap:10px;align-items:end;margin-top:18px;padding-top:16px;border-top:1px solid #eee8f2}.user-picker-wrap{position:relative}.user-picker-results{position:absolute;z-index:30;left:0;right:0;top:100%;background:white;border:1px solid #ded6e5;border-radius:10px;box-shadow:0 10px 24px #25133422;overflow:hidden}.user-picker-results:empty{display:none}.user-picker-result{display:block;width:100%;border:0;border-bottom:1px solid #eee8f2;background:#fff;padding:10px 12px;text-align:left;cursor:pointer}.user-picker-result:hover{background:#faf7ff}.user-picker-result small{display:block;color:#756d7b}.department-admin-actions{padding-top:12px}.text-danger{border:0;background:none;color:#a93434;cursor:pointer}@media(max-width:800px){.department-summary{grid-template-columns:1fr 1fr;gap:10px}.department-title{grid-column:1/-1}.department-expand{justify-self:end}.member-head{display:none}.member-row{grid-template-columns:1fr;gap:6px}.department-add-user{grid-template-columns:1fr}.follow-department-form{align-items:flex-start;flex-direction:column}}
+.department-list{display:grid;gap:12px}.department-card{padding:0;overflow:visible}.department-summary{width:100%;border:0;background:transparent;display:grid;grid-template-columns:minmax(180px,2fr) repeat(3,minmax(100px,1fr)) auto;gap:18px;align-items:center;padding:18px 20px;text-align:left;cursor:pointer}.department-title,.department-stat{display:grid;gap:3px}.department-title small,.department-stat small{color:#756d7b}.department-stat b{font-size:.72rem;text-transform:uppercase;color:#766d7c;letter-spacing:.04em}.department-stat strong{font-size:1.15rem}.department-expand{color:#6843a8;font-weight:700}.department-details{padding:0 20px 20px;border-top:1px solid #eee8f2}.department-shortcuts{display:flex;gap:8px;flex-wrap:wrap;padding:16px 0}.follow-department-form{display:grid;gap:12px;padding:16px 0;border-bottom:1px solid #eee8f2}.follow-department-heading{display:grid;gap:3px}.department-channel-options{display:flex;flex-wrap:wrap;gap:9px 20px}.department-channel-options label{display:flex;align-items:center;gap:6px;font-weight:600;font-size:.86rem}.department-channel-options input{width:17px;height:17px;accent-color:#6d28d9}.department-follow-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px}.department-new-count{display:inline-block;margin-left:6px;font-size:.74rem;padding:4px 8px;border-radius:999px;color:#fff;background:#6d28d9;vertical-align:middle}.department-seen-form{padding:10px 0}.department-seen-form button{font-size:.78rem}.department-members{margin-top:12px}.member-row{display:grid;grid-template-columns:minmax(180px,2fr) minmax(150px,1fr) minmax(130px,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #f0ebf3}.member-row>div:first-child{display:grid}.member-row small{color:#756d7b}.member-head{font-size:.75rem;text-transform:uppercase;font-weight:700;color:#766d7c}.member-access-form select{margin:0}.department-add-user{display:grid;grid-template-columns:minmax(240px,2fr) minmax(170px,1fr) auto;gap:10px;align-items:end;margin-top:18px;padding-top:16px;border-top:1px solid #eee8f2}.user-picker-wrap{position:relative}.user-picker-results{position:absolute;z-index:30;left:0;right:0;top:100%;background:white;border:1px solid #ded6e5;border-radius:10px;box-shadow:0 10px 24px #25133422;overflow:hidden}.user-picker-results:empty{display:none}.user-picker-result{display:block;width:100%;border:0;border-bottom:1px solid #eee8f2;background:#fff;padding:10px 12px;text-align:left;cursor:pointer}.user-picker-result:hover{background:#faf7ff}.user-picker-result small{display:block;color:#756d7b}.department-admin-actions{padding-top:12px}.text-danger{border:0;background:none;color:#a93434;cursor:pointer}@media(max-width:800px){.department-summary{grid-template-columns:1fr 1fr;gap:10px}.department-title{grid-column:1/-1}.department-expand{justify-self:end}.member-head{display:none}.member-row{grid-template-columns:1fr;gap:6px}.department-add-user{grid-template-columns:1fr}.follow-department-form{align-items:flex-start;flex-direction:column}}
 </style>
 <script>
 (() => {
