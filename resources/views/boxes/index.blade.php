@@ -20,6 +20,16 @@
     @endif
 </div>
 
+@if($boxKind === 'department' && !empty($departmentSeenAt))
+    <div class="department-inbox-notice">
+        <span><strong>Você acompanha esta caixa.</strong> Tickets criados ou atualizados desde sua última confirmação aparecem destacados.</span>
+        <div class="department-inbox-actions">
+            <a href="{{ route('boxes.department', ['department' => $department, 'novos' => 1]) }}" class="secondary-button compact">Ver somente novidades</a>
+            <form method="post" action="{{ route('departments.mark-seen', $department) }}">@csrf<button type="submit" class="secondary-button compact">Marcar novidades como vistas</button></form>
+        </div>
+    </div>
+@endif
+
 <div class="box-tabs" role="navigation" aria-label="Filtros rápidos">
     @if($boxKind === 'mine')
         <a class="box-tab {{ !request('relation') && !request('status') ? 'active' : '' }}" href="{{ route('boxes.mine') }}">Abertos</a>
@@ -179,9 +189,10 @@
             <tbody>
             @forelse($tickets as $ticket)
                 @php($ticketUrl = route('tickets.show',$ticket))
-                <tr class="ticket-row">
+                @php($isNewForDepartment = $boxKind === 'department' && !empty($departmentSeenAt) && ($ticket->created_at?->greaterThan(\Illuminate\Support\Carbon::parse($departmentSeenAt)) || $ticket->updated_at?->greaterThan(\Illuminate\Support\Carbon::parse($departmentSeenAt))))
+                <tr class="ticket-row {{ $isNewForDepartment ? 'department-ticket-new' : '' }}">
                     <td class="ticket-col-center"><a class="row-link ticket-number" href="{{ $ticketUrl }}">#{{ $ticket->number }}</a></td>
-                    <td><a class="row-link ticket-title-cell" href="{{ $ticketUrl }}"><strong>{{ $ticket->title }}</strong><small>{{ Str::limit($ticket->description,72) }}</small>@if($ticket->labels->isNotEmpty())<span class="ticket-labels">@foreach($ticket->labels as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</span>@endif</a></td>
+                    <td><a class="row-link ticket-title-cell" href="{{ $ticketUrl }}"><strong>{{ $ticket->title }} @if($isNewForDepartment)<span class="department-new-ticket-badge">Novo na caixa</span>@endif</strong><small>{{ Str::limit($ticket->description,72) }}</small>@if($ticket->labels->isNotEmpty())<span class="ticket-labels">@foreach($ticket->labels as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</span>@endif</a></td>
                     <td class="ticket-col-center"><a class="row-link" href="{{ $ticketUrl }}"><span class="status" style="--status:{{ $ticket->status?->color ?? '#6d28d9' }}">{{ $ticket->status?->name ?? 'Sem status' }}</span></a></td>
                     <td class="ticket-col-center"><a class="row-link" href="{{ $ticketUrl }}"><span class="priority-badge {{ $ticket->priority }}"><i></i>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</span></a></td>
                     <td class="ticket-col-center"><a class="row-link" href="{{ $ticketUrl }}">{{ $ticket->department?->name ?? 'Sem departamento' }}</a></td>
@@ -198,12 +209,13 @@
     <div class="mobile-ticket-list">
         @forelse($tickets as $ticket)
             @php($ticketUrl = route('tickets.show',$ticket))
-            <a class="mobile-ticket-card" href="{{ $ticketUrl }}">
+            @php($isNewForDepartment = $boxKind === 'department' && !empty($departmentSeenAt) && ($ticket->created_at?->greaterThan(\Illuminate\Support\Carbon::parse($departmentSeenAt)) || $ticket->updated_at?->greaterThan(\Illuminate\Support\Carbon::parse($departmentSeenAt))))
+            <a class="mobile-ticket-card {{ $isNewForDepartment ? 'department-ticket-new' : '' }}" href="{{ $ticketUrl }}">
                 <div class="mobile-ticket-card-top">
                     <strong class="ticket-number">#{{ $ticket->number }}</strong>
                     <span class="status" style="--status:{{ $ticket->status?->color ?? '#6d28d9' }}">{{ $ticket->status?->name ?? 'Sem status' }}</span>
                 </div>
-                <strong class="mobile-ticket-card-title">{{ $ticket->title }}</strong>
+                <strong class="mobile-ticket-card-title">{{ $ticket->title }} @if($isNewForDepartment)<span class="department-new-ticket-badge">Novo na caixa</span>@endif</strong>
                 @if($ticket->labels->isNotEmpty())<div class="ticket-labels">@foreach($ticket->labels as $label)<span class="label-chip" style="--label-color:{{ $label->color }}">{{ $label->name }}</span>@endforeach</div>@endif
                 <div class="mobile-ticket-card-meta">
                     <span class="priority-badge {{ $ticket->priority }}"><i></i>{{ ['low'=>'Baixa','normal'=>'Normal','high'=>'Alta','urgent'=>'Urgente'][$ticket->priority] ?? ucfirst($ticket->priority) }}</span>
@@ -221,4 +233,11 @@
 
     @if($tickets->hasPages())<div class="pagination">{{ $tickets->links() }}</div>@endif
 </div>
+<style>
+.department-inbox-notice{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;background:#f6f1ff;border:1px solid #d8c9fa;border-radius:12px;padding:14px 18px;margin-bottom:12px;color:#452c6c;font-size:.88rem}
+.department-inbox-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.department-inbox-actions form{margin:0}
+.department-ticket-new{background:#faf6ff!important;box-shadow:inset 3px 0 #7c3aed}
+.department-new-ticket-badge{display:inline-block;padding:3px 7px;margin-left:5px;border-radius:999px;background:#6d28d9;color:#fff;font-size:.65rem;font-weight:750;white-space:nowrap;vertical-align:middle}
+</style>
 @endsection
