@@ -45,11 +45,6 @@ class DepartmentNotifications
             ->where('department_user_access.department_id', $department->id)
             ->where('department_user_access.follow_department', true)
             ->whereIn('department_user_access.access_level', ['view', 'edit'])
-            ->where(function ($q) {
-                $q->where('department_user_access.notify_email', true)
-                    ->orWhere('department_user_access.notify_whatsapp', true)
-                    ->orWhere('department_user_access.notify_push', true);
-            })
             ->select([
                 'users.id', 'users.email',
                 'department_user_access.notify_email',
@@ -75,11 +70,15 @@ class DepartmentNotifications
                 continue;
             }
 
+            // Acompanhamentos antigos criados pelo formulário anterior não
+            // possuíam escolhas individuais: preservar e-mail e sininho.
+            $legacySelection = !$subscriber->notify_email
+                && !$subscriber->notify_whatsapp && !$subscriber->notify_push;
             $channels = [];
-            if ($subscriber->notify_push) {
+            if ($subscriber->notify_push || $legacySelection) {
                 $channels[] = 'database';
             }
-            if ($subscriber->notify_email) {
+            if ($subscriber->notify_email || $legacySelection) {
                 $channels[] = 'mail';
             }
 
