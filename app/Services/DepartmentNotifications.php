@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\SendDepartmentWhatsApp;
+use App\Jobs\SendDepartmentWebPush;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Notifications\TicketActivityNotification;
@@ -110,6 +111,14 @@ class DepartmentNotifications
                         'user_id' => $userId, 'exception_class' => $exception::class,
                     ]);
                 }
+            }
+
+            // Push é disparado pelo servidor, mesmo sem sessão, navegador
+            // ou PWA aberto. O job confere novamente acesso e preferências.
+            if ($subscriber->notify_push) {
+                SendDepartmentWebPush::dispatch(
+                    $ticket->id, $department->id, $userId, $event
+                )->afterCommit();
             }
 
             // Se o usuário já é o responsável, a resposta do cliente gera o
