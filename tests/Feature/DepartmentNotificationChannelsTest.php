@@ -222,4 +222,47 @@ class DepartmentNotificationChannelsTest extends TestCase
             ->handle($connection);
         Http::assertSentCount(1);
     }
+    public function test_browser_notification_poll_returns_only_users_own_department_alerts(): void
+    {
+        config(['mail.default' => 'array']);
+        $department = Department::create(['name' => 'Atualizações', 'active' => true]);
+        $follower = $this->user('Seguidor push');
+        $stranger = $this->user('Não seguidor');
+        $this->subscribe($follower, $department);
+        $this->actingAs($follower)->patch('/departamentos/'.$department->id.'/acompanhar', [
+            'notify_email' => 0, 'notify_whatsapp' => 0, 'notify_push' => 1,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $ticket = $this->ticket($department);
+        app(TicketNotifier::class)->opened($ticket, null);
+
+        $follower->refresh();
+        $this->assertSame(1, $follower->unreadNotifications()->count());
+        $response = $this->actingAs($follower)->getJson('/notificacoes/contador')
+            ->assertOk()->assertJsonPath('unread', 1)
+            ->assertJsonPath('department_alerts.0.title', 'Novo ticket em Atualizações')
+            ->assertJsonPath('department_alerts.0.url', route('tickets.show', $ticket));
+        $this->assertNotEmpty($response->json('department_alerts.0.id'));
+        $this->actingAs($stranger)->getJson('/notificacoes/contador')
+            ->assertOk()->assertJsonPath('unread', 0)->assertJsonCount(0, 'department_alerts');
+    }
+
+    public function test_department_cancelled_event_remains_available_to_existing_followers(): void
+    {
+        Notification::fake();
+        $department = Department::create(['name' => 'Financeiro', 'active' => true]);
+        $follower = $this->user('Seguidor cancelamento');
+        $this->subscribe($follower, $department);
+        $this->actingAs($follower)->patch('/departamentos/'.$department->id.'/acompanhar', [
+            'notify_email' => 1, 'notify_whatsapp' => 0, 'notify_push' => 1,
+        ])->assertRedirect();
+
+        $ticket = $this->ticket($department);
+        app(TicketNotifier::class)->departmentEvent($ticket, 'cancelled');
+
+        Notification::assertSentTo($follower, TicketActivityNotification::class,
+            fn ($n) => $n->event === 'ticket.department.cancelled'
+                && $n->headline === 'Ticket cancelado em Financeiro');
+    }
+
 }
