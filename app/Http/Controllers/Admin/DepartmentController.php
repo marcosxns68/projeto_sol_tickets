@@ -107,14 +107,19 @@ class DepartmentController extends Controller
             ->where('department_id', $department->id)
             ->exists();
 
+        // Reassociar uma pessoa não deve apagar suas preferências já existentes.
+        $changes = ['access_level' => $data['access_level'], 'updated_at' => now()];
+        if (!$alreadyAssociated) {
+            $changes += ['follow_department' => false, 'notify_email' => false,
+                'notify_whatsapp' => false, 'notify_push' => false,
+                'created_at' => now()];
+        } elseif ($data['access_level'] === 'send') {
+            $changes += ['follow_department' => false, 'notify_email' => false,
+                'notify_whatsapp' => false, 'notify_push' => false];
+        }
         DB::table('department_user_access')->updateOrInsert(
             ['user_id' => $user->id, 'department_id' => $department->id],
-            [
-                'access_level' => $data['access_level'],
-                'follow_department' => false,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]
+            $changes
         );
 
         $this->audit($request, $department, 'department.user_added', null, [
@@ -161,6 +166,9 @@ class DepartmentController extends Controller
             ->update([
                 'access_level' => $data['access_level'],
                 'follow_department' => $follow,
+                'notify_email' => $follow && (bool) $current->notify_email,
+                'notify_whatsapp' => $follow && (bool) $current->notify_whatsapp,
+                'notify_push' => $follow && (bool) $current->notify_push,
                 'updated_at' => now(),
             ]);
 
@@ -193,19 +201,71 @@ class DepartmentController extends Controller
     {
         $user = $request->user();
         abort_unless($access->canView($user, $department), 403);
-        $data = $request->validate(['follow_department' => ['required', 'boolean']]);
 
-        $updated = DB::table('department_user_access')
+        // Compatibilidade com o botão antigo de acompanhar: e-mail + sininho.
+        $channelsSubmitted = $request->hasAny(['notify_email', 'notify_whatsapp', 'notify_push']);
+        $request->validate([
+            'follow_department' => ['nullable', 'boolean'],
+            'notify_email' => ['nullable', 'boolean'],
+            'notify_whatsapp' => ['nullable', 'boolean'],
+            'notify_push' => ['nullable', 'boolean'],
+        ]);
+
+        if ($channelsSubmitted) {
+            $email = $request->boolean('notify_email');
+            $whatsapp = $request->boolean('notify_whatsapp');
+            $push = $request->boolean('notify_push');
+        } else {
+            $request->validate(['follow_department' => ['required', 'boolean']]);
+            $email = $push = $request->boolean('follow_department');
+            $whatsapp = false;
+        }
+
+        if ($whatsapp && (
+            !$user->whatsapp_reply_enabled ||
+            \App\Services\WhatsAppConnection::normalizeNumber($user->whatsapp) === null
+        )) {
+            return back()->withErrors(['notify_whatsapp' =>
+                'Cadastre e ative seu WhatsApp em Meu perfil antes de receber avisos desta caixa.']);
+        }
+
+        $following = $email || $whatsapp || $push;
+        $row = DB::table('department_user_access')
             ->where('user_id', $user->id)
             ->where('department_id', $department->id)
             ->whereIn('access_level', ['view', 'edit'])
+            ->first();
+        abort_unless($row, 403);
+
+        $changedToFollow = !$row->follow_department && $following;
+        DB::table('department_user_access')
+            ->where('id', $row->id)
             ->update([
-                'follow_department' => (bool) $data['follow_department'],
+                'follow_department' => $following,
+                'notify_email' => $email,
+                'notify_whatsapp' => $whatsapp,
+                'notify_push' => $push,
+                'last_seen_at' => $changedToFollow ? now() : $row->last_seen_at,
                 'updated_at' => now(),
             ]);
 
+        return back()->with('success', $following
+            ? 'Preferências de acompanhamento da caixa salvas.'
+            : 'Acompanhamento desativado para esta caixa.');
+    }
+
+    public function markSeen(Request $request, Department $department, DepartmentAccess $access)
+    {
+        abort_unless($access->canView($request->user(), $department), 403);
+        $updated = DB::table('department_user_access')
+            ->where('user_id', $request->user()->id)
+            ->where('department_id', $department->id)
+            ->where('follow_department', true)
+            ->whereIn('access_level', ['view', 'edit'])
+            ->update(['last_seen_at' => now(), 'updated_at' => now()]);
         abort_unless($updated > 0, 403);
-        return back()->with('success', $data['follow_department'] ? 'Você agora acompanha este departamento.' : 'Acompanhamento desativado.');
+
+        return back()->with('success', 'Novidades desta caixa marcadas como vistas.');
     }
 
     private function authorizeAccess(Request $request): void
