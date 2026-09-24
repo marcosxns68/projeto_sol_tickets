@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <meta name="theme-color" content="#241438">
 <title>@yield('title','Sutoorii Tickets')</title>
 <link rel="manifest" href="/manifest.webmanifest">
@@ -106,6 +107,7 @@
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/service-worker.js',{updateViaCache:'none'}).then(function(reg){reg.update();});}</script>
 @auth
 <script src="{{ asset('js/responsive-shell.js') }}?v={{ filemtime(public_path('js/responsive-shell.js')) }}" defer></script>
+<script src="{{ asset('js/pwa-push.js') }}?v={{ filemtime(public_path('js/pwa-push.js')) }}" defer></script>
 @endauth
 @auth
 <script>
@@ -113,7 +115,6 @@
     const url = @json(route('notifications.count'));
     const badges = document.querySelectorAll('[data-notification-count]');
     const topbar = document.querySelector('[data-notifications-topbar]');
-    let knownDepartmentAlertIds = null;
     const refresh = async () => {
         try {
             const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store' });
@@ -123,32 +124,6 @@
             badges.forEach(badge => { badge.textContent = count > 99 ? '99+' : String(count); badge.hidden = count === 0; });
             if (topbar) topbar.setAttribute('aria-label', 'Notificações: ' + count + (count === 1 ? ' não lida' : ' não lidas'));
 
-            // Notificações visuais enquanto o navegador mantém esta aplicação
-            // aberta. Push em segundo plano com navegador fechado exige Web Push.
-            const alerts = Array.isArray(data.department_alerts) ? data.department_alerts : [];
-            const ids = new Set(alerts.map(a => String(a.id)));
-            if (knownDepartmentAlertIds !== null && 'Notification' in window && Notification.permission === 'granted') {
-                const fresh = alerts.filter(a => !knownDepartmentAlertIds.has(String(a.id))).reverse();
-                for (const alert of fresh) {
-                    if (alert.title && alert.url) {
-                        try {
-                            const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.ready : null;
-                            if (registration?.showNotification) {
-                                await registration.showNotification(alert.title, {
-                                    body: alert.message || 'Há uma novidade na caixa que você acompanha.',
-                                    tag: 'sutoorii-department-' + alert.id,
-                                    data: {url: alert.url},
-                                    icon: '/icons/icon.svg'
-                                });
-                            } else {
-                                const notification = new Notification(alert.title, {body: alert.message || ''});
-                                notification.onclick = () => { window.focus(); window.location.assign(alert.url); };
-                            }
-                        } catch (_) { /* permissão ou dispositivo sem suporte */ }
-                    }
-                }
-            }
-            knownDepartmentAlertIds = ids;
         } catch (_) { /* mantém a última contagem se a conexão cair */ }
     };
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });

@@ -14,6 +14,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntegrationUserDirectoryController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PwaPushController;
 use App\Http\Controllers\UserNotificationProfileController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\RequesterPortalController;
@@ -79,6 +80,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/meu-perfil/notificacoes', [UserNotificationProfileController::class, 'edit'])->name('profile.notifications.edit');
     Route::patch('/meu-perfil/notificacoes', [UserNotificationProfileController::class, 'update'])->name('profile.notifications.update');
+    Route::get('/pwa-push/configuracao', [PwaPushController::class, 'config'])->middleware('throttle:20,1')->name('pwa-push.config');
+    Route::get('/pwa-push/estado', [PwaPushController::class, 'state'])->name('pwa-push.state');
+    Route::post('/pwa-push/dispositivos', [PwaPushController::class, 'subscribe'])->middleware('throttle:10,1')->name('pwa-push.subscribe');
+    Route::delete('/pwa-push/dispositivos', [PwaPushController::class, 'unsubscribe'])->middleware('throttle:10,1')->name('pwa-push.unsubscribe');
     Route::get('/notificacoes', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notificacoes/contador', [NotificationController::class, 'count'])->name('notifications.count');
     Route::post('/notificacoes/ler-todas', [NotificationController::class, 'readAll'])->name('notifications.read-all');

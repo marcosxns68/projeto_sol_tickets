@@ -62,6 +62,6 @@ class AdminVisualConsistencyTest extends TestCase
         $serviceWorker = file_get_contents(public_path('service-worker.js'));
 
         $this->assertStringNotContainsString("'/css/app.css'", $serviceWorker);
-        $this->assertStringContainsString("sutoorii-tickets-v2", $serviceWorker);
+        $this->assertStringContainsString("sutoorii-tickets-v3", $serviceWorker);
     }
 }

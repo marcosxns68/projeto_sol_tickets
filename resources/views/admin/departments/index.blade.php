@@ -54,13 +54,14 @@
                     <div class="department-channel-options">
                         <label><input type="hidden" name="notify_email" value="0"><input type="checkbox" name="notify_email" value="1" @checked($myMembership->pivot->notify_email)> E-mail</label>
                         <label><input type="hidden" name="notify_whatsapp" value="0"><input type="checkbox" name="notify_whatsapp" value="1" @checked($myMembership->pivot->notify_whatsapp)> WhatsApp</label>
-                        <label><input type="hidden" name="notify_push" value="0"><input type="checkbox" name="notify_push" value="1" @checked($myMembership->pivot->notify_push)> Push no navegador (com o app aberto)</label>
+                        <label><input type="hidden" name="notify_push" value="0"><input type="checkbox" name="notify_push" value="1" @checked($myMembership->pivot->notify_push)> Push do aplicativo (mesmo fechado)</label>
                     </div>
-                    <small class="muted">O WhatsApp utiliza o número em <a href="{{ route('profile.notifications.edit') }}">Meu perfil</a>. Para alertas do navegador, autorize as notificações neste dispositivo. O sininho permanece disponível para outros avisos de tickets.</small>
+                    <small class="muted">O WhatsApp utiliza o número em <a href="{{ route('profile.notifications.edit') }}">Meu perfil</a>. Para receber com o PWA fechado, ative o Push nesta caixa e conecte este dispositivo com o botão abaixo. O sininho permanece disponível para outros avisos de tickets.</small>
                     <div class="department-follow-actions">
                         <button class="secondary-button compact" type="submit">Salvar preferências</button>
-                        <button class="secondary-button compact" type="button" data-enable-browser-alerts>Autorizar alertas neste navegador</button>
+                        <button class="secondary-button compact" type="button" data-enable-browser-alerts>Ativar push neste celular</button>
                         <small class="muted" data-browser-alert-status role="status"></small>
+                        <button class="secondary-button compact" type="button" data-disable-pwa-push>Desativar push neste dispositivo</button>
                         @if($myMembership->pivot->follow_department)
                             <a class="subtle-link" href="{{ route('boxes.department', ['department' => $department, 'novos' => 1]) }}">Ver novidades ({{ $unseenCounts[$department->id] ?? 0 }})</a>
                         @endif
@@ -132,16 +133,6 @@
  document.querySelectorAll('[data-department-toggle]').forEach(button => button.addEventListener('click', () => {
    const card = button.closest('[data-department-card]'); const details = card.querySelector('[data-department-details]'); const open = details.hidden;
    details.hidden = !open; button.setAttribute('aria-expanded', open ? 'true' : 'false'); button.querySelector('.department-expand').textContent = open ? 'Recolher' : 'Expandir';
- }));
- document.querySelectorAll('[data-enable-browser-alerts]').forEach(button => button.addEventListener('click', async () => {
-   const status = button.parentElement?.querySelector('[data-browser-alert-status]');
-   if(!('Notification' in window)) { if(status)status.textContent='Este navegador não oferece notificações.'; return; }
-   try {
-     const permission = await Notification.requestPermission();
-     if(status)status.textContent=permission==='granted'
-       ? 'Alertas autorizados neste dispositivo. Salve a opção Push na caixa.'
-       : 'Os alertas foram bloqueados pelo navegador. Altere a permissão nas configurações do site.';
-   } catch(_) { if(status)status.textContent='Não foi possível solicitar a permissão neste navegador.'; }
  }));
  const searchUrl = @json(route('users.search'));
  document.querySelectorAll('[data-user-picker]').forEach(picker => {
