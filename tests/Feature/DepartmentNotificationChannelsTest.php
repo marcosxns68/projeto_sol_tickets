@@ -97,7 +97,7 @@ class DepartmentNotificationChannelsTest extends TestCase
         $ticket = $this->ticket($department);
         $this->actingAs($user)->get('/departamentos')->assertOk()->assertSee('1 novidade');
         $this->actingAs($user)->get('/departamentos/'.$department->id.'/tickets')
-            ->assertOk()->assertSee('Novo na caixa');
+            ->assertOk()->assertSee('Novo ticket');
 
         $this->actingAs($user)->post('/departamentos/'.$department->id.'/marcar-vistos')
             ->assertRedirect()->assertSessionHasNoErrors();
