@@ -27,8 +27,7 @@ class TicketNotifier
         foreach ($ticket->participants as $participant) {
             $this->addUser($recipients, $participant);
         }
-        $this->addDepartmentFollowers($recipients, $ticket);
-
+        // Seguidores recebem mensagem específica e canais próprios da caixa.
         $this->sendMany(
             $ticket,
             $recipients,
@@ -38,6 +37,7 @@ class TicketNotifier
             'ticket.created',
             $creator?->name,
         );
+        app(DepartmentNotifications::class)->emit($ticket, 'created', $creator);
 
         // Canal WhatsApp: exclusivamente a confirmação inicial ao solicitante,
         // nunca ao responsável, seguidores ou demais participantes.
@@ -114,6 +114,7 @@ class TicketNotifier
             'collaborators' => true,
             'followers' => true,
         ], $actorEmail);
+        app(DepartmentNotifications::class)->emit($ticket, 'replied', $actor, $actorEmail);
 
         // O canal destinado à equipe é independente do WhatsApp do solicitante
         // e da automação de respostas do suporte.
@@ -311,25 +312,7 @@ class TicketNotifier
 
     public function departmentEvent(Ticket $ticket, string $event, ?User $actor = null): void
     {
-        $recipients = [];
-        $this->addDepartmentFollowers($recipients, $ticket);
-        $this->removeActor($recipients, $actor);
-
-        $headlines = [
-            'created' => 'Novo ticket no departamento',
-            'entered' => 'Ticket encaminhado ao departamento',
-            'cancelled' => 'Ticket cancelado no departamento',
-        ];
-
-        $this->sendMany(
-            $ticket,
-            $recipients,
-            $headlines[$event] ?? 'Atualização no departamento',
-            'O ticket teve uma movimentação no departamento que você acompanha.',
-            $this->internalTicketUrl($ticket),
-            'ticket.department.'.$event,
-            $actor?->name,
-        );
+        app(DepartmentNotifications::class)->emit($ticket, $event, $actor);
     }
 
     private function addRequester(array &$recipients, Ticket $ticket): void
