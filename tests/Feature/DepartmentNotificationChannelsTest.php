@@ -103,6 +103,11 @@ class DepartmentNotificationChannelsTest extends TestCase
             ->assertRedirect()->assertSessionHasNoErrors();
         $this->actingAs($user)->get('/departamentos')->assertOk()->assertDontSee('1 novidade');
 
+        $this->travel(2)->seconds();
+        $ticket->update(['priority' => 'high']);
+        $this->actingAs($user)->get('/departamentos/'.$department->id.'/tickets')
+            ->assertOk()->assertSee('Atualizado')->assertDontSee('Novo ticket');
+
         $this->actingAs($user)->patch('/departamentos/'.$department->id.'/acompanhar', [
             'notify_email' => 0, 'notify_whatsapp' => 0, 'notify_push' => 0,
         ])->assertRedirect();
