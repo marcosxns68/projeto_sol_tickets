@@ -9,6 +9,7 @@ use App\Models\Ticket;
 use App\Services\DepartmentAccess;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TicketBoxController extends Controller
 {
@@ -70,10 +71,22 @@ class TicketBoxController extends Controller
             403
         );
 
+        $seenAt = DB::table('department_user_access')
+            ->where('user_id', $user->id)
+            ->where('department_id', $department->id)
+            ->where('follow_department', true)
+            ->whereIn('access_level', ['view', 'edit'])
+            ->value('last_seen_at');
+
         $query = Ticket::query()->where('department_id', $department->id);
         $this->applyFilters($query, $request, false);
+        if ($request->boolean('novos') && $seenAt) {
+            $query->where(fn (Builder $q) => $q->where('created_at', '>', $seenAt)
+                ->orWhere('updated_at', '>', $seenAt));
+        }
 
         return view('boxes.index', [
+            'departmentSeenAt' => $seenAt,
             'tickets' => $this->orderTickets($query, $request)->with(['status', 'assignee', 'department', 'labels'])->paginate(20)->withQueryString(),
             'statuses' => Status::orderBy('position')->get(),
             'labels' => Label::query()->orderBy('name')->get(),

@@ -11,7 +11,7 @@ class Department extends Model
     public function users()
     {
         return $this->belongsToMany(User::class, 'department_user_access')
-            ->withPivot(['access_level', 'follow_department'])
+            ->withPivot(['access_level', 'follow_department', 'notify_email', 'notify_whatsapp', 'notify_push', 'last_seen_at'])
             ->withTimestamps();
     }
 

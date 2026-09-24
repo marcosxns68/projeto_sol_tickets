@@ -113,8 +113,8 @@
     const url = @json(route('notifications.count'));
     const badges = document.querySelectorAll('[data-notification-count]');
     const topbar = document.querySelector('[data-notifications-topbar]');
+    let knownDepartmentAlertIds = null;
     const refresh = async () => {
-        if (document.hidden) return;
         try {
             const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store' });
             if (!response.ok) return;
@@ -122,11 +122,39 @@
             const count = Math.max(0, Number(data.unread) || 0);
             badges.forEach(badge => { badge.textContent = count > 99 ? '99+' : String(count); badge.hidden = count === 0; });
             if (topbar) topbar.setAttribute('aria-label', 'Notificações: ' + count + (count === 1 ? ' não lida' : ' não lidas'));
+
+            // Notificações visuais enquanto o navegador mantém esta aplicação
+            // aberta. Push em segundo plano com navegador fechado exige Web Push.
+            const alerts = Array.isArray(data.department_alerts) ? data.department_alerts : [];
+            const ids = new Set(alerts.map(a => String(a.id)));
+            if (knownDepartmentAlertIds !== null && 'Notification' in window && Notification.permission === 'granted') {
+                const fresh = alerts.filter(a => !knownDepartmentAlertIds.has(String(a.id))).reverse();
+                for (const alert of fresh) {
+                    if (alert.title && alert.url) {
+                        try {
+                            const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.ready : null;
+                            if (registration?.showNotification) {
+                                await registration.showNotification(alert.title, {
+                                    body: alert.message || 'Há uma novidade na caixa que você acompanha.',
+                                    tag: 'sutoorii-department-' + alert.id,
+                                    data: {url: alert.url},
+                                    icon: '/icons/icon.svg'
+                                });
+                            } else {
+                                const notification = new Notification(alert.title, {body: alert.message || ''});
+                                notification.onclick = () => { window.focus(); window.location.assign(alert.url); };
+                            }
+                        } catch (_) { /* permissão ou dispositivo sem suporte */ }
+                    }
+                }
+            }
+            knownDepartmentAlertIds = ids;
         } catch (_) { /* mantém a última contagem se a conexão cair */ }
     };
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     window.addEventListener('focus', refresh);
-    window.setInterval(refresh, 45000);
+    refresh();
+    window.setInterval(refresh, 30000);
 })();
 </script>
 @endauth
