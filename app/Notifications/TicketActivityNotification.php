@@ -19,12 +19,14 @@ class TicketActivityNotification extends Notification
         public ?string $actionUrl = null,
         public string $event = 'ticket.activity',
         public ?string $actorName = null,
+        public ?array $channels = null,
+        public ?int $departmentId = null,
     ) {
     }
 
     public function via(object $notifiable): array
     {
-        return $notifiable instanceof User ? ['database', 'mail'] : ['mail'];
+        return $this->channels ?? ($notifiable instanceof User ? ['database', 'mail'] : ['mail']);
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -55,6 +57,7 @@ class TicketActivityNotification extends Notification
             'ticket_id' => $this->ticket->id,
             'ticket_number' => $this->ticket->number,
             'event' => $this->event,
+            'department_id' => $this->departmentId,
             'title' => $this->headline,
             'message' => $this->message,
             'actor_name' => $this->actorName,
