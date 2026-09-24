@@ -39,6 +39,11 @@ jobs:
       - name: Executar testes
         run: php artisan test
 
+      - name: Validar JavaScript do Web Push
+        run: |
+          node --check public/service-worker.js
+          node --check public/js/pwa-push.js
+
       - name: Validar rotas e estratégia de deploy
         run: |
           php artisan route:list >/dev/null
