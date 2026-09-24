@@ -59,6 +59,8 @@
                     <small class="muted">O WhatsApp utiliza o número em <a href="{{ route('profile.notifications.edit') }}">Meu perfil</a>. Para alertas do navegador, autorize as notificações neste dispositivo. O sininho permanece disponível para outros avisos de tickets.</small>
                     <div class="department-follow-actions">
                         <button class="secondary-button compact" type="submit">Salvar preferências</button>
+                        <button class="secondary-button compact" type="button" data-enable-browser-alerts>Autorizar alertas neste navegador</button>
+                        <small class="muted" data-browser-alert-status role="status"></small>
                         @if($myMembership->pivot->follow_department)
                             <a class="subtle-link" href="{{ route('boxes.department', ['department' => $department, 'novos' => 1]) }}">Ver novidades ({{ $unseenCounts[$department->id] ?? 0 }})</a>
                         @endif
@@ -130,6 +132,16 @@
  document.querySelectorAll('[data-department-toggle]').forEach(button => button.addEventListener('click', () => {
    const card = button.closest('[data-department-card]'); const details = card.querySelector('[data-department-details]'); const open = details.hidden;
    details.hidden = !open; button.setAttribute('aria-expanded', open ? 'true' : 'false'); button.querySelector('.department-expand').textContent = open ? 'Recolher' : 'Expandir';
+ }));
+ document.querySelectorAll('[data-enable-browser-alerts]').forEach(button => button.addEventListener('click', async () => {
+   const status = button.parentElement?.querySelector('[data-browser-alert-status]');
+   if(!('Notification' in window)) { if(status)status.textContent='Este navegador não oferece notificações.'; return; }
+   try {
+     const permission = await Notification.requestPermission();
+     if(status)status.textContent=permission==='granted'
+       ? 'Alertas autorizados neste dispositivo. Salve a opção Push na caixa.'
+       : 'Os alertas foram bloqueados pelo navegador. Altere a permissão nas configurações do site.';
+   } catch(_) { if(status)status.textContent='Não foi possível solicitar a permissão neste navegador.'; }
  }));
  const searchUrl = @json(route('users.search'));
  document.querySelectorAll('[data-user-picker]').forEach(picker => {
