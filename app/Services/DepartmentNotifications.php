@@ -89,7 +89,10 @@ class DepartmentNotifications
                 && ($ticket->assignee_id === $userId || $ticket->creator_id === $userId
                     || $ticket->participants()->where('users.id', $userId)->exists());
             $alreadyNotifiedDirectly = $alreadyNotifiedDirectly
-                || ($event === 'replied' && $ticket->assignee_id === $userId);
+                || ($event === 'replied' && $ticket->assignee_id === $userId)
+                || ($event === 'replied' && $ticket->participants()
+                    ->where('users.id', $userId)
+                    ->wherePivot('notify_comments', true)->exists());
 
             if ($channels !== [] && !$alreadyNotifiedDirectly) {
                 try {
