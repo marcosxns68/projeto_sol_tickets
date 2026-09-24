@@ -71,6 +71,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/departamentos/{department}/tickets', [TicketBoxController::class, 'department'])->name('boxes.department');
     Route::get('/departamentos', [AdminDepartmentController::class, 'index'])->name('departments.index');
     Route::patch('/departamentos/{department}/acompanhar', [AdminDepartmentController::class, 'follow'])->name('departments.follow');
+    Route::post('/departamentos/{department}/marcar-vistos', [AdminDepartmentController::class, 'markSeen'])->name('departments.mark-seen');
     Route::get('/usuarios/buscar', UserDirectoryController::class)->name('users.search');
     Route::get('/integracoes/{integration}/usuarios', IntegrationUserDirectoryController::class)
         ->middleware(RequireIntegrationTicketPermission::class)
