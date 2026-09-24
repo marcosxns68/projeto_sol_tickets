@@ -18,7 +18,7 @@ class DepartmentNotifications
      */
     public function emit(Ticket $ticket, string $event, ?User $actor = null, ?string $actorEmail = null): void
     {
-        if (!$ticket->department_id || !in_array($event, ['created', 'entered', 'replied'], true)) {
+        if (!$ticket->department_id || !in_array($event, ['created', 'entered', 'replied', 'cancelled'], true)) {
             return;
         }
 
@@ -32,10 +32,12 @@ class DepartmentNotifications
             'created' => 'Novo ticket em '.$department->name,
             'entered' => 'Ticket encaminhado para '.$department->name,
             'replied' => 'Cliente respondeu em '.$department->name,
+            'cancelled' => 'Ticket cancelado em '.$department->name,
         ];
         $message = match ($event) {
             'created' => 'Um novo ticket entrou na caixa '.$department->name.'.',
             'entered' => 'O ticket foi encaminhado para a caixa '.$department->name.'.',
+            'cancelled' => 'Um ticket desta caixa foi cancelado.',
             default => 'O solicitante adicionou uma resposta pública ao ticket da caixa '.$department->name.'.',
         };
 
