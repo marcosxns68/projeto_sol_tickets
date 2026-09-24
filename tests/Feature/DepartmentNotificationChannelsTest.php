@@ -73,6 +73,7 @@ class DepartmentNotificationChannelsTest extends TestCase
         $this->subscribe($user, $department);
         $this->subscribe($other, $department);
         $user->update(['whatsapp' => '5515999998888']);
+        $user->refresh();
 
         $this->actingAs($user)->patch('/departamentos/'.$department->id.'/acompanhar', [
             'notify_email' => 0, 'notify_whatsapp' => 1, 'notify_push' => 0,
@@ -126,6 +127,7 @@ class DepartmentNotificationChannelsTest extends TestCase
         }
         $this->subscribe($unrelated, $otherDepartment);
         $waUser->update(['whatsapp' => '5515999998888']);
+        $waUser->refresh();
 
         foreach ([
             [$emailUser, 1, 0, 0],
@@ -195,6 +197,7 @@ class DepartmentNotificationChannelsTest extends TestCase
         $department = Department::create(['name' => 'Desenvolvimento', 'active' => true]);
         $user = $this->user('Seguidor');
         $user->update(['whatsapp' => '5515999998888']);
+        $user->refresh();
         $this->subscribe($user, $department);
         $this->actingAs($user)->patch('/departamentos/'.$department->id.'/acompanhar', [
             'notify_email' => 0, 'notify_whatsapp' => 1, 'notify_push' => 0,
