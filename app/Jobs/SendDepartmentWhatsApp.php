@@ -32,7 +32,7 @@ class SendDepartmentWhatsApp implements ShouldQueue
 
     public function handle(WhatsAppConnection $connection): void
     {
-        if (!in_array($this->event, ['created', 'entered', 'replied'], true)) {
+        if (!in_array($this->event, ['created', 'entered', 'replied', 'cancelled'], true)) {
             return;
         }
 
@@ -66,6 +66,7 @@ class SendDepartmentWhatsApp implements ShouldQueue
                 'created' => 'Novo ticket na caixa',
                 'entered' => 'Ticket encaminhado para a caixa',
                 'replied' => 'Cliente respondeu em um ticket da caixa',
+                'cancelled' => 'Ticket cancelado na caixa',
             };
 
             // Evita reenvio em caso de execução repetida da mesma tarefa.
