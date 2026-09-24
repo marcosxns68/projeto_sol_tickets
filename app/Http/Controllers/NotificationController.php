@@ -15,7 +15,21 @@ class NotificationController extends Controller
 
     public function count(Request $request)
     {
-        return response()->json(['unread' => $request->user()->unreadNotifications()->count()]);
+        $newDepartmentAlerts = $request->user()->unreadNotifications()
+            ->orderByDesc('created_at')->limit(40)->get()
+            ->filter(fn ($item) => str_starts_with((string) ($item->data['event'] ?? ''), 'ticket.department.')
+                && !empty($item->data['department_id']))
+            ->take(5)->map(fn ($item) => [
+                'id' => $item->id,
+                'title' => $item->data['title'] ?? 'Novidade no departamento',
+                'message' => $item->data['message'] ?? '',
+                'url' => $item->data['url'] ?? route('notifications.index'),
+            ])->values();
+
+        return response()->json([
+            'unread' => $request->user()->unreadNotifications()->count(),
+            'department_alerts' => $newDepartmentAlerts,
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     public function read(Request $request, string $notification)
