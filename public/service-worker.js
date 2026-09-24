@@ -29,7 +29,7 @@ self.addEventListener('push',event=>{
   event.waitUntil((async()=>{
     let payload={};
     try { payload=event.data ? event.data.json() : {}; } catch(_) {}
-    const url=typeof payload.url==='string' && /^\\/tickets\\/[0-9]+$/.test(payload.url)
+    const url=typeof payload.url==='string' && /^\/tickets\/[0-9]+$/.test(payload.url)
       ? payload.url : '/notificacoes';
     await self.registration.showNotification(
       typeof payload.title==='string' ? payload.title.slice(0,140) : 'Novidade no Sutoorii Tickets',
