@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\RoleController as AdminRoleController;
 use App\Http\Controllers\Admin\SettingsHubController as AdminSettingsHubController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
+use App\Http\Middleware\VerifyTurnstile;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntegrationUserDirectoryController;
 use App\Http\Controllers\NotificationController;
@@ -36,11 +37,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
     Route::get('/entrar', [AuthController::class, 'login'])->name('login');
-    Route::post('/entrar', [AuthController::class, 'authenticate'])->name('login.perform');
+    Route::post('/entrar', [AuthController::class, 'authenticate'])->middleware(VerifyTurnstile::class)->name('login.perform');
     Route::get('/cadastro', [AuthController::class, 'register'])->name('register');
-    Route::post('/cadastro', [AuthController::class, 'store'])->name('register.store');
+    Route::post('/cadastro', [AuthController::class, 'store'])->middleware(VerifyTurnstile::class)->name('register.store');
     Route::get('/esqueci-senha', [PasswordResetController::class, 'requestForm'])->name('password.request');
-    Route::post('/esqueci-senha', [PasswordResetController::class, 'sendLink'])->middleware('throttle:5,1')->name('password.email');
+    Route::post('/esqueci-senha', [PasswordResetController::class, 'sendLink'])->middleware(['throttle:5,1', VerifyTurnstile::class])->name('password.email');
     Route::get('/redefinir-senha/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
     Route::post('/redefinir-senha', [PasswordResetController::class, 'reset'])->name('password.update');
 });

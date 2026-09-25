@@ -29,6 +29,7 @@
         @error('email')<small class="error">{{ $message }}</small>@enderror
 
         <p class="muted"><a href="{{ route('password.request') }}">Esqueci minha senha</a></p>
+        @include('auth.turnstile')
         <button class="button full">Entrar</button>
     </form>
 
