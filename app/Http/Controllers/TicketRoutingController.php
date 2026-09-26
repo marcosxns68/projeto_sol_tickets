@@ -101,6 +101,10 @@ class TicketRoutingController extends Controller
         $newAssigneeId = $newAssignee?->id;
         $assigneeChanged = $oldAssigneeId !== $newAssigneeId;
 
+        if ($assigneeChanged && !$departmentChanged && $ticket->department_id && !$actor->hasPermission('tickets.view_all')) {
+            abort_unless($departmentAccess->canEdit($actor, $ticket->department_id), 403);
+        }
+
         if ($assigneeChanged && !$targetIsTriage) {
             // Remover o responsável ao encaminhar sem escolher outro continua
             // fazendo parte do encaminhamento. Escolher/trocar uma pessoa exige
