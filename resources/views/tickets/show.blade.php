@@ -23,9 +23,10 @@
     $canRecurrence = !$isTriage && $me->hasPermission('tickets.recurrence');
     $canChangeDepartment = $me->hasPermission('tickets.forward') && ($isTriage || $canDepartmentEdit || $ticket->assignee_id === $me->id || $me->hasPermission('tickets.view_all'));
     $canChangeAssignee = $me->hasPermission('tickets.reassign') && !$isTriage;
-    $canRoute = $canChangeDepartment || $me->hasPermission('tickets.reassign');
+    $canRoute = $canChangeDepartment || (!$isTriage && $me->hasPermission('tickets.reassign'));
     $canAssume = !$isTriage && !$ticket->assignee && $ticket->department_id && $canDepartmentView && $me->hasPermission('tickets.assume');
     $hasRequesterEmail = filled($ticket->requester_email) || filled($ticket->requesterUser?->email);
+    $hasRequesterContact = $hasRequesterEmail || filled($ticket->requester_whatsapp);
     $canNotifyRequesterInComment = !$isRequester && ($hasRequesterEmail || filled($ticket->requester_whatsapp));
     $activeAttachments = $ticket->attachments->whereNull('deleted_at');
     $recurrence = $ticket->recurrence;
@@ -391,13 +392,14 @@
         </div>
     </details>
 
+    @unless($isTriage)
     <details class="ticket-disclosure ticket-danger-disclosure" data-ticket-tool="actions">
         <summary class="ticket-disclosure-summary">
             <span class="ticket-disclosure-copy"><strong>Ações do ticket</strong><small>Concluir, fechar, cancelar ou reabrir</small></span>
             <span class="ticket-disclosure-chevron" aria-hidden="true">›</span>
         </summary>
         <div class="ticket-disclosure-content action-stack">
-        @if($hasRequesterEmail)
+        @if($hasRequesterContact)
             <label class="inline-check ticket-actions-notify"><input type="checkbox" id="ticketActionsNotifyRequester" checked> Notificar solicitante</label>
         @endif
         @if($me->hasPermission('tickets.request_completion') && ($ticket->assignee_id===$me->id || $ticket->participants->contains(fn($p)=>$p->id===$me->id && $p->pivot->type==='collaborator')))
@@ -417,6 +419,7 @@
         @endif
         </div>
     </details>
+    @endunless
 </aside>
 </div>
 
