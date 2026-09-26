@@ -8,22 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Ticket extends Model
 {
-    protected static function booted(): void
-    {
-        static::creating(function (Ticket $ticket) {
-            if ($ticket->department_id === null) {
-                $ticket->department_id = Department::triage()->id;
-                $ticket->assignee_id = null;
-                return;
-            }
-
-            $triageId = Department::query()->where('system_key', 'triage')->value('id');
-            if ($triageId && (int) $ticket->department_id === (int) $triageId) {
-                $ticket->assignee_id = null;
-            }
-        });
-    }
-
     public function isInTriage(): bool
     {
         if ($this->relationLoaded('department')) {
