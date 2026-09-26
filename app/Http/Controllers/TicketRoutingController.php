@@ -102,7 +102,13 @@ class TicketRoutingController extends Controller
         $assigneeChanged = $oldAssigneeId !== $newAssigneeId;
 
         if ($assigneeChanged && !$targetIsTriage) {
-            abort_unless($actor->hasPermission('tickets.reassign'), 403);
+            // Remover o responsável ao encaminhar sem escolher outro continua
+            // fazendo parte do encaminhamento. Escolher/trocar uma pessoa exige
+            // a permissão específica de reatribuição.
+            $requiresReassignPermission = !$departmentChanged || $newAssignee !== null;
+            if ($requiresReassignPermission) {
+                abort_unless($actor->hasPermission('tickets.reassign'), 403);
+            }
         }
 
         if (!$departmentChanged && !$assigneeChanged) {
