@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Department;
 use App\Models\Recurrence;
 use App\Models\Status;
 use App\Models\Ticket;
