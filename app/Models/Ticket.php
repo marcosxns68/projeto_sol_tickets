@@ -8,6 +8,31 @@ use Illuminate\Database\Eloquent\Model;
 
 class Ticket extends Model
 {
+    protected static function booted(): void
+    {
+        static::creating(function (Ticket $ticket) {
+            if ($ticket->department_id === null) {
+                $ticket->department_id = Department::triage()->id;
+                $ticket->assignee_id = null;
+                return;
+            }
+
+            $triageId = Department::query()->where('system_key', 'triage')->value('id');
+            if ($triageId && (int) $ticket->department_id === (int) $triageId) {
+                $ticket->assignee_id = null;
+            }
+        });
+    }
+
+    public function isInTriage(): bool
+    {
+        if ($this->relationLoaded('department')) {
+            return $this->department?->system_key === 'triage';
+        }
+
+        return $this->department()->where('system_key', 'triage')->exists();
+    }
+
     protected $fillable = [
         'number', 'origin', 'title', 'description', 'priority', 'status_id', 'creator_id',
         'assignee_id', 'department_id', 'company_id', 'system_id', 'requester_name',
