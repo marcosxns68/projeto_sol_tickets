@@ -265,7 +265,7 @@ class ApprovedSeptemberAdjustmentsTest extends TestCase
 
         $html = $this->actingAs($admin)->get('/tickets/'.$ticket->id)->assertOk()->getContent();
         $this->assertSame(1, substr_count($html, 'class="inline-check ticket-actions-notify"'));
-        $this->assertSame(3, substr_count($html, 'data-shared-requester-notify'));
+        $this->assertSame(3, substr_count($html, 'name="notify_requester" value="1" data-shared-requester-notify'));
 
         app(TicketWhatsAppAutomations::class)->save('status', true, 'Status do {numero}: {status}');
 
