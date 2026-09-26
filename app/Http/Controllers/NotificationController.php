@@ -78,7 +78,7 @@ class NotificationController extends Controller
         // Todas recebem o mesmo marco de leitura, iniciando aqui o prazo de
         // sete dias. Notificações ainda não lidas nunca expiram.
         DB::table('notifications')
-            ->where('notifiable_type', $request->user()::class)
+            ->where('notifiable_type', get_class($request->user()))
             ->where('notifiable_id', $request->user()->id)
             ->whereNull('read_at')
             ->update(['read_at' => now(), 'updated_at' => now()]);
