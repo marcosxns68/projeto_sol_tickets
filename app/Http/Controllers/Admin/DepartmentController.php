@@ -30,6 +30,7 @@ class DepartmentController extends Controller
                 'tickets as open_tickets_count' => fn ($q) => $q->whereNull('trashed_at')->whereHas('status', fn ($s) => $s->whereNotIn('category', ['completed', 'cancelled'])),
                 'tickets as completed_tickets_count' => fn ($q) => $q->whereHas('status', fn ($s) => $s->where('category', 'completed')),
             ])
+            ->orderByRaw("CASE WHEN system_key = 'triage' THEN 0 ELSE 1 END")
             ->orderBy('name');
 
         if (!$canManage) {
@@ -84,6 +85,7 @@ class DepartmentController extends Controller
     public function edit(Request $request, Department $department)
     {
         $this->authorizeAccess($request);
+        abort_if($department->isTriage(), 403, 'A Triagem é uma caixa padrão do sistema e não pode ser editada.');
 
         return view('admin.departments.edit', compact('department'));
     }
@@ -91,6 +93,7 @@ class DepartmentController extends Controller
     public function update(Request $request, Department $department)
     {
         $this->authorizeAccess($request);
+        abort_if($department->isTriage(), 403, 'A Triagem é uma caixa padrão do sistema e não pode ser alterada.');
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120', Rule::unique('departments', 'name')->ignore($department->id)],
