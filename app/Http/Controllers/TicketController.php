@@ -168,20 +168,17 @@ class TicketController extends Controller
             }
         }
 
-        if ($departmentId !== null) {
-            $department = Department::query()->whereKey($departmentId)->where('active', true)->firstOrFail();
+        if ($departmentId === null) {
+            $departmentId = Department::triage()->id;
+        }
+
+        $department = Department::query()->whereKey($departmentId)->where('active', true)->firstOrFail();
+        if (!$department->isTriage()) {
             abort_unless($departmentAccess->canSend($actor, $department), 403);
         }
 
-        if ($departmentId === null && $actor->department_id) {
-            $legacyDepartment = Department::query()->whereKey($actor->department_id)->where('active', true)->first();
-            if ($legacyDepartment && $departmentAccess->canSend($actor, $legacyDepartment)) {
-                $departmentId = $legacyDepartment->id;
-            }
-        }
-
         $assignee = null;
-        if (!empty($data['assignee_id'])) {
+        if (!$department->isTriage() && !empty($data['assignee_id'])) {
             $assignee = User::query()->whereKey((int) $data['assignee_id'])->where('active', true)->firstOrFail();
         }
 
@@ -301,7 +298,9 @@ class TicketController extends Controller
                 'checklist', 'comments.user', 'events.actor', 'company', 'system', 'attachments.uploader', 'recurrence',
             ]),
             'statuses' => Status::where('active', true)->orderBy('position')->get(),
-            'departments' => Department::where('active', true)->orderBy('name')->get(),
+            'departments' => Department::where('active', true)
+                ->orderByRaw("CASE WHEN system_key = 'triage' THEN 0 ELSE 1 END")
+                ->orderBy('name')->get(),
             'labels' => Label::query()->orderBy('name')->get(),
         ]);
     }

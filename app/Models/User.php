@@ -14,7 +14,7 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'email_verified_at', 'password', 'role_id', 'department_id', 'active', 'whatsapp', 'whatsapp_reply_enabled'];
+    protected $fillable = ['name', 'email', 'email_verified_at', 'password', 'role_id', 'department_id', 'active', 'whatsapp', 'whatsapp_reply_enabled', 'notifications_per_page'];
     protected $hidden = ['password', 'remember_token'];
 
     protected function casts(): array
@@ -25,6 +25,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'active' => 'boolean',
             'whatsapp' => 'encrypted',
             'whatsapp_reply_enabled' => 'boolean',
+            'notifications_per_page' => 'integer',
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Department;
 use App\Models\Recurrence;
 use App\Models\Status;
 use App\Models\Ticket;
@@ -67,7 +68,7 @@ class ProcessTicketRecurrences extends Command
                     'status_id' => $status->id,
                     'creator_id' => $source->creator_id,
                     'assignee_id' => null,
-                    'department_id' => $source->department_id,
+                    'department_id' => $source->department_id ?? Department::triage()->id,
                     'company_id' => $source->company_id,
                     'system_id' => $source->system_id,
                     'requester_name' => $source->requester_name,

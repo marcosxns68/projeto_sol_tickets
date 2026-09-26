@@ -616,3 +616,88 @@
     .workspace-topbar .topbar-user { display: none; }
     .workspace-topbar .topbar-notifications { justify-self: end; min-height: 40px; }
 }
+
+
+/* Cabeçalho único em desktop e PWA: menu, busca e notificações. */
+.workspace-topbar{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-height:64px;
+    height:64px;
+}
+.topbar-menu-button{
+    width:40px;
+    height:40px;
+    flex:0 0 40px;
+    display:inline-flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    padding:0;
+    border:1px solid #ddd3ea;
+    border-radius:9px;
+    background:#f7f4fb;
+    color:#4b3267;
+    cursor:pointer;
+}
+.topbar-menu-button span{
+    display:block;
+    width:18px;
+    height:2px;
+    border-radius:999px;
+    background:currentColor;
+}
+.topbar-menu-button:hover{background:#f0e9f8}
+.workspace-topbar .global-search{
+    flex:1 1 auto;
+    width:auto;
+    max-width:none;
+    min-width:0;
+}
+.workspace-topbar .global-search input{
+    width:100%;
+    height:40px;
+    padding:9px 12px;
+}
+.workspace-topbar .topbar-notifications{
+    flex:0 0 auto;
+    min-height:40px;
+    min-width:40px;
+}
+@media(max-width:900px){
+    .workspace-topbar{
+        min-height:60px;
+        height:60px;
+        display:flex;
+        grid-template-columns:none;
+        gap:8px;
+        padding:9px 12px;
+    }
+    .workspace-topbar .global-search{
+        grid-column:auto;
+        width:auto;
+        min-width:0;
+    }
+    .workspace-topbar .global-search input{
+        height:40px;
+        font-size:14px;
+        padding:9px 11px;
+    }
+    .topbar-menu-button{
+        width:40px;
+        height:40px;
+        flex-basis:40px;
+    }
+    .workspace-topbar .topbar-notifications{
+        justify-self:auto;
+        min-height:40px;
+    }
+}
+@media(max-width:480px){
+    .workspace-topbar{padding:8px 10px;gap:7px}
+    .topbar-menu-button{width:38px;height:38px;flex-basis:38px}
+    .workspace-topbar .global-search input{height:38px;font-size:13px}
+    .workspace-topbar .topbar-notifications{min-height:38px;min-width:38px;padding:4px 7px}
+}

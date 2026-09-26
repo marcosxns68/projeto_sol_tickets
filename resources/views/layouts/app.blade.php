@@ -74,8 +74,9 @@
 
     <section class="workspace-main">
         <header class="workspace-topbar">
-            <button type="button" class="mobile-sidebar-button" data-sidebar-toggle aria-controls="appSidebar" aria-expanded="false">Menu</button>
-            <div class="mobile-brand"><span class="brand-mark small">S</span><b>Sutoorii Tickets</b></div>
+            <button type="button" class="topbar-menu-button" data-sidebar-toggle aria-controls="appSidebar" aria-expanded="false" aria-label="Abrir ou recolher menu" title="Menu">
+                <span></span><span></span><span></span>
+            </button>
             <form class="global-search" method="get" action="{{ route('boxes.mine') }}">
                 <input name="q" value="{{ request()->routeIs('boxes.mine') ? request('q') : '' }}" placeholder="Buscar ticket por número, título ou descrição" aria-label="Buscar tickets">
             </form>
@@ -83,7 +84,6 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
                 <span class="notification-count" data-notification-count @if($unreadNotifications === 0) hidden @endif>{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
             </a>
-            <div class="topbar-user"><a href="{{ route('profile.notifications.edit') }}" class="topbar-profile-link" title="Meu perfil e WhatsApp">{{ $me->name }}</a></div>
         </header>
 
         <main class="workspace-content">

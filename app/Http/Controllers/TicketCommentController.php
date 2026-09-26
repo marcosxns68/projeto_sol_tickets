@@ -32,6 +32,10 @@ class TicketCommentController extends Controller
         ]);
 
         $isRequester = (int) $ticket->requester_user_id === (int) $actor->id;
+        if ($ticket->isInTriage() && $data['visibility'] !== 'internal') {
+            abort(403, 'Na Triagem, somente notas internas podem ser adicionadas.');
+        }
+
         $permission = $data['visibility'] === 'public' ? 'tickets.comment' : 'tickets.internal_note';
         abort_unless($actor->hasPermission($permission) || ($data['visibility'] === 'public' && $isRequester), 403);
 
