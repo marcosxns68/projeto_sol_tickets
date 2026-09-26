@@ -22,7 +22,7 @@
     $canAttachments = !$isTriage && $me->hasPermission('tickets.manage_attachments');
     $canRecurrence = !$isTriage && $me->hasPermission('tickets.recurrence');
     $canChangeDepartment = $me->hasPermission('tickets.forward') && ($isTriage || $canDepartmentEdit || $ticket->assignee_id === $me->id || $me->hasPermission('tickets.view_all'));
-    $canChangeAssignee = $me->hasPermission('tickets.reassign') && !$isTriage && ($canDepartmentEdit || $me->hasPermission('tickets.view_all'));
+    $canChangeAssignee = $me->hasPermission('tickets.reassign') && ($isTriage || $canDepartmentEdit || $me->hasPermission('tickets.view_all'));
     $canRoute = $canChangeDepartment || $canChangeAssignee;
     $canAssume = !$isTriage && !$ticket->assignee && $ticket->department_id && $canDepartmentView && $me->hasPermission('tickets.assume');
     $hasRequesterEmail = filled($ticket->requester_email) || filled($ticket->requesterUser?->email);
@@ -280,7 +280,7 @@
                     @endif
                 </label>
 
-                @if($canChangeAssignee || $isTriage)
+                @if($canChangeAssignee)
                 <label>Responsável <small class="muted">opcional</small></label>
                 <div class="user-picker mini-user-picker" data-user-picker data-field="assignee_id" data-multiple="false" data-routing-assignee>
                     @if($ticket->assignee)<span data-preselected-user data-id="{{ $ticket->assignee->id }}" data-name="{{ $ticket->assignee->name }}" data-email="{{ $ticket->assignee->email }}"></span>@endif
