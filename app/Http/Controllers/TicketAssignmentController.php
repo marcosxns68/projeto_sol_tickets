@@ -21,6 +21,7 @@ class TicketAssignmentController extends Controller
         TicketNotifier $notifier,
     ) {
         $user = $request->user();
+        abort_if($ticket->isInTriage(), 409, 'Encaminhe o ticket para um departamento antes de assumir.');
         abort_unless($user->hasPermission('tickets.assume'), 403);
         abort_unless($ticket->department_id && $departmentAccess->canView($user, $ticket->department_id), 403);
         abort_if($ticket->assignee_id !== null, 409, 'Este ticket já possui responsável.');
@@ -56,6 +57,7 @@ class TicketAssignmentController extends Controller
         TicketNotifier $notifier,
     ) {
         $actor = $request->user();
+        abort_if($ticket->isInTriage(), 409, 'O responsável não pode ser definido enquanto o ticket estiver na Triagem.');
         abort_unless($actor->hasPermission('tickets.reassign'), 403);
         abort_unless(Ticket::visibleTo($actor)->whereKey($ticket->id)->exists(), 403);
         if ($ticket->department_id && !$actor->hasPermission('tickets.view_all')) {
