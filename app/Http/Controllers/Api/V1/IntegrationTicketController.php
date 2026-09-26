@@ -154,7 +154,7 @@ class IntegrationTicketController extends Controller
         if ($departmentId !== null && !Department::query()->whereKey($departmentId)->where('active', true)->exists()) {
             $departmentId = null;
         }
-        $departmentId ??= Department::query()->where('active', true)->orderBy('id')->value('id');
+        $departmentId ??= Department::triage()->id;
 
         $create = function () use ($data, $integration, $externalUserId, $externalReference, $status, $departmentId, $deadlines): Ticket {
             return Ticket::create([
