@@ -172,6 +172,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/tickets', [TicketController::class, 'store'])
         ->middleware(RequireIntegrationTicketPermission::class)
         ->name('tickets.store');
-    Route::resource('tickets', TicketController::class)->except(['destroy', 'store'])->middlewareFor(['update'], EnsureTicketOutsideTriage::class);
+    Route::patch('/tickets/{ticket}', [TicketController::class, 'update'])
+        ->middleware(EnsureTicketOutsideTriage::class)
+        ->name('tickets.update');
+    Route::resource('tickets', TicketController::class)->except(['destroy', 'store', 'update']);
     Route::post('/sair', [AuthController::class, 'logout'])->name('logout');
 });
