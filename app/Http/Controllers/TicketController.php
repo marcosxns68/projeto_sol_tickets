@@ -168,13 +168,17 @@ class TicketController extends Controller
             }
         }
 
-        if ($departmentId !== null) {
-            $department = Department::query()->whereKey($departmentId)->where('active', true)->firstOrFail();
+        if ($departmentId === null) {
+            $departmentId = Department::triage()->id;
+        }
+
+        $department = Department::query()->whereKey($departmentId)->where('active', true)->firstOrFail();
+        if (!$department->isTriage()) {
             abort_unless($departmentAccess->canSend($actor, $department), 403);
         }
 
         $assignee = null;
-        if (!empty($data['assignee_id'])) {
+        if (!$department->isTriage() && !empty($data['assignee_id'])) {
             $assignee = User::query()->whereKey((int) $data['assignee_id'])->where('active', true)->firstOrFail();
         }
 
