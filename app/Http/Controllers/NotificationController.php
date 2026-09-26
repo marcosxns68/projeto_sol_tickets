@@ -36,8 +36,17 @@ class NotificationController extends Controller
                 : 20;
         }
 
+        $notifications = $user->notifications()->latest()->paginate($perPage)->withQueryString();
+        $paginationPages = $notifications->hasPages()
+            ? range(
+                max(1, $notifications->currentPage() - 2),
+                min($notifications->lastPage(), $notifications->currentPage() + 2)
+            )
+            : [];
+
         return view('notifications.index', [
-            'notifications' => $user->notifications()->latest()->paginate($perPage)->withQueryString(),
+            'notifications' => $notifications,
+            'paginationPages' => $paginationPages,
             'perPage' => $perPage,
             'pageSizes' => self::PAGE_SIZES,
         ]);
