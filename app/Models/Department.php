@@ -8,6 +8,11 @@ class Department extends Model
 {
     protected $fillable = ['name', 'system_key', 'active'];
 
+    protected function casts(): array
+    {
+        return ['active' => 'boolean'];
+    }
+
 
     public static function triage(): self
     {
