@@ -129,9 +129,9 @@ class TicketLifecycleController extends Controller
             'previous_status' => $oldStatus,
         ]);
         $notifier->statusChanged($ticket, $actor, 'Ticket reaberto');
-        $notifier->statusWhatsAppChanged($ticket, $transitionEvent->id);
 
         if ($this->shouldNotifyRequester($request)) {
+            $notifier->statusWhatsAppChanged($ticket, $transitionEvent->id);
             $notifier->requesterChanged($ticket, $actor, 'Ticket reaberto');
         }
 
@@ -170,15 +170,18 @@ class TicketLifecycleController extends Controller
             'previous_status' => $oldStatus,
         ]);
         $notifier->statusChanged($ticket, $actor);
-        if ($previousSystemKey !== $systemKey && $systemKey !== 'closed') {
-            $notifier->statusWhatsAppChanged($ticket, $transitionEvent->id);
-        }
 
-        if ($systemKey === 'closed' && !$wasClosed) {
-            $notifier->closed($ticket);
-        }
-
+        // A escolha única "Notificar solicitante" controla todos os canais
+        // voltados ao cliente nesta ação. Avisos internos da equipe continuam.
         if ($notifyRequester) {
+            if ($previousSystemKey !== $systemKey && $systemKey !== 'closed') {
+                $notifier->statusWhatsAppChanged($ticket, $transitionEvent->id);
+            }
+
+            if ($systemKey === 'closed' && !$wasClosed) {
+                $notifier->closed($ticket);
+            }
+
             $notifier->requesterChanged($ticket, $actor, 'Status do ticket atualizado');
         }
 
