@@ -148,8 +148,14 @@ class ApprovedSeptemberAdjustmentsTest extends TestCase
         $wouldBeAssignee = $this->user('Responsável indevido');
         $triage = Department::triage();
 
-        $ticket = $this->ticket(null, $wouldBeAssignee);
-        $ticket->refresh();
+        $this->actingAs($admin)->post('/tickets', [
+            'title' => 'Ticket de teste',
+            'description' => 'Descrição original',
+            'priority' => 'normal',
+            'assignee_id' => $wouldBeAssignee->id,
+        ])->assertRedirect();
+
+        $ticket = Ticket::query()->where('title', 'Ticket de teste')->latest('id')->firstOrFail();
 
         $this->assertSame($triage->id, $ticket->department_id);
         $this->assertNull($ticket->assignee_id);
@@ -196,7 +202,7 @@ class ApprovedSeptemberAdjustmentsTest extends TestCase
         $triage = Department::triage();
         $department = Department::create(['name' => 'Desenvolvimento', 'active' => true]);
         $target = $this->user('Responsável externo ao departamento');
-        $ticket = $this->ticket();
+        $ticket = $this->ticket($triage);
 
         $this->actingAs($admin)->patch('/tickets/'.$ticket->id.'/atendimento', [
             'department_id' => $department->id,
