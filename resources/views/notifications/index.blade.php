@@ -58,7 +58,7 @@
         </div>
 
         @if($notifications->hasPages())
-            <nav class="notification-pagination-controls">
+            <nav class="notification-pagination-controls" aria-label="Navegação entre páginas">
                 @if($notifications->onFirstPage())
                     <span class="pagination-button disabled" aria-disabled="true">Anterior</span>
                 @else
@@ -66,26 +66,26 @@
                 @endif
 
                 <div class="pagination-pages">
-                    @php
-                        $current = $notifications->currentPage();
-                        $last = $notifications->lastPage();
-                        $from = max(1, $current - 2);
-                        $to = min($last, $current + 2);
-                    @endphp
-                    @if($from > 1)
+                    @if(count($paginationPages) > 0 && $paginationPages[0] > 1)
                         <a class="pagination-page" href="{{ $notifications->url(1) }}">1</a>
-                        @if($from > 2)<span class="pagination-gap">…</span>@endif
-                    @endif
-                    @for($page = $from; $page <= $to; $page++)
-                        @if($page === $current)
-                            <span class="pagination-page active" aria-current="page">{{ $page }}</span>
-                        @else
-                            <a class="pagination-page" href="{{ $notifications->url($page) }}">{{ $page }}</a>
+                        @if($paginationPages[0] > 2)
+                            <span class="pagination-gap">…</span>
                         @endif
-                    @endfor
-                    @if($to < $last)
-                        @if($to < $last - 1)<span class="pagination-gap">…</span>@endif
-                        <a class="pagination-page" href="{{ $notifications->url($last) }}">{{ $last }}</a>
+                    @endif
+
+                    @foreach($paginationPages as $pageNumber)
+                        @if($pageNumber === $notifications->currentPage())
+                            <span class="pagination-page active" aria-current="page">{{ $pageNumber }}</span>
+                        @else
+                            <a class="pagination-page" href="{{ $notifications->url($pageNumber) }}">{{ $pageNumber }}</a>
+                        @endif
+                    @endforeach
+
+                    @if(count($paginationPages) > 0 && $paginationPages[count($paginationPages) - 1] < $notifications->lastPage())
+                        @if($paginationPages[count($paginationPages) - 1] < $notifications->lastPage() - 1)
+                            <span class="pagination-gap">…</span>
+                        @endif
+                        <a class="pagination-page" href="{{ $notifications->url($notifications->lastPage()) }}">{{ $notifications->lastPage() }}</a>
                     @endif
                 </div>
 
