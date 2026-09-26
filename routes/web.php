@@ -31,6 +31,7 @@ use App\Http\Controllers\TicketRecurrenceController;
 use App\Http\Controllers\TicketRoutingController;
 use App\Http\Controllers\UserDirectoryController;
 use App\Http\Middleware\RequireIntegrationTicketPermission;
+use App\Http\Middleware\EnsureTicketOutsideTriage;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
@@ -89,31 +90,32 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/notificacoes/ler-todas', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('/notificacoes/{notification}/ler', [NotificationController::class, 'read'])->name('notifications.read');
 
-    Route::post('/tickets/{ticket}/assumir', [TicketAssignmentController::class, 'assume'])->name('tickets.assume');
-    Route::patch('/tickets/{ticket}/responsavel', [TicketAssignmentController::class, 'reassign'])->name('tickets.reassign');
+    Route::post('/tickets/{ticket}/assumir', [TicketAssignmentController::class, 'assume'])->name('tickets.assume')->middleware(EnsureTicketOutsideTriage::class);
+    Route::patch('/tickets/{ticket}/responsavel', [TicketAssignmentController::class, 'reassign'])->name('tickets.reassign')->middleware(EnsureTicketOutsideTriage::class);
     Route::post('/tickets/{ticket}/encaminhar', [TicketRoutingController::class, 'forward'])->name('tickets.forward');
-    Route::post('/tickets/{ticket}/participantes', [TicketParticipantController::class, 'store'])->name('tickets.participants.store');
-    Route::delete('/tickets/{ticket}/participantes/{user}', [TicketParticipantController::class, 'destroy'])->name('tickets.participants.destroy');
-    Route::post('/tickets/{ticket}/etiquetas', [TicketLabelController::class, 'store'])->name('tickets.labels.store');
-    Route::delete('/tickets/{ticket}/etiquetas/{label}', [TicketLabelController::class, 'destroy'])->name('tickets.labels.destroy');
+    Route::patch('/tickets/{ticket}/atendimento', [TicketRoutingController::class, 'update'])->name('tickets.routing.update');
+    Route::post('/tickets/{ticket}/participantes', [TicketParticipantController::class, 'store'])->name('tickets.participants.store')->middleware(EnsureTicketOutsideTriage::class);
+    Route::delete('/tickets/{ticket}/participantes/{user}', [TicketParticipantController::class, 'destroy'])->name('tickets.participants.destroy')->middleware(EnsureTicketOutsideTriage::class);
+    Route::post('/tickets/{ticket}/etiquetas', [TicketLabelController::class, 'store'])->name('tickets.labels.store')->middleware(EnsureTicketOutsideTriage::class);
+    Route::delete('/tickets/{ticket}/etiquetas/{label}', [TicketLabelController::class, 'destroy'])->name('tickets.labels.destroy')->middleware(EnsureTicketOutsideTriage::class);
 
     Route::post('/tickets/{ticket}/comentarios', [TicketCommentController::class, 'store'])->name('tickets.comments.store');
-    Route::post('/tickets/{ticket}/checklist', [TicketChecklistController::class, 'store'])->name('tickets.checklist.store');
-    Route::patch('/tickets/{ticket}/checklist/{item}/alternar', [TicketChecklistController::class, 'toggle'])->name('tickets.checklist.toggle');
-    Route::delete('/tickets/{ticket}/checklist/{item}', [TicketChecklistController::class, 'destroy'])->name('tickets.checklist.destroy');
+    Route::post('/tickets/{ticket}/checklist', [TicketChecklistController::class, 'store'])->name('tickets.checklist.store')->middleware(EnsureTicketOutsideTriage::class);
+    Route::patch('/tickets/{ticket}/checklist/{item}/alternar', [TicketChecklistController::class, 'toggle'])->name('tickets.checklist.toggle')->middleware(EnsureTicketOutsideTriage::class);
+    Route::delete('/tickets/{ticket}/checklist/{item}', [TicketChecklistController::class, 'destroy'])->name('tickets.checklist.destroy')->middleware(EnsureTicketOutsideTriage::class);
 
-    Route::post('/tickets/{ticket}/anexos', [TicketAttachmentController::class, 'store'])->name('tickets.attachments.store');
+    Route::post('/tickets/{ticket}/anexos', [TicketAttachmentController::class, 'store'])->name('tickets.attachments.store')->middleware(EnsureTicketOutsideTriage::class);
     Route::get('/tickets/{ticket}/anexos/{attachment}', [TicketAttachmentController::class, 'download'])->name('tickets.attachments.download');
-    Route::delete('/tickets/{ticket}/anexos/{attachment}', [TicketAttachmentController::class, 'destroy'])->name('tickets.attachments.destroy');
+    Route::delete('/tickets/{ticket}/anexos/{attachment}', [TicketAttachmentController::class, 'destroy'])->name('tickets.attachments.destroy')->middleware(EnsureTicketOutsideTriage::class);
 
-    Route::post('/tickets/{ticket}/recorrencia', [TicketRecurrenceController::class, 'store'])->name('tickets.recurrence.store');
-    Route::delete('/tickets/{ticket}/recorrencia', [TicketRecurrenceController::class, 'destroy'])->name('tickets.recurrence.destroy');
+    Route::post('/tickets/{ticket}/recorrencia', [TicketRecurrenceController::class, 'store'])->name('tickets.recurrence.store')->middleware(EnsureTicketOutsideTriage::class);
+    Route::delete('/tickets/{ticket}/recorrencia', [TicketRecurrenceController::class, 'destroy'])->name('tickets.recurrence.destroy')->middleware(EnsureTicketOutsideTriage::class);
 
-    Route::post('/tickets/{ticket}/solicitar-conclusao', [TicketLifecycleController::class, 'requestCompletion'])->name('tickets.completion.request');
-    Route::post('/tickets/{ticket}/resolver', [TicketLifecycleController::class, 'resolve'])->name('tickets.resolve');
-    Route::post('/tickets/{ticket}/fechar', [TicketLifecycleController::class, 'close'])->name('tickets.close');
-    Route::post('/tickets/{ticket}/cancelar', [TicketLifecycleController::class, 'cancel'])->name('tickets.cancel');
-    Route::post('/tickets/{ticket}/reabrir', [TicketLifecycleController::class, 'reopen'])->name('tickets.reopen');
+    Route::post('/tickets/{ticket}/solicitar-conclusao', [TicketLifecycleController::class, 'requestCompletion'])->name('tickets.completion.request')->middleware(EnsureTicketOutsideTriage::class);
+    Route::post('/tickets/{ticket}/resolver', [TicketLifecycleController::class, 'resolve'])->name('tickets.resolve')->middleware(EnsureTicketOutsideTriage::class);
+    Route::post('/tickets/{ticket}/fechar', [TicketLifecycleController::class, 'close'])->name('tickets.close')->middleware(EnsureTicketOutsideTriage::class);
+    Route::post('/tickets/{ticket}/cancelar', [TicketLifecycleController::class, 'cancel'])->name('tickets.cancel')->middleware(EnsureTicketOutsideTriage::class);
+    Route::post('/tickets/{ticket}/reabrir', [TicketLifecycleController::class, 'reopen'])->name('tickets.reopen')->middleware(EnsureTicketOutsideTriage::class);
 
     Route::get('/admin/usuarios', [AdminUserController::class, 'index'])->name('admin.users.index');
     Route::get('/admin/usuarios/{user}/editar', [AdminUserController::class, 'edit'])->name('admin.users.edit');
@@ -170,6 +172,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/tickets', [TicketController::class, 'store'])
         ->middleware(RequireIntegrationTicketPermission::class)
         ->name('tickets.store');
-    Route::resource('tickets', TicketController::class)->except(['destroy', 'store']);
+    Route::resource('tickets', TicketController::class)->except(['destroy', 'store'])->middlewareFor(['update'], EnsureTicketOutsideTriage::class);
     Route::post('/sair', [AuthController::class, 'logout'])->name('logout');
 });
