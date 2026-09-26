@@ -38,7 +38,9 @@ class AdminIntegrationKeyTest extends TestCase
 
     private function department(string $name = 'Triagem'): Department
     {
-        return Department::create(['name' => $name, 'active' => true]);
+        return strtolower($name) === 'triagem'
+            ? Department::triage()
+            : Department::create(['name' => $name, 'active' => true]);
     }
 
     public function test_authorized_user_can_open_integrations_page(): void
