@@ -6,23 +6,25 @@
 @php
     $me = auth()->user();
     $departmentAccess = app(\App\Services\DepartmentAccess::class);
+    $isTriage = $ticket->isInTriage();
     $canDepartmentEdit = !$ticket->department_id || $departmentAccess->canEdit($me, $ticket->department_id);
     $canDepartmentView = !$ticket->department_id || $departmentAccess->canView($me, $ticket->department_id);
     $isRequester = (int) $ticket->requester_user_id === (int) $me->id;
-    $canContent = $me->hasPermission('tickets.edit') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
-    $canPriority = $me->hasPermission('tickets.change_priority') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
-    $canStatus = $me->hasPermission('tickets.change_status') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
-    $canDue = $me->hasPermission('tickets.change_due_date') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
+    $canContent = !$isTriage && $me->hasPermission('tickets.edit') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
+    $canPriority = !$isTriage && $me->hasPermission('tickets.change_priority') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
+    $canStatus = !$isTriage && $me->hasPermission('tickets.change_status') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
+    $canDue = !$isTriage && $me->hasPermission('tickets.change_due_date') && ($canDepartmentEdit || $ticket->assignee_id === $me->id);
     $canUpdate = $canContent || $canPriority || $canStatus || $canDue;
-    $canComment = $me->hasPermission('tickets.comment') || $isRequester;
+    $canComment = !$isTriage && ($me->hasPermission('tickets.comment') || $isRequester);
     $canInternal = $me->hasPermission('tickets.internal_note');
-    $canLabels = $me->hasPermission('tickets.manage_labels');
-    $canManagePeople = $me->hasPermission('tickets.manage_participants') && $canDepartmentEdit;
-    $canAttachments = $me->hasPermission('tickets.manage_attachments');
-    $canRecurrence = $me->hasPermission('tickets.recurrence');
-    $canReassign = $me->hasPermission('tickets.reassign') && $canDepartmentEdit;
-    $canForward = $me->hasPermission('tickets.forward') && $canDepartmentEdit;
-    $canAssume = !$ticket->assignee && $ticket->department_id && $canDepartmentView && $me->hasPermission('tickets.assume');
+    $canLabels = !$isTriage && $me->hasPermission('tickets.manage_labels');
+    $canManagePeople = !$isTriage && $me->hasPermission('tickets.manage_participants') && $canDepartmentEdit;
+    $canAttachments = !$isTriage && $me->hasPermission('tickets.manage_attachments');
+    $canRecurrence = !$isTriage && $me->hasPermission('tickets.recurrence');
+    $canChangeDepartment = $me->hasPermission('tickets.forward') && ($isTriage || $canDepartmentEdit || $ticket->assignee_id === $me->id || $me->hasPermission('tickets.view_all'));
+    $canChangeAssignee = $me->hasPermission('tickets.reassign') && !$isTriage;
+    $canRoute = $canChangeDepartment || $me->hasPermission('tickets.reassign');
+    $canAssume = !$isTriage && !$ticket->assignee && $ticket->department_id && $canDepartmentView && $me->hasPermission('tickets.assume');
     $hasRequesterEmail = filled($ticket->requester_email) || filled($ticket->requesterUser?->email);
     $canNotifyRequesterInComment = !$isRequester && ($hasRequesterEmail || filled($ticket->requester_whatsapp));
     $activeAttachments = $ticket->attachments->whereNull('deleted_at');
@@ -36,7 +38,7 @@
         'label.added'=>'Etiqueta adicionada','label.removed'=>'Etiqueta removida','attachment.added'=>'Anexo adicionado','attachment.removed'=>'Anexo removido',
         'recurrence.configured'=>'Recorrência configurada','recurrence.removed'=>'Recorrência removida','recurrence_created'=>'Ticket criado por recorrência',
         'deadline.reminder'=>'Lembrete de prazo enviado','resolved'=>'Ticket resolvido','closed'=>'Ticket fechado','cancelled'=>'Ticket cancelado','reopened'=>'Ticket reaberto',
-        'status.changed'=>'Status atualizado'
+        'status.changed'=>'Status atualizado','triage.returned'=>'Ticket devolvido para Triagem'
     ];
     $attachedLabelIds = $ticket->labels->pluck('id')->all();
     $availableLabels = $labels->whereNotIn('id', $attachedLabelIds);
@@ -67,6 +69,12 @@
 
 @if($errors->any())
 <div class="alert error-box"><strong>Não foi possível concluir a ação.</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+@endif
+@if($isTriage)
+<div class="notice triage-ticket-notice">
+    <strong>Este ticket está na Triagem.</strong>
+    <span>Ele pode ser visualizado e receber notas internas, mas precisa ser encaminhado para um departamento antes de outras alterações.</span>
+</div>
 @endif
 
 <div class="ticket-layout workspace ticket-layout-v2">
@@ -255,24 +263,35 @@
             <form method="post" action="{{ route('tickets.assume',$ticket) }}">@csrf<button class="button full" type="submit">Assumir ticket</button></form>
             @endif
 
-            @if($canReassign)
-            <form method="post" action="{{ route('tickets.reassign',$ticket) }}" class="mini-form">@csrf @method('PATCH')
-                <label>Alterar responsável</label>
-                <div class="user-picker mini-user-picker" data-user-picker data-field="user_id" data-multiple="false">
+            @if($canRoute)
+            <form method="post" action="{{ route('tickets.routing.update',$ticket) }}" class="mini-form ticket-routing-form" data-ticket-routing data-triage-id="{{ $departments->firstWhere('system_key','triage')?->id }}">
+                @csrf @method('PATCH')
+                <label>Departamento
+                    @if($canChangeDepartment)
+                    <select name="department_id" required data-routing-department>
+                        @foreach($departments as $department)
+                            <option value="{{ $department->id }}" @selected((int)$department->id === (int)$ticket->department_id)>{{ $department->name }}{{ $department->isTriage() ? ' · Padrão' : '' }}</option>
+                        @endforeach
+                    </select>
+                    @else
+                    <input type="hidden" name="department_id" value="{{ $ticket->department_id }}">
+                    <input value="{{ $ticket->department?->name ?? 'Triagem' }}" readonly>
+                    @endif
+                </label>
+
+                @if($me->hasPermission('tickets.reassign'))
+                <label>Responsável <small class="muted">opcional</small></label>
+                <div class="user-picker mini-user-picker" data-user-picker data-field="assignee_id" data-multiple="false" data-routing-assignee>
                     @if($ticket->assignee)<span data-preselected-user data-id="{{ $ticket->assignee->id }}" data-name="{{ $ticket->assignee->name }}" data-email="{{ $ticket->assignee->email }}"></span>@endif
-                    <input type="search" data-user-search autocomplete="off" placeholder="Buscar por nome ou e-mail">
+                    <input type="search" data-user-search autocomplete="off" placeholder="Buscar qualquer usuário ativo">
                     <div class="user-picker-results" data-user-results></div><div class="user-picker-selected" data-user-selected></div>
                 </div>
-                <button class="secondary-button full" type="submit">Atribuir</button>
-            </form>
-            @endif
+                @endif
 
-            @if($canForward)
-            <form method="post" action="{{ route('tickets.forward',$ticket) }}" class="mini-form">@csrf
-                <label>Encaminhar para<select name="department_id" required><option value="">Selecione...</option>@foreach($departments as $department)@if($department->id!==$ticket->department_id)<option value="{{ $department->id }}">{{ $department->name }}</option>@endif @endforeach</select></label>
-                <input type="text" name="reason" placeholder="Motivo (opcional)">
+                <input type="text" name="reason" placeholder="Motivo da mudança (opcional)">
+                <input type="hidden" name="confirm_triage" value="0" data-confirm-triage>
                 @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif
-                <button class="secondary-button full" type="submit">Encaminhar</button>
+                <button class="secondary-button full" type="submit">Salvar departamento e responsável</button>
             </form>
             @endif
         </div>
@@ -305,9 +324,9 @@
         </summary>
         <div class="ticket-disclosure-content">
             @forelse($ticket->checklist as $item)
-            <div class="check-row"><form method="post" action="{{ route('tickets.checklist.toggle',[$ticket,$item]) }}">@csrf @method('PATCH')<button class="check-button" type="submit" @disabled(!$me->hasPermission('tickets.manage_checklist'))>{{ $item->completed?'✓':'○' }}</button></form><div><span class="{{ $item->completed?'done':'' }}">{{ $item->text }}</span>@if($item->required)<small>Obrigatório</small>@endif</div>@if($me->hasPermission('tickets.manage_checklist'))<form method="post" action="{{ route('tickets.checklist.destroy',[$ticket,$item]) }}" class="push-right">@csrf @method('DELETE')<button class="icon-button" title="Remover">×</button></form>@endif</div>
+            <div class="check-row"><form method="post" action="{{ route('tickets.checklist.toggle',[$ticket,$item]) }}">@csrf @method('PATCH')<button class="check-button" type="submit" @disabled($isTriage || !$me->hasPermission('tickets.manage_checklist'))>{{ $item->completed?'✓':'○' }}</button></form><div><span class="{{ $item->completed?'done':'' }}">{{ $item->text }}</span>@if($item->required)<small>Obrigatório</small>@endif</div>@if(!$isTriage && $me->hasPermission('tickets.manage_checklist'))<form method="post" action="{{ route('tickets.checklist.destroy',[$ticket,$item]) }}" class="push-right">@csrf @method('DELETE')<button class="icon-button" title="Remover">×</button></form>@endif</div>
             @empty<p class="muted">Sem itens.</p>@endforelse
-            @if($me->hasPermission('tickets.manage_checklist'))<form method="post" action="{{ route('tickets.checklist.store',$ticket) }}" class="mini-form">@csrf<input name="text" placeholder="Novo item" required><label class="inline-check"><input type="checkbox" name="required" value="1"> Obrigatório</label><button class="secondary-button full">Adicionar item</button></form>@endif
+            @if(!$isTriage && $me->hasPermission('tickets.manage_checklist'))<form method="post" action="{{ route('tickets.checklist.store',$ticket) }}" class="mini-form">@csrf<input name="text" placeholder="Novo item" required><label class="inline-check"><input type="checkbox" name="required" value="1"> Obrigatório</label><button class="secondary-button full">Adicionar item</button></form>@endif
         </div>
     </details>
 
@@ -378,20 +397,23 @@
             <span class="ticket-disclosure-chevron" aria-hidden="true">›</span>
         </summary>
         <div class="ticket-disclosure-content action-stack">
+        @if($hasRequesterEmail)
+            <label class="inline-check ticket-actions-notify"><input type="checkbox" id="ticketActionsNotifyRequester" checked> Notificar solicitante</label>
+        @endif
         @if($me->hasPermission('tickets.request_completion') && ($ticket->assignee_id===$me->id || $ticket->participants->contains(fn($p)=>$p->id===$me->id && $p->pivot->type==='collaborator')))
-            <form method="post" action="{{ route('tickets.completion.request',$ticket) }}" data-confirm-ticket-action data-confirm-message="Deseja solicitar a conclusão deste ticket?">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="secondary-button full">Solicitar conclusão</button></form>
+            <form method="post" action="{{ route('tickets.completion.request',$ticket) }}" data-lifecycle-action data-confirm-ticket-action data-confirm-message="Deseja solicitar a conclusão deste ticket?">@csrf<input type="hidden" name="notify_requester" value="1" data-shared-requester-notify><button class="secondary-button full">Solicitar conclusão</button></form>
         @endif
         @if($me->hasPermission('tickets.resolve') && $ticket->assignee_id===$me->id && !in_array($ticket->status?->system_key,['resolved','closed','cancelled']))
-            <form method="post" action="{{ route('tickets.resolve',$ticket) }}" data-confirm-ticket-action data-confirm-message="Tem certeza de que deseja resolver este ticket?">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="button full">Resolver ticket</button></form>
+            <form method="post" action="{{ route('tickets.resolve',$ticket) }}" data-lifecycle-action data-confirm-ticket-action data-confirm-message="Tem certeza de que deseja resolver este ticket?">@csrf<input type="hidden" name="notify_requester" value="1" data-shared-requester-notify><button class="button full">Resolver ticket</button></form>
         @endif
         @if($me->hasPermission('tickets.close') && $ticket->status?->system_key==='resolved')
-            <form method="post" action="{{ route('tickets.close',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="secondary-button full">Fechar ticket</button></form>
+            <form method="post" action="{{ route('tickets.close',$ticket) }}" data-lifecycle-action>@csrf<input type="hidden" name="notify_requester" value="1" data-shared-requester-notify><button class="secondary-button full">Fechar ticket</button></form>
         @endif
         @if($me->hasPermission('tickets.cancel') && $ticket->status?->system_key!=='cancelled')
-            <form method="post" action="{{ route('tickets.cancel',$ticket) }}" data-confirm-ticket-action data-confirm-message="Tem certeza de que deseja cancelar este ticket? Esta ação alterará o status do atendimento.">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="danger-button full">Cancelar ticket</button></form>
+            <form method="post" action="{{ route('tickets.cancel',$ticket) }}" data-lifecycle-action data-confirm-ticket-action data-confirm-message="Tem certeza de que deseja cancelar este ticket? Esta ação alterará o status do atendimento.">@csrf<input type="hidden" name="notify_requester" value="1" data-shared-requester-notify><button class="danger-button full">Cancelar ticket</button></form>
         @endif
         @if($me->hasPermission('tickets.reopen') && in_array($ticket->status?->system_key,['resolved','closed','cancelled']))
-            <form method="post" action="{{ route('tickets.reopen',$ticket) }}">@csrf @if($hasRequesterEmail)<label class="inline-check"><input type="hidden" name="notify_requester" value="0"><input type="checkbox" name="notify_requester" value="1" checked> Notificar solicitante</label>@endif<button class="secondary-button full">Reabrir ticket</button></form>
+            <form method="post" action="{{ route('tickets.reopen',$ticket) }}" data-lifecycle-action>@csrf<input type="hidden" name="notify_requester" value="1" data-shared-requester-notify><button class="secondary-button full">Reabrir ticket</button></form>
         @endif
         </div>
     </details>
@@ -452,6 +474,30 @@
         pendingForm = null;
     });
 
+    const sharedNotify = document.getElementById('ticketActionsNotifyRequester');
+    document.querySelectorAll('[data-lifecycle-action]').forEach(form => {
+        form.addEventListener('submit', () => {
+            const input = form.querySelector('[data-shared-requester-notify]');
+            if (input) input.value = sharedNotify?.checked === false ? '0' : '1';
+        });
+    });
+
+    document.querySelectorAll('[data-ticket-routing]').forEach(form => {
+        form.addEventListener('submit', event => {
+            if (form.dataset.triageConfirmed === 'true') return;
+            const select = form.querySelector('[data-routing-department]');
+            const triageId = String(form.dataset.triageId || '');
+            if (!select || !triageId || String(select.value) !== triageId || String(select.value) === String(@json($ticket->department_id))) return;
+            event.preventDefault();
+            const ok = window.confirm('Devolver este ticket para a Triagem? O responsável atual será removido e somente notas internas poderão ser adicionadas até um novo encaminhamento.');
+            if (!ok) return;
+            const confirmInput = form.querySelector('[data-confirm-triage]');
+            if (confirmInput) confirmInput.value = '1';
+            form.dataset.triageConfirmed = 'true';
+            form.requestSubmit();
+        });
+    });
+
     const visibility = document.getElementById('ticketActivityVisibility');
     const options = document.getElementById('commentNotifyOptions');
     const requesterOption = document.getElementById('commentRequesterNotify');
@@ -465,4 +511,8 @@
     sync();
 })();
 </script>
+<style>
+.triage-ticket-notice{display:grid;gap:3px;border-color:#d8c9fa;background:#f7f2ff;color:#4b3267}
+.ticket-actions-notify{padding:2px 0 8px;font-weight:700}
+</style>
 @endsection
