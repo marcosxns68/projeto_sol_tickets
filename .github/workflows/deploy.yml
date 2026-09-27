@@ -123,6 +123,16 @@ jobs:
           } catch (Throwable $exception) {
               echo "migration-ok\nwhatsapp-backfill-failed";
           }
+
+          // Aplica a identidade aprovada também à foto de perfil da instância.
+          // A atualização externa não deve impedir o deploy se a Evolution estiver indisponível.
+          try {
+              $brandExit = $kernel->call('tickets:sync-whatsapp-brand');
+              $brandResult = trim($kernel->output());
+              echo "\nwhatsapp-brand-exit=".$brandExit.' '.str_replace(["\r", "\n"], ' ', $brandResult);
+          } catch (Throwable $exception) {
+              echo "\nwhatsapp-brand-failed";
+          }
           PHP
 
           sed -i "s/__DEPLOY_TOKEN_HASH__/${DEPLOY_TOKEN_HASH}/" .deploy/direct/public/deploy-migrate.php
