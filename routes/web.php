@@ -138,6 +138,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/admin/configuracoes/whatsapp', [AdminWhatsAppSettingsController::class, 'update'])->name('admin.settings.whatsapp.update');
     Route::post('/admin/configuracoes/whatsapp/qrcode', [AdminWhatsAppSettingsController::class, 'qrCode'])->middleware('throttle:6,1')->name('admin.settings.whatsapp.qrcode');
     Route::post('/admin/configuracoes/whatsapp/status', [AdminWhatsAppSettingsController::class, 'status'])->middleware('throttle:12,1')->name('admin.settings.whatsapp.status');
+    Route::post('/admin/configuracoes/whatsapp/logotipo', [AdminWhatsAppSettingsController::class, 'brandProfile'])->middleware('throttle:3,1')->name('admin.settings.whatsapp.brand-profile');
 
     Route::get('/admin/configuracoes/email', [AdminMailSettingsController::class, 'edit'])->name('admin.settings.mail.edit');
     Route::patch('/admin/configuracoes/email', [AdminMailSettingsController::class, 'update'])->name('admin.settings.mail.update');
