@@ -14,7 +14,11 @@ class TicketWhatsAppAutomations
         'closed' => "> Sutoorii Tickets\n\nSeu ticket de número {numero} foi fechado.\nAssunto: {assunto}",
         'comment' => "> Sutoorii Tickets\n\nSeu ticket de número {numero} recebeu uma nova resposta.\nAssunto: {assunto}",
         'status' => "> Sutoorii Tickets\n\nO status do seu ticket de número {numero} foi alterado para {status}.\nAssunto: {assunto}",
-        'responsible_reply' => "> Sutoorii Tickets\n\nUm cliente respondeu ao ticket #{numero} pelo sistema de suporte.\nAssunto: {assunto}\nAcesse tickets.sutoorii.com para acompanhar.",
+        'responsible_reply' => "> Sutoorii Tickets\n\nUm cliente respondeu ao ticket #{numero} pelo sistema de suporte.\nAssunto: {assunto}",
+        'department_created' => "> Sutoorii Tickets\n\nNovo ticket na caixa: {departamento}\nTicket #{numero}\nAssunto: {assunto}",
+        'department_entered' => "> Sutoorii Tickets\n\nTicket encaminhado para a caixa: {departamento}\nTicket #{numero}\nAssunto: {assunto}",
+        'department_replied' => "> Sutoorii Tickets\n\nCliente respondeu em um ticket da caixa: {departamento}\nTicket #{numero}\nAssunto: {assunto}",
+        'department_cancelled' => "> Sutoorii Tickets\n\nTicket cancelado na caixa: {departamento}\nTicket #{numero}\nAssunto: {assunto}",
     ];
 
     public const LABELS = [
@@ -23,9 +27,22 @@ class TicketWhatsAppAutomations
         'comment' => 'Novo comentário público',
         'status' => 'Mudança de status',
         'responsible_reply' => 'Resposta do solicitante ao responsável',
+        'department_created' => 'Novo ticket no departamento',
+        'department_entered' => 'Ticket encaminhado ao departamento',
+        'department_replied' => 'Resposta em ticket do departamento',
+        'department_cancelled' => 'Ticket cancelado no departamento',
     ];
 
-    public const VARIABLES = ['numero', 'assunto', 'status'];
+    public const VARIABLES = ['numero', 'assunto', 'status', 'departamento'];
+
+    private const DEFAULT_ENABLED = [
+        'opened',
+        'responsible_reply',
+        'department_created',
+        'department_entered',
+        'department_replied',
+        'department_cancelled',
+    ];
 
     private function ensureEvent(string $event): void
     {
@@ -38,13 +55,21 @@ class TicketWhatsAppAutomations
     {
         $this->ensureEvent($event);
         // Preserva abertura já existente; demais avisos começam desligados.
-        return (bool) Setting::getValue('whatsapp.automation.'.$event.'.enabled', in_array($event, ['opened', 'responsible_reply'], true));
+        return (bool) Setting::getValue('whatsapp.automation.'.$event.'.enabled', in_array($event, self::DEFAULT_ENABLED, true));
     }
 
     public function template(string $event): string
     {
         $this->ensureEvent($event);
-        return (string) Setting::getValue('whatsapp.automation.'.$event.'.message', self::DEFAULT_TEMPLATES[$event]);
+
+        $message = (string) Setting::getValue(
+            'whatsapp.automation.'.$event.'.message',
+            self::DEFAULT_TEMPLATES[$event]
+        );
+
+        // Essa orientação antiga não agrega informação e deve permanecer fora
+        // de qualquer mensagem enviada pelo WhatsApp, inclusive das já salvas.
+        return $this->removeTrackingInstruction($message);
     }
 
     public function render(string $event, Ticket $ticket, ?string $status = null): string
@@ -53,6 +78,7 @@ class TicketWhatsAppAutomations
             '{numero}' => $ticket->number,
             '{assunto}' => $ticket->title,
             '{status}' => $status ?? $ticket->status?->name ?? '',
+            '{departamento}' => $ticket->department?->name ?? '',
         ]);
     }
 
@@ -60,7 +86,20 @@ class TicketWhatsAppAutomations
     {
         $this->ensureEvent($event);
         Setting::setValue('whatsapp.automation.'.$event.'.enabled', $enabled);
-        Setting::setValue('whatsapp.automation.'.$event.'.message', $message);
+        Setting::setValue('whatsapp.automation.'.$event.'.message', $this->removeTrackingInstruction($message));
+    }
+
+    private function removeTrackingInstruction(string $message): string
+    {
+        $message = preg_replace(
+            '/Acesse\\s+(?:https?:\\/\\/)?tickets\\.sutoorii\\.com\\/?\\s+para acompanhar\\.?/iu',
+            '',
+            $message
+        ) ?? $message;
+        $message = preg_replace("/[ \\t]+\\n/u", "\\n", $message) ?? $message;
+        $message = preg_replace("/\\n{3,}/u", "\\n\\n", $message) ?? $message;
+
+        return trim($message);
     }
 
     public function configurations(): array
