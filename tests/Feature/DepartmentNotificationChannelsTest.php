@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Notifications\TicketActivityNotification;
 use App\Services\TicketNotifier;
+use App\Services\TicketWhatsAppAutomations;
 use App\Services\WhatsAppConnection;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -210,13 +211,18 @@ class DepartmentNotificationChannelsTest extends TestCase
 
         $ticket = $this->ticket($department);
         $ticket->update(['requester_whatsapp' => '5511988887777']);
+        app(TicketWhatsAppAutomations::class)->save(
+            'department_created',
+            true,
+            "> Sutoorii Tickets\n\nEntrada em {departamento}\nTicket #{numero}\nAssunto: {assunto}\nAcesse tickets.sutoorii.com para acompanhar."
+        );
         $job = new SendDepartmentWhatsApp($ticket->id, $department->id, $user->id, 'created', 'criado:'.$ticket->id);
         $job->handle($connection);
         $job->handle($connection);
         Http::assertSentCount(1);
         Http::assertSent(fn ($request) => $request['number'] === '5515999998888'
-            && str_contains($request['text'], 'Desenvolvimento')
-            && str_contains($request['text'], $ticket->number)
+            && $request['text'] === "> Sutoorii Tickets\n\nEntrada em Desenvolvimento\nTicket #{$ticket->number}\nAssunto: Erro no sistema"
+            && !str_contains($request['text'], 'tickets.sutoorii.com')
             && $request['number'] !== $ticket->requester_whatsapp);
 
         $this->actingAs($user)->patch('/departamentos/'.$department->id.'/acompanhar', [

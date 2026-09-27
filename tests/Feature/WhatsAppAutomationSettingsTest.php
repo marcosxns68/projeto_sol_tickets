@@ -73,6 +73,10 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->assertFalse($service->enabled('comment'));
         $this->assertFalse($service->enabled('status'));
         $this->assertTrue($service->enabled('responsible_reply'));
+        $this->assertTrue($service->enabled('department_created'));
+        $this->assertTrue($service->enabled('department_entered'));
+        $this->assertTrue($service->enabled('department_replied'));
+        $this->assertTrue($service->enabled('department_cancelled'));
         $this->assertSame("> Sutoorii Tickets\n\nSeu ticket de número {numero} foi aberto com sucesso.\nAssunto: {assunto}", $service->template('opened'));
 
         $manager = $this->user('Gestor');
@@ -86,6 +90,10 @@ class WhatsAppAutomationSettingsTest extends TestCase
             ->assertOk()->assertSee('Abertura do ticket')->assertSee('Fechamento do ticket')
             ->assertSee('Novo comentário público')->assertSee('Mudança de status')
             ->assertSee('Resposta do solicitante ao responsável')
+            ->assertSee('Novo ticket no departamento')
+            ->assertSee('Ticket encaminhado ao departamento')
+            ->assertSee('Resposta em ticket do departamento')
+            ->assertSee('Ticket cancelado no departamento')
             ->assertSee('name="automations[closed][message]"', false);
 
         $this->actingAs($admin)->patch('/admin/configuracoes/notificacoes/whatsapp/closed', [
@@ -223,7 +231,7 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $html = $page->getContent();
 
         // Ao entrar na página, nenhum painel deve aparecer expandido.
-        $this->assertSame(5, substr_count($html, 'data-notification-automation='));
+        $this->assertSame(9, substr_count($html, 'data-notification-automation='));
         $this->assertSame(1, substr_count($html, 'class="admin-editor"'));
         $this->assertSame(1, substr_count($html, 'Salvar configurações'));
         $this->assertSame(1, substr_count($html, 'Variáveis:'));
@@ -244,7 +252,11 @@ class WhatsAppAutomationSettingsTest extends TestCase
                 'closed' => ['enabled' => '1', 'message' => 'Fechado {numero}: {assunto}'],
                 'comment' => ['enabled' => '0', 'message' => 'Comentário no {numero}: {assunto}'],
                 'status' => ['enabled' => '1', 'message' => '{numero} passou para {status}'],
-                'responsible_reply' => ['enabled' => '1', 'message' => 'Seu cliente respondeu ao chamado {numero}'], 
+                'responsible_reply' => ['enabled' => '1', 'message' => 'Seu cliente respondeu ao chamado {numero}'],
+                'department_created' => ['enabled' => '1', 'message' => 'Novo em {departamento}: {numero}'],
+                'department_entered' => ['enabled' => '1', 'message' => 'Encaminhado para {departamento}: {numero}'],
+                'department_replied' => ['enabled' => '1', 'message' => 'Resposta em {departamento}: {numero}'],
+                'department_cancelled' => ['enabled' => '0', 'message' => 'Cancelado em {departamento}: {numero}'],
             ],
         ];
         $this->actingAs($this->user('Gestor'))
@@ -258,11 +270,35 @@ class WhatsAppAutomationSettingsTest extends TestCase
         $this->assertSame('Comentário no {numero}: {assunto}', $service->template('comment'));
         $this->assertSame('{numero} passou para {status}', $service->template('status'));
         $this->assertSame('Seu cliente respondeu ao chamado {numero}', $service->template('responsible_reply'));
+        $this->assertSame('Novo em {departamento}: {numero}', $service->template('department_created'));
+        $this->assertSame('Encaminhado para {departamento}: {numero}', $service->template('department_entered'));
+        $this->assertSame('Resposta em {departamento}: {numero}', $service->template('department_replied'));
+        $this->assertSame('Cancelado em {departamento}: {numero}', $service->template('department_cancelled'));
         $this->assertTrue($service->enabled('opened'));
         $this->assertTrue($service->enabled('closed'));
         $this->assertFalse($service->enabled('comment'));
         $this->assertTrue($service->enabled('status'));
         $this->assertTrue($service->enabled('responsible_reply'));
+        $this->assertTrue($service->enabled('department_created'));
+        $this->assertTrue($service->enabled('department_entered'));
+        $this->assertTrue($service->enabled('department_replied'));
+        $this->assertFalse($service->enabled('department_cancelled'));
+    }
+
+    public function test_legacy_tracking_instruction_is_removed_from_saved_and_existing_messages(): void
+    {
+        $service = app(TicketWhatsAppAutomations::class);
+        $service->save('responsible_reply', true,
+            "Cliente respondeu ao ticket {numero}.\nAcesse tickets.sutoorii.com para acompanhar.");
+
+        $this->assertSame('Cliente respondeu ao ticket {numero}.', $service->template('responsible_reply'));
+
+        Setting::setValue(
+            'whatsapp.automation.department_created.message',
+            "Novo ticket em {departamento}.\nAcesse https://tickets.sutoorii.com para acompanhar."
+        );
+
+        $this->assertSame('Novo ticket em {departamento}.', $service->template('department_created'));
     }
 
     public function test_invalid_message_does_not_partially_save_other_automations(): void
@@ -298,6 +334,11 @@ class WhatsAppAutomationSettingsTest extends TestCase
             ->assertSee('name="automations[comment][message]"', false)
             ->assertSee('name="automations[status][message]"', false)
             ->assertSee('name="automations[responsible_reply][message]"', false)
+            ->assertSee('name="automations[department_created][message]"', false)
+            ->assertSee('name="automations[department_entered][message]"', false)
+            ->assertSee('name="automations[department_replied][message]"', false)
+            ->assertSee('name="automations[department_cancelled][message]"', false)
+            ->assertSee('{departamento}')
             ->assertSee('Salvar configurações');
 
         $css = file_get_contents(public_path('css/notification-settings.css'));
