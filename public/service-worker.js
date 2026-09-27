@@ -1,5 +1,5 @@
 const CACHE='sutoorii-tickets-v4';
-const ASSETS=['/manifest.webmanifest','/icons/sutoorii-tickets-icon-512.png','/brand/sutoorii-tickets-logo.webp'];
+const ASSETS=['/manifest.webmanifest','/icons/sutoorii-tickets-icon-512.png','/brand/sutoorii-tickets-logo.svg'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
