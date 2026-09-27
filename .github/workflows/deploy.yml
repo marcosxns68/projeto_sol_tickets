@@ -180,8 +180,15 @@ jobs:
           echo '=== health ==='
           curl -fkLsS --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/up
           echo
+          echo '=== identidade visual ==='
+          curl -fkLsS --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/icons/sutoorii-tickets-icon-512.png -o /tmp/brand-icon.png
+          test "$(wc -c < /tmp/brand-icon.png)" -gt 1000
+          curl -fkLsS --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/brand/sutoorii-tickets-logo.svg -o /tmp/brand-logo.svg
+          grep -q 'Sutoorii Tickets' /tmp/brand-logo.svg
+          echo 'ativos da marca: ok'
           echo '=== página inicial ==='
           curl -fkLsS --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/ -o /tmp/root.html
           test -s /tmp/root.html
+          grep -q 'sutoorii-tickets-logo.svg' /tmp/root.html
           head -c 500 /tmp/root.html
           echo
