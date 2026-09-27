@@ -125,4 +125,60 @@ class AdminWhatsAppSettingsTest extends TestCase
             ->assertOk()->assertDontSee('validation.regex');
     }
 
+
+    public function test_official_logo_can_be_applied_to_whatsapp_profile_and_reapplied_from_settings(): void
+    {
+        $admin = $this->user();
+        $this->actingAs($admin)->patch('/admin/configuracoes/whatsapp', [
+            'base_url' => 'https://evolution.example.test',
+            'instance' => 'sutoorii-tickets',
+            'api_key' => 'segredo-whatsapp-teste',
+        ])->assertRedirect();
+
+        Http::fake([
+            'evolution.example.test/profile/updateProfilePicture/sutoorii-tickets' =>
+                Http::response(['updated' => true], 200),
+        ]);
+
+        $this->actingAs($admin)->get('/admin/configuracoes/whatsapp')
+            ->assertOk()
+            ->assertSee('Aplicar logotipo oficial no WhatsApp');
+
+        $this->actingAs($admin)->post('/admin/configuracoes/whatsapp/logotipo')
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Logotipo oficial aplicado à foto de perfil do WhatsApp.');
+
+        Http::assertSent(fn ($request) =>
+            $request->url() === 'https://evolution.example.test/profile/updateProfilePicture/sutoorii-tickets'
+            && $request->hasHeader('apikey', 'segredo-whatsapp-teste')
+            && $request['picture'] === 'https://tickets.sutoorii.com/icons/sutoorii-tickets-icon-512.png'
+        );
+
+        $this->actingAs($this->user('Gestor'))
+            ->post('/admin/configuracoes/whatsapp/logotipo')->assertForbidden();
+    }
+
+    public function test_brand_sync_command_uses_official_public_icon(): void
+    {
+        app(WhatsAppConnection::class)->save([
+            'base_url' => 'https://evolution.example.test',
+            'instance' => 'sutoorii-tickets',
+            'api_key' => 'segredo-whatsapp-teste',
+        ]);
+
+        Http::fake([
+            'evolution.example.test/profile/updateProfilePicture/sutoorii-tickets' =>
+                Http::response(['updated' => true], 200),
+        ]);
+
+        $this->artisan('tickets:sync-whatsapp-brand')
+            ->expectsOutput('Logotipo oficial aplicado à foto de perfil do WhatsApp.')
+            ->assertExitCode(0);
+
+        Http::assertSent(fn ($request) =>
+            $request['picture'] === 'https://tickets.sutoorii.com/icons/sutoorii-tickets-icon-512.png'
+        );
+    }
+
+
 }
