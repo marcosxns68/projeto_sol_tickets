@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\TicketWhatsAppAutomations;
 use App\Services\WhatsAppConnection;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -30,14 +31,22 @@ class SendDepartmentWhatsApp implements ShouldQueue
         public string $eventKey,
     ) {}
 
-    public function handle(WhatsAppConnection $connection): void
+    public function handle(WhatsAppConnection $connection, TicketWhatsAppAutomations $automations): void
     {
-        if (!in_array($this->event, ['created', 'entered', 'replied', 'cancelled'], true)) {
+        $automationEvent = match ($this->event) {
+            'created' => 'department_created',
+            'entered' => 'department_entered',
+            'replied' => 'department_replied',
+            'cancelled' => 'department_cancelled',
+            default => null,
+        };
+
+        if ($automationEvent === null || !$automations->enabled($automationEvent)) {
             return;
         }
 
         $lockKey = hash('sha256', $this->eventKey.':'.$this->userId);
-        Cache::lock('tickets.wa.department.'.$lockKey, 40)->block(5, function () use ($connection, $lockKey) {
+        Cache::lock('tickets.wa.department.'.$lockKey, 40)->block(5, function () use ($connection, $automations, $automationEvent, $lockKey) {
             $ticket = Ticket::with('department')->find($this->ticketId);
             $user = User::find($this->userId);
             if (!$ticket || !$user || !$user->active
@@ -62,13 +71,6 @@ class SendDepartmentWhatsApp implements ShouldQueue
                 return;
             }
 
-            $message = match ($this->event) {
-                'created' => 'Novo ticket na caixa',
-                'entered' => 'Ticket encaminhado para a caixa',
-                'replied' => 'Cliente respondeu em um ticket da caixa',
-                'cancelled' => 'Ticket cancelado na caixa',
-            };
-
             // Evita reenvio em caso de execução repetida da mesma tarefa.
             $delivery = 'department_'.$this->event;
             $key = substr($lockKey, 0, 64);
@@ -87,10 +89,9 @@ class SendDepartmentWhatsApp implements ShouldQueue
             ]);
 
             try {
-                $connection->sendText($phone,
-                    "> Sutoorii Tickets\n\n".$message.": ".($ticket->department?->name ?? 'Departamento')
-                    ."\nTicket #".$ticket->number."\nAssunto: ".$ticket->title
-                    ."\nAcesse tickets.sutoorii.com para acompanhar."
+                $connection->sendText(
+                    $phone,
+                    $automations->render($automationEvent, $ticket),
                 );
                 DB::table('whatsapp_notification_deliveries')
                     ->where('event', $delivery)->where('event_key', $key)
