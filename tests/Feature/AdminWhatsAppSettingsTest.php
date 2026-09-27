@@ -136,7 +136,7 @@ class AdminWhatsAppSettingsTest extends TestCase
         ])->assertRedirect();
 
         Http::fake([
-            'evolution.example.test/profile/updateProfilePicture/sutoorii-tickets' =>
+            'evolution.example.test/chat/updateProfilePicture/sutoorii-tickets' =>
                 Http::response(['updated' => true], 200),
         ]);
 
@@ -149,7 +149,7 @@ class AdminWhatsAppSettingsTest extends TestCase
             ->assertSessionHas('success', 'Logotipo oficial aplicado à foto de perfil do WhatsApp.');
 
         Http::assertSent(fn ($request) =>
-            $request->url() === 'https://evolution.example.test/profile/updateProfilePicture/sutoorii-tickets'
+            $request->url() === 'https://evolution.example.test/chat/updateProfilePicture/sutoorii-tickets'
             && $request->hasHeader('apikey', 'segredo-whatsapp-teste')
             && base64_decode((string) $request['picture'], true) ===
                 file_get_contents(public_path('icons/sutoorii-tickets-icon-512.png'))
@@ -168,7 +168,7 @@ class AdminWhatsAppSettingsTest extends TestCase
         ]);
 
         Http::fake([
-            'evolution.example.test/profile/updateProfilePicture/sutoorii-tickets' =>
+            'evolution.example.test/chat/updateProfilePicture/sutoorii-tickets' =>
                 Http::response(['updated' => true], 200),
         ]);
 
@@ -179,6 +179,31 @@ class AdminWhatsAppSettingsTest extends TestCase
         Http::assertSent(fn ($request) =>
             base64_decode((string) $request['picture'], true) ===
                 file_get_contents(public_path('icons/sutoorii-tickets-icon-512.png'))
+        );
+    }
+
+
+
+    public function test_profile_picture_falls_back_to_profile_route_when_chat_route_is_unavailable(): void
+    {
+        app(WhatsAppConnection::class)->save([
+            'base_url' => 'https://evolution.example.test',
+            'instance' => 'sutoorii-tickets',
+            'api_key' => 'segredo-whatsapp-teste',
+        ]);
+
+        Http::fake([
+            'evolution.example.test/chat/updateProfilePicture/sutoorii-tickets' =>
+                Http::response(['message' => 'Not Found'], 404),
+            'evolution.example.test/profile/updateProfilePicture/sutoorii-tickets' =>
+                Http::response(['updated' => true], 200),
+        ]);
+
+        app(WhatsAppConnection::class)->updateBrandProfilePicture();
+
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request) =>
+            $request->url() === 'https://evolution.example.test/profile/updateProfilePicture/sutoorii-tickets'
         );
     }
 

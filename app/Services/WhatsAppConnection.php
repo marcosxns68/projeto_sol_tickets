@@ -132,19 +132,39 @@ class WhatsAppConnection
 
         $key = Crypt::decryptString((string) Setting::getValue('whatsapp.evolution.api_key'));
 
-        try {
-            $response = Http::withHeaders(['apikey' => $key])
-                ->acceptJson()->timeout(25)->connectTimeout(5)->withoutRedirecting()
-                ->post($data['base_url'].'/profile/updateProfilePicture/'.rawurlencode($data['instance']), [
-                    'picture' => $picture,
-                ]);
-        } catch (ConnectionException) {
-            throw new RuntimeException('A Evolution API não respondeu à atualização da foto de perfil.');
+        $paths = [
+            '/chat/updateProfilePicture/',
+            '/profile/updateProfilePicture/',
+        ];
+
+        foreach ($paths as $index => $path) {
+            try {
+                $response = Http::withHeaders(['apikey' => $key])
+                    ->acceptJson()->timeout(25)->connectTimeout(5)->withoutRedirecting()
+                    ->post($data['base_url'].$path.rawurlencode($data['instance']), [
+                        'picture' => $picture,
+                    ]);
+            } catch (ConnectionException) {
+                throw new RuntimeException('A Evolution API não respondeu à atualização da foto de perfil.');
+            }
+
+            if ($response->successful()) {
+                return;
+            }
+
+            // A rota oficial das versões instaladas pode estar em /chat ou
+            // /profile. Tentar a alternativa somente quando a primeira rota
+            // realmente não existe naquele servidor.
+            if ($index === 0 && in_array($response->status(), [404, 405], true)) {
+                continue;
+            }
+
+            throw new RuntimeException(
+                'A Evolution API não aceitou a atualização da foto de perfil (HTTP '.$response->status().').'
+            );
         }
 
-        if (!$response->successful()) {
-            throw new RuntimeException('A Evolution API não aceitou a atualização da foto de perfil.');
-        }
+        throw new RuntimeException('A Evolution API não aceitou a atualização da foto de perfil.');
     }
 
     public function qrCode(): string
