@@ -31,8 +31,10 @@ class SendDepartmentWhatsApp implements ShouldQueue
         public string $eventKey,
     ) {}
 
-    public function handle(WhatsAppConnection $connection, TicketWhatsAppAutomations $automations): void
+    public function handle(WhatsAppConnection $connection): void
     {
+        $automations = app(TicketWhatsAppAutomations::class);
+
         $automationEvent = match ($this->event) {
             'created' => 'department_created',
             'entered' => 'department_entered',
