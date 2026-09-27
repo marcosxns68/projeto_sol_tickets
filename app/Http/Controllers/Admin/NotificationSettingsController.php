@@ -54,7 +54,7 @@ class NotificationSettingsController extends Controller
                 foreach ($matches[1] as $name) {
                     if (!in_array($name, TicketWhatsAppAutomations::VARIABLES, true)) {
                         throw ValidationException::withMessages([
-                            'automations.'.$event.'.message' => 'Na mensagem de '.TicketWhatsAppAutomations::LABELS[$event].', use apenas {numero}, {assunto} e {status}.',
+                            'automations.'.$event.'.message' => 'Na mensagem de '.TicketWhatsAppAutomations::LABELS[$event].', use apenas {numero}, {assunto}, {status} e {departamento}.',
                         ]);
                     }
                 }
@@ -95,13 +95,13 @@ class NotificationSettingsController extends Controller
             throw ValidationException::withMessages(['message' => 'Escreva o texto da mensagem automática.']);
         }
 
-        // Neste momento só há um campo dinâmico autorizado, evitando
-        // que erros de digitação enviem variáveis não substituídas ao cliente.
+        // Restringir as variáveis às disponíveis evita que erros de digitação
+        // sejam enviados literalmente nas mensagens de WhatsApp.
         if (preg_match_all('/\{([^{}]+)\}/u', $message, $matches)) {
             foreach ($matches[1] as $name) {
                 if (!in_array($name, TicketWhatsAppAutomations::VARIABLES, true)) {
                     throw ValidationException::withMessages([
-                        'message' => 'Use apenas as variáveis {numero}, {assunto} e {status} disponíveis nesta página.',
+                        'message' => 'Use apenas as variáveis {numero}, {assunto}, {status} e {departamento} disponíveis nesta página.',
                     ]);
                 }
             }
