@@ -54,7 +54,8 @@ class TicketWhatsAppAutomations
     public function enabled(string $event): bool
     {
         $this->ensureEvent($event);
-        // Preserva abertura já existente; demais avisos começam desligados.
+        // Preserva os comportamentos já ativos: abertura, resposta ao responsável
+        // e avisos de departamentos acompanhados por WhatsApp.
         return (bool) Setting::getValue('whatsapp.automation.'.$event.'.enabled', in_array($event, self::DEFAULT_ENABLED, true));
     }
 
@@ -96,8 +97,8 @@ class TicketWhatsAppAutomations
             '',
             $message
         ) ?? $message;
-        $message = preg_replace("/[ \\t]+\\n/u", "\\n", $message) ?? $message;
-        $message = preg_replace("/\\n{3,}/u", "\\n\\n", $message) ?? $message;
+        $message = preg_replace("/[ \\t]+\\n/u", "\n", $message) ?? $message;
+        $message = preg_replace("/\\n{3,}/u", "\n\n", $message) ?? $message;
 
         return trim($message);
     }
