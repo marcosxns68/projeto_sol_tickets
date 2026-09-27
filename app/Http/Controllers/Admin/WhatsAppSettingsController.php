@@ -96,9 +96,7 @@ class WhatsAppSettingsController extends Controller
         $this->authorizeAdmin($request);
 
         try {
-            $connection->updateProfilePicture(
-                'https://tickets.sutoorii.com/icons/sutoorii-tickets-icon-512.png'
-            );
+            $connection->updateBrandProfilePicture();
         } catch (Throwable $exception) {
             return redirect()->route('admin.settings.whatsapp.edit')
                 ->withErrors(['whatsapp' => $exception->getMessage()]);
