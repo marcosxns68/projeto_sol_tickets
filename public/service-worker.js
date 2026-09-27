@@ -1,5 +1,5 @@
-const CACHE='sutoorii-tickets-v3';
-const ASSETS=['/manifest.webmanifest','/icons/icon.svg'];
+const CACHE='sutoorii-tickets-v4';
+const ASSETS=['/manifest.webmanifest','/icons/sutoorii-tickets-icon-512.png','/brand/sutoorii-tickets-logo.webp'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -35,8 +35,8 @@ self.addEventListener('push',event=>{
       typeof payload.title==='string' ? payload.title.slice(0,140) : 'Novidade no Sutoorii Tickets',
       {
         body: typeof payload.body==='string' ? payload.body.slice(0,220) : 'Você tem uma nova notificação.',
-        icon: '/icons/icon.svg',
-        badge: '/icons/icon.svg',
+        icon: '/icons/sutoorii-tickets-icon-512.png',
+        badge: '/icons/sutoorii-tickets-icon-512.png',
         tag: typeof payload.tag==='string' ? payload.tag.slice(0,120) : 'sutoorii-ticket',
         data: {url},
         renotify: true,
