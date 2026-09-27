@@ -60,6 +60,11 @@ jobs:
           mkdir -p bootstrap/cache storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
           chmod -R 775 storage bootstrap/cache
 
+      - name: Gerar ativos da identidade visual
+        run: |
+          php scripts/generate-brand-assets.php
+          test -s public/icons/sutoorii-tickets-icon-512.png
+
       - name: Instalar dependências de produção
         run: composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
 
@@ -118,6 +123,16 @@ jobs:
           } catch (Throwable $exception) {
               echo "migration-ok\nwhatsapp-backfill-failed";
           }
+
+          // Aplica a identidade aprovada também à foto de perfil da instância.
+          // A atualização externa não deve impedir o deploy se a Evolution estiver indisponível.
+          try {
+              $brandExit = $kernel->call('tickets:sync-whatsapp-brand');
+              $brandResult = trim($kernel->output());
+              echo "\nwhatsapp-brand-exit=".$brandExit.' '.str_replace(["\r", "\n"], ' ', $brandResult);
+          } catch (Throwable $exception) {
+              echo "\nwhatsapp-brand-failed";
+          }
           PHP
 
           sed -i "s/__DEPLOY_TOKEN_HASH__/${DEPLOY_TOKEN_HASH}/" .deploy/direct/public/deploy-migrate.php
@@ -165,8 +180,15 @@ jobs:
           echo '=== health ==='
           curl -fkLsS --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/up
           echo
+          echo '=== identidade visual ==='
+          curl -fkLsS --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/icons/sutoorii-tickets-icon-512.png -o /tmp/brand-icon.png
+          test "$(wc -c < /tmp/brand-icon.png)" -gt 1000
+          curl -fkLsS --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/brand/sutoorii-tickets-logo.svg -o /tmp/brand-logo.svg
+          grep -q 'Sutoorii Tickets' /tmp/brand-logo.svg
+          echo 'ativos da marca: ok'
           echo '=== página inicial ==='
           curl -fkLsS --connect-timeout 10 --max-time 30 https://tickets.sutoorii.com/ -o /tmp/root.html
           test -s /tmp/root.html
+          grep -q 'sutoorii-tickets-logo.svg' /tmp/root.html
           head -c 500 /tmp/root.html
           echo

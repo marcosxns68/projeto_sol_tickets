@@ -91,6 +91,37 @@ class WhatsAppConnection
         }
     }
 
+    public function updateProfilePicture(string $pictureUrl): void
+    {
+        $host = parse_url($pictureUrl, PHP_URL_HOST);
+        if (parse_url($pictureUrl, PHP_URL_SCHEME) !== 'https'
+            || !is_string($host)
+            || strtolower($host) !== 'tickets.sutoorii.com') {
+            throw new \InvalidArgumentException('A imagem do perfil deve usar o endereço oficial do Sutoorii Tickets.');
+        }
+
+        $data = $this->values();
+        if (!$data['api_key_saved'] || $data['base_url'] === '' || $data['instance'] === '') {
+            throw new RuntimeException('A conexão WhatsApp não foi configurada.');
+        }
+
+        $key = Crypt::decryptString((string) Setting::getValue('whatsapp.evolution.api_key'));
+
+        try {
+            $response = Http::withHeaders(['apikey' => $key])
+                ->acceptJson()->timeout(20)->connectTimeout(5)->withoutRedirecting()
+                ->post($data['base_url'].'/profile/updateProfilePicture/'.rawurlencode($data['instance']), [
+                    'picture' => $pictureUrl,
+                ]);
+        } catch (ConnectionException) {
+            throw new RuntimeException('A Evolution API não respondeu à atualização da foto de perfil.');
+        }
+
+        if (!$response->successful()) {
+            throw new RuntimeException('A Evolution API não aceitou a atualização da foto de perfil.');
+        }
+    }
+
     public function qrCode(): string
     {
         $response = $this->request('connect');

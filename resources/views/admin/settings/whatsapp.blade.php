@@ -37,7 +37,9 @@
     <div class="actions">
         <form action="{{ route('admin.settings.whatsapp.qrcode') }}" method="post">@csrf<button class="button" type="submit">Gerar / atualizar QR Code</button></form>
         <form action="{{ route('admin.settings.whatsapp.status') }}" method="post">@csrf<button class="secondary-button" type="submit">Consultar conexão</button></form>
+        <form action="{{ route('admin.settings.whatsapp.brand-profile') }}" method="post">@csrf<button class="secondary-button" type="submit">Aplicar logotipo oficial no WhatsApp</button></form>
     </div>
+    <p class="muted" style="margin-top:12px">A foto de perfil usa o símbolo oficial do Sutoorii Tickets. Você pode reaplicá-la a qualquer momento por este botão.</p>
     @if($connectionState !== null)
         <p class="notice">Estado da conexão: <strong>{{ $connectionState === 'open' ? 'Conectado' : $connectionState }}</strong></p>
     @endif

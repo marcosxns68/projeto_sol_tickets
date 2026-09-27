@@ -91,6 +91,23 @@ class WhatsAppSettingsController extends Controller
         ]);
     }
 
+    public function brandProfile(Request $request, WhatsAppConnection $connection)
+    {
+        $this->authorizeAdmin($request);
+
+        try {
+            $connection->updateProfilePicture(
+                'https://tickets.sutoorii.com/icons/sutoorii-tickets-icon-512.png'
+            );
+        } catch (Throwable $exception) {
+            return redirect()->route('admin.settings.whatsapp.edit')
+                ->withErrors(['whatsapp' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('admin.settings.whatsapp.edit')
+            ->with('success', 'Logotipo oficial aplicado à foto de perfil do WhatsApp.');
+    }
+
     private function authorizeAdmin(Request $request): void
     {
         abort_unless($request->user()?->role?->name === 'Super Admin', 403);
