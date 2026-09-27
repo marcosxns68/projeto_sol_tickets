@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <meta name="theme-color" content="#241438">
+<meta name="application-name" content="Sutoorii Tickets">
 <title>@yield('title','Sutoorii Tickets')</title>
+<link rel="icon" type="image/png" href="{{ asset('icons/sutoorii-tickets-icon-512.png') }}">
+<link rel="apple-touch-icon" href="{{ asset('icons/sutoorii-tickets-icon-512.png') }}">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/boxes-ordering.css') }}?v={{ filemtime(public_path('css/boxes-ordering.css')) }}">
@@ -25,7 +28,7 @@
     <aside class="app-sidebar" id="appSidebar" aria-label="Menu principal">
         <div class="sidebar-brand-row">
             <a class="sidebar-brand" href="{{ route('dashboard') }}">
-                <span class="brand-mark">S</span>
+                <img class="brand-mark brand-image" src="{{ asset('icons/sutoorii-tickets-icon-512.png') }}" alt="" width="36" height="36">
                 <span class="sidebar-brand-copy"><strong>Sutoorii</strong><small>Tickets</small></span>
             </a>
             <button type="button" class="sidebar-collapse-button" data-sidebar-toggle aria-controls="appSidebar" aria-expanded="true" aria-label="Recolher ou abrir menu">‹</button>
@@ -67,7 +70,7 @@
             <div class="sidebar-user-copy"><strong>{{ $me->name }}</strong><small>{{ $me->role?->name ?? 'Usuário' }}</small></div>
             <form action="{{ route('logout') }}" method="post">@csrf<button class="sidebar-logout" title="Sair">Sair</button></form>
         </div>
-        <div class="sidebar-version">Versão 1.0.14</div>
+        <div class="sidebar-version">Versão 1.0.15</div>
     </aside>
 
     <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Fechar menu"></button>
@@ -97,6 +100,9 @@
 @else
 <div class="guest-shell">
     <main class="guest-container">
+        <a class="guest-brand" href="{{ route('login') }}" aria-label="Sutoorii Tickets">
+            <img src="{{ asset('brand/sutoorii-tickets-logo.webp') }}" alt="Sutoorii Tickets" class="guest-brand-logo">
+        </a>
         @if(session('success'))<div class="notice">{{ session('success') }}</div>@endif
         @if(session('error'))<div class="notice">{{ session('error') }}</div>@endif
         @yield('content')
