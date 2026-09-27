@@ -54,7 +54,7 @@ class AdminVisualConsistencyTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/usuarios')
             ->assertOk()
-            ->assertSee('Versão 1.0.14');
+            ->assertSee('Versão 1.0.15');
     }
 
     public function test_service_worker_does_not_precache_css_that_can_become_stale(): void
@@ -62,6 +62,6 @@ class AdminVisualConsistencyTest extends TestCase
         $serviceWorker = file_get_contents(public_path('service-worker.js'));
 
         $this->assertStringNotContainsString("'/css/app.css'", $serviceWorker);
-        $this->assertStringContainsString("sutoorii-tickets-v3", $serviceWorker);
+        $this->assertStringContainsString("sutoorii-tickets-v4", $serviceWorker);
     }
 }
