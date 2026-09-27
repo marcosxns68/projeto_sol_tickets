@@ -151,7 +151,8 @@ class AdminWhatsAppSettingsTest extends TestCase
         Http::assertSent(fn ($request) =>
             $request->url() === 'https://evolution.example.test/profile/updateProfilePicture/sutoorii-tickets'
             && $request->hasHeader('apikey', 'segredo-whatsapp-teste')
-            && $request['picture'] === 'https://tickets.sutoorii.com/icons/sutoorii-tickets-icon-512.png'
+            && base64_decode((string) $request['picture'], true) ===
+                file_get_contents(public_path('icons/sutoorii-tickets-icon-512.png'))
         );
 
         $this->actingAs($this->user('Gestor'))
@@ -176,7 +177,8 @@ class AdminWhatsAppSettingsTest extends TestCase
             ->assertExitCode(0);
 
         Http::assertSent(fn ($request) =>
-            $request['picture'] === 'https://tickets.sutoorii.com/icons/sutoorii-tickets-icon-512.png'
+            base64_decode((string) $request['picture'], true) ===
+                file_get_contents(public_path('icons/sutoorii-tickets-icon-512.png'))
         );
     }
 
