@@ -91,6 +91,26 @@ class WhatsAppConnection
         }
     }
 
+    public function updateBrandProfilePicture(): void
+    {
+        $path = public_path('icons/sutoorii-tickets-icon-512.png');
+        if (!is_file($path) || !is_readable($path)) {
+            throw new RuntimeException('O ícone oficial do Sutoorii Tickets não está disponível no servidor.');
+        }
+
+        $size = filesize($path);
+        if (!is_int($size) || $size < 1000 || $size > 2 * 1024 * 1024) {
+            throw new RuntimeException('O arquivo do logotipo oficial possui um tamanho inválido.');
+        }
+
+        $bytes = file_get_contents($path);
+        if (!is_string($bytes) || $bytes === '') {
+            throw new RuntimeException('Não foi possível ler o logotipo oficial do Sutoorii Tickets.');
+        }
+
+        $this->sendProfilePicturePayload(base64_encode($bytes));
+    }
+
     public function updateProfilePicture(string $pictureUrl): void
     {
         $host = parse_url($pictureUrl, PHP_URL_HOST);
@@ -100,6 +120,11 @@ class WhatsAppConnection
             throw new \InvalidArgumentException('A imagem do perfil deve usar o endereço oficial do Sutoorii Tickets.');
         }
 
+        $this->sendProfilePicturePayload($pictureUrl);
+    }
+
+    private function sendProfilePicturePayload(string $picture): void
+    {
         $data = $this->values();
         if (!$data['api_key_saved'] || $data['base_url'] === '' || $data['instance'] === '') {
             throw new RuntimeException('A conexão WhatsApp não foi configurada.');
@@ -109,9 +134,9 @@ class WhatsAppConnection
 
         try {
             $response = Http::withHeaders(['apikey' => $key])
-                ->acceptJson()->timeout(20)->connectTimeout(5)->withoutRedirecting()
+                ->acceptJson()->timeout(25)->connectTimeout(5)->withoutRedirecting()
                 ->post($data['base_url'].'/profile/updateProfilePicture/'.rawurlencode($data['instance']), [
-                    'picture' => $pictureUrl,
+                    'picture' => $picture,
                 ]);
         } catch (ConnectionException) {
             throw new RuntimeException('A Evolution API não respondeu à atualização da foto de perfil.');
