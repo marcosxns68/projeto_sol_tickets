@@ -21,9 +21,7 @@ class SyncWhatsAppBrand extends Command
         }
 
         try {
-            $connection->updateProfilePicture(
-                'https://tickets.sutoorii.com/icons/sutoorii-tickets-icon-512.png'
-            );
+            $connection->updateBrandProfilePicture();
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());
             return self::FAILURE;
