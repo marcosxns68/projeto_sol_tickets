@@ -7,6 +7,8 @@ use App\Models\Department;
 use App\Models\User;
 use App\Notifications\DepartmentMembershipNotification;
 use App\Services\DepartmentAccess;
+use App\Services\DepartmentSubscriptions;
+use App\Services\TicketFolderTree;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -15,8 +17,12 @@ use Throwable;
 
 class DepartmentController extends Controller
 {
-    public function index(Request $request, DepartmentAccess $access)
-    {
+    public function index(
+        Request $request,
+        DepartmentAccess $access,
+        DepartmentSubscriptions $subscriptions,
+        TicketFolderTree $folderTree,
+    ) {
         $user = $request->user();
         $canManage = $user->hasPermission('departments.manage');
 
@@ -40,12 +46,33 @@ class DepartmentController extends Controller
 
         $departments = $query->get();
         $viewable = $access->viewableIds($user);
+        $departmentTrees = $folderTree->forDepartments(
+            $departments->filter(fn (Department $department) => in_array((int) $department->id, $viewable, true))->values()
+        );
         $unseenCounts = [];
+        $subscriptionStates = [];
+        $departmentAccessStates = [];
         foreach ($departments as $department) {
             $membership = $department->users->firstWhere('id', $user->id);
-            $seen = $membership?->pivot?->last_seen_at;
-            if (!$membership || !$membership->pivot->follow_department || !$seen
-                || !in_array($department->id, $viewable, true)) {
+            $subscription = $subscriptions->get($user, $department);
+            $following = $subscriptions->isFollowing($user, $department);
+            $seen = $subscriptions->lastSeenAt($user, $department);
+            $canView = in_array((int) $department->id, $viewable, true);
+
+            $departmentAccessStates[$department->id] = [
+                'level' => $access->level($user, $department),
+                'can_view' => $canView,
+                'can_edit' => $canManage || $access->canEdit($user, $department),
+            ];
+            $subscriptionStates[$department->id] = [
+                'following' => $following,
+                'notify_email' => (bool) ($subscription?->notify_email ?? $membership?->pivot?->notify_email ?? false),
+                'notify_whatsapp' => (bool) ($subscription?->notify_whatsapp ?? $membership?->pivot?->notify_whatsapp ?? false),
+                'notify_push' => (bool) ($subscription?->notify_push ?? $membership?->pivot?->notify_push ?? false),
+                'last_seen_at' => $seen,
+            ];
+
+            if (!$following || !$seen || !$canView) {
                 continue;
             }
             $unseenCounts[$department->id] = $department->tickets()
@@ -57,6 +84,9 @@ class DepartmentController extends Controller
 
         return view('admin.departments.index', [
             'unseenCounts' => $unseenCounts,
+            'subscriptionStates' => $subscriptionStates,
+            'departmentAccessStates' => $departmentAccessStates,
+            'departmentTrees' => $departmentTrees,
             'departments' => $departments,
             'canManage' => $canManage,
             'viewableDepartmentIds' => $viewable,
@@ -69,15 +99,17 @@ class DepartmentController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120', 'unique:departments,name'],
+            'description' => ['nullable', 'string', 'max:2000'],
             'active' => ['nullable', 'boolean'],
         ]);
 
         $department = Department::create([
             'name' => trim($data['name']),
+            'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
             'active' => $request->boolean('active'),
         ]);
 
-        $this->audit($request, $department, 'department.created', null, $department->only(['name', 'active']));
+        $this->audit($request, $department, 'department.created', null, $department->only(['name', 'description', 'active']));
 
         return redirect()->route('admin.departments.index')->with('success', 'Departamento criado.');
     }
@@ -97,16 +129,18 @@ class DepartmentController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120', Rule::unique('departments', 'name')->ignore($department->id)],
+            'description' => ['nullable', 'string', 'max:2000'],
             'active' => ['nullable', 'boolean'],
         ]);
 
-        $old = $department->only(['name', 'active']);
+        $old = $department->only(['name', 'description', 'active']);
         $department->update([
             'name' => trim($data['name']),
+            'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
             'active' => $request->boolean('active'),
         ]);
 
-        $this->audit($request, $department, 'department.updated', $old, $department->fresh()->only(['name', 'active']));
+        $this->audit($request, $department, 'department.updated', $old, $department->fresh()->only(['name', 'description', 'active']));
 
         return redirect()->route('admin.departments.index')->with('success', 'Departamento atualizado.');
     }
@@ -125,7 +159,6 @@ class DepartmentController extends Controller
             ->where('department_id', $department->id)
             ->exists();
 
-        // Reassociar uma pessoa não deve apagar suas preferências já existentes.
         $changes = ['access_level' => $data['access_level'], 'updated_at' => now()];
         if (!$alreadyAssociated) {
             $changes += ['follow_department' => false, 'notify_email' => false,
@@ -161,8 +194,13 @@ class DepartmentController extends Controller
         return back()->with('success', 'Pessoa associada ao departamento.');
     }
 
-    public function updateUser(Request $request, Department $department, User $user)
-    {
+    public function updateUser(
+        Request $request,
+        Department $department,
+        User $user,
+        DepartmentAccess $access,
+        DepartmentSubscriptions $subscriptions,
+    ) {
         $this->authorizeAccess($request);
         $data = $request->validate([
             'access_level' => ['required', Rule::in(['send', 'view', 'edit'])],
@@ -190,6 +228,10 @@ class DepartmentController extends Controller
                 'updated_at' => now(),
             ]);
 
+        if (!$access->canView($user->fresh(), $department)) {
+            $subscriptions->remove($user, $department);
+        }
+
         $this->audit($request, $department, 'department.user_access_updated', [
             'user_id' => $user->id,
             'access_level' => $current->access_level,
@@ -203,24 +245,36 @@ class DepartmentController extends Controller
         return back()->with('success', 'Acesso atualizado.');
     }
 
-    public function removeUser(Request $request, Department $department, User $user)
-    {
+    public function removeUser(
+        Request $request,
+        Department $department,
+        User $user,
+        DepartmentAccess $access,
+        DepartmentSubscriptions $subscriptions,
+    ) {
         $this->authorizeAccess($request);
         DB::table('department_user_access')
             ->where('user_id', $user->id)
             ->where('department_id', $department->id)
             ->delete();
 
+        if (!$access->canView($user->fresh(), $department)) {
+            $subscriptions->remove($user, $department);
+        }
+
         $this->audit($request, $department, 'department.user_removed', ['user_id' => $user->id], []);
         return back()->with('success', 'Pessoa removida do departamento.');
     }
 
-    public function follow(Request $request, Department $department, DepartmentAccess $access)
-    {
+    public function follow(
+        Request $request,
+        Department $department,
+        DepartmentAccess $access,
+        DepartmentSubscriptions $subscriptions,
+    ) {
         $user = $request->user();
         abort_unless($access->canView($user, $department), 403);
 
-        // Compatibilidade com o botão antigo de acompanhar: e-mail + sininho.
         $channelsSubmitted = $request->hasAny(['notify_email', 'notify_whatsapp', 'notify_push']);
         $request->validate([
             'follow_department' => ['nullable', 'boolean'],
@@ -248,40 +302,21 @@ class DepartmentController extends Controller
         }
 
         $following = $email || $whatsapp || $push;
-        $row = DB::table('department_user_access')
-            ->where('user_id', $user->id)
-            ->where('department_id', $department->id)
-            ->whereIn('access_level', ['view', 'edit'])
-            ->first();
-        abort_unless($row, 403);
-
-        $changedToFollow = !$row->follow_department && $following;
-        DB::table('department_user_access')
-            ->where('id', $row->id)
-            ->update([
-                'follow_department' => $following,
-                'notify_email' => $email,
-                'notify_whatsapp' => $whatsapp,
-                'notify_push' => $push,
-                'last_seen_at' => $changedToFollow ? now() : $row->last_seen_at,
-                'updated_at' => now(),
-            ]);
+        $subscriptions->save($user, $department, $email, $whatsapp, $push);
 
         return back()->with('success', $following
             ? 'Preferências de acompanhamento da caixa salvas.'
             : 'Acompanhamento desativado para esta caixa.');
     }
 
-    public function markSeen(Request $request, Department $department, DepartmentAccess $access)
-    {
+    public function markSeen(
+        Request $request,
+        Department $department,
+        DepartmentAccess $access,
+        DepartmentSubscriptions $subscriptions,
+    ) {
         abort_unless($access->canView($request->user(), $department), 403);
-        $updated = DB::table('department_user_access')
-            ->where('user_id', $request->user()->id)
-            ->where('department_id', $department->id)
-            ->where('follow_department', true)
-            ->whereIn('access_level', ['view', 'edit'])
-            ->update(['last_seen_at' => now(), 'updated_at' => now()]);
-        abort_unless($updated > 0, 403);
+        abort_unless($subscriptions->markSeen($request->user(), $department), 403);
 
         return back()->with('success', 'Novidades desta caixa marcadas como vistas.');
     }

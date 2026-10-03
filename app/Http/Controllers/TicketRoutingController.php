@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\Status;
 use App\Models\Ticket;
+use App\Models\TicketFolder;
 use App\Models\User;
 use App\Services\DepartmentAccess;
 use App\Services\TicketEventRecorder;
@@ -17,7 +18,7 @@ class TicketRoutingController extends Controller
 {
     /**
      * Compatibilidade com a rota antiga de encaminhamento.
-     * O fluxo novo usa a mesma regra para departamento + responsável.
+     * O fluxo novo usa a mesma regra para departamento + responsável + pasta.
      */
     public function forward(
         Request $request,
@@ -51,6 +52,7 @@ class TicketRoutingController extends Controller
 
         $data = $request->validate([
             'department_id' => ['required', 'integer', 'exists:departments,id'],
+            'folder_id' => ['nullable', 'integer', 'exists:ticket_folders,id'],
             'assignee_id' => ['nullable', 'integer', 'exists:users,id'],
             'reason' => ['nullable', 'string', 'max:1000'],
             'notify_requester' => ['nullable', 'boolean'],
@@ -81,13 +83,71 @@ class TicketRoutingController extends Controller
             }
         }
 
+        $folderSubmitted = $request->has('folder_id');
+        $oldFolder = $ticket->folder;
+        $oldFolderId = $ticket->folder_id ? (int) $ticket->folder_id : null;
+        $newFolder = null;
+        $newFolderId = $oldFolderId;
+
+        if ($targetIsTriage) {
+            if ($folderSubmitted && !empty($data['folder_id'])) {
+                throw ValidationException::withMessages([
+                    'folder_id' => 'A Triagem não possui pastas.',
+                ]);
+            }
+            $newFolderId = null;
+        } elseif ($folderSubmitted) {
+            if (!empty($data['folder_id'])) {
+                $newFolder = TicketFolder::query()->find((int) $data['folder_id']);
+                if (!$newFolder || !$newFolder->belongsToDepartment($target)) {
+                    throw ValidationException::withMessages([
+                        'folder_id' => 'A pasta selecionada não pertence ao departamento de destino.',
+                    ]);
+                }
+
+                // A estrutura interna só pode ser alterada por quem possui o
+                // Nível 3 — Editar naquele departamento. Enviar/View não
+                // permitem forçar uma pasta por request.
+                abort_unless($departmentAccess->canEdit($actor, $target), 403);
+                $newFolderId = (int) $newFolder->id;
+            } else {
+                $newFolderId = null;
+            }
+        } elseif ($departmentChanged) {
+            // Compatibilidade com fluxos antigos: ao trocar de departamento
+            // sem informar pasta, sempre cai na raiz do novo departamento.
+            $newFolderId = null;
+        }
+
+        $folderChanged = $oldFolderId !== $newFolderId;
+        if ($folderChanged && !$departmentChanged && $sourceId) {
+            abort_unless($departmentAccess->canEdit($actor, $sourceId), 403);
+        }
+
         if ($targetIsTriage && $departmentChanged && !$request->boolean('confirm_triage')) {
             throw ValidationException::withMessages([
                 'department_id' => 'Confirme a devolução para a Triagem. O responsável atual será removido.',
             ]);
         }
 
-        $requestedAssigneeId = $targetIsTriage ? null : ($data['assignee_id'] ?? null);
+        $oldAssignee = $ticket->assignee;
+        $oldAssigneeId = $ticket->assignee_id ? (int) $ticket->assignee_id : null;
+        $assigneeSubmitted = $request->has('assignee_id');
+
+        if ($targetIsTriage) {
+            $requestedAssigneeId = null;
+        } elseif ($departmentChanged) {
+            // Encaminhar continua removendo o responsável se outro não for
+            // escolhido explicitamente.
+            $requestedAssigneeId = $data['assignee_id'] ?? null;
+        } elseif ($assigneeSubmitted) {
+            $requestedAssigneeId = $data['assignee_id'] ?? null;
+        } else {
+            // Alterar apenas a pasta não pode apagar silenciosamente o
+            // responsável atual.
+            $requestedAssigneeId = $oldAssigneeId;
+        }
+
         $newAssignee = null;
         if ($requestedAssigneeId !== null) {
             $newAssignee = User::query()
@@ -96,8 +156,6 @@ class TicketRoutingController extends Controller
                 ->firstOrFail();
         }
 
-        $oldAssignee = $ticket->assignee;
-        $oldAssigneeId = $ticket->assignee_id ? (int) $ticket->assignee_id : null;
         $newAssigneeId = $newAssignee?->id;
         $assigneeChanged = $oldAssigneeId !== $newAssigneeId;
 
@@ -115,9 +173,9 @@ class TicketRoutingController extends Controller
             }
         }
 
-        if (!$departmentChanged && !$assigneeChanged) {
+        if (!$departmentChanged && !$assigneeChanged && !$folderChanged) {
             return redirect()->route('tickets.show', $ticket)
-                ->with('success', 'Departamento e responsável já estavam com esses valores.');
+                ->with('success', 'Departamento, pasta e responsável já estavam com esses valores.');
         }
 
         $status = null;
@@ -130,12 +188,16 @@ class TicketRoutingController extends Controller
 
         DB::transaction(function () use (
             $ticket, $actor, $source, $target, $oldAssignee, $newAssignee,
-            $departmentChanged, $assigneeChanged, $status, $data, $events
+            $departmentChanged, $assigneeChanged, $folderChanged, $newFolderId,
+            $status, $data, $events
         ) {
             $update = [];
             if ($departmentChanged) {
                 $update['department_id'] = $target->id;
                 $update['status_id'] = $status->id;
+                $update['folder_id'] = $newFolderId;
+            } elseif ($folderChanged) {
+                $update['folder_id'] = $newFolderId;
             }
             if ($assigneeChanged || $target->isTriage()) {
                 $update['assignee_id'] = $target->isTriage() ? null : $newAssignee?->id;
@@ -162,7 +224,7 @@ class TicketRoutingController extends Controller
             }
         });
 
-        $ticket->refresh()->loadMissing(['department', 'requesterUser', 'assignee']);
+        $ticket->refresh()->loadMissing(['department', 'folder', 'requesterUser', 'assignee']);
 
         if ($assigneeChanged) {
             $notifier->reassigned($ticket, $oldAssignee, $ticket->assignee, $actor);
@@ -176,6 +238,12 @@ class TicketRoutingController extends Controller
                 $actor,
                 $targetIsTriage ? 'Ticket devolvido para triagem' : 'Ticket encaminhado'
             );
+        }
+
+        if (!$departmentChanged && $folderChanged && !$assigneeChanged) {
+            $location = $ticket->folder?->name ?? 'Raiz do departamento';
+            return redirect()->route('tickets.show', $ticket)
+                ->with('success', 'Localização do ticket atualizada: '.$location.'.');
         }
 
         $message = $targetIsTriage

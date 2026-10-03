@@ -48,6 +48,7 @@ jobs:
         run: |
           node --check public/service-worker.js
           node --check public/js/pwa-push.js
+          node --check public/js/ticket-folder-routing.js
 
       - name: Validar rotas e estratégia de deploy
         run: |

@@ -1,0 +1,6 @@
+Revisão interna concluída em 02/10/2026.
+
+- Sem placeholders TODO/TBD.
+- Escopo limitado ao pacote de departamentos, pastas, permissões, acompanhamento e preservação da tela completa do ticket.
+- Sem inclusão de Gantt, Kanban, drag-and-drop, permissões por pasta ou outras pendências gerais.
+- Regras de compatibilidade e migração/backfill explicitadas.

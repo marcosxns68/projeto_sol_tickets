@@ -6,13 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Department extends Model
 {
-    protected $fillable = ['name', 'system_key', 'active'];
+    protected $fillable = ['name', 'description', 'system_key', 'active'];
 
     protected function casts(): array
     {
         return ['active' => 'boolean'];
     }
-
 
     public static function triage(): self
     {
@@ -34,5 +33,10 @@ class Department extends Model
     public function tickets()
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    public function folders()
+    {
+        return $this->hasMany(TicketFolder::class)->orderBy('position')->orderBy('name');
     }
 }

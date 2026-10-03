@@ -6,13 +6,14 @@ use App\Models\Department;
 use App\Models\PwaPushSubscription;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\DepartmentAccess;
+use App\Services\DepartmentSubscriptions;
 use App\Services\PwaWebPush;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -41,13 +42,8 @@ class SendDepartmentWebPush implements ShouldQueue
             return;
         }
 
-        $followed = DB::table('department_user_access')
-            ->where('user_id', $this->userId)
-            ->where('department_id', $this->departmentId)
-            ->whereIn('access_level', ['view', 'edit'])
-            ->where('follow_department', true)
-            ->where('notify_push', true)->exists();
-        if (!$followed) {
+        if (!app(DepartmentAccess::class)->canView($user, $department)
+            || !app(DepartmentSubscriptions::class)->channelEnabled($user, $department, 'push')) {
             return;
         }
 
@@ -58,8 +54,6 @@ class SendDepartmentWebPush implements ShouldQueue
             'cancelled' => 'Ticket cancelado em '.$department->name,
         };
 
-        // Do not put requester data, comment text, or internal notes into a
-        // lock-screen notification. Opening the ticket requires login.
         $payload = [
             'title' => $headline,
             'body' => 'Ticket #'.$ticket->number.' · Toque para abrir no Sutoorii Tickets.',
@@ -73,7 +67,6 @@ class SendDepartmentWebPush implements ShouldQueue
                 if ($report->isSuccess()) {
                     $device->update(['last_success_at' => now()]);
                 } elseif ($report->isSubscriptionExpired()) {
-                    // Browser or push provider revoked the device token.
                     $device->delete();
                 } else {
                     Log::warning('Falha na entrega Web Push do departamento.', [

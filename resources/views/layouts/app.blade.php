@@ -113,6 +113,7 @@
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/service-worker.js',{updateViaCache:'none'}).then(function(reg){reg.update();});}</script>
 @auth
 <script src="{{ asset('js/responsive-shell.js') }}?v={{ filemtime(public_path('js/responsive-shell.js')) }}" defer></script>
+<script src="{{ asset('js/ticket-folder-routing.js') }}?v={{ filemtime(public_path('js/ticket-folder-routing.js')) }}" defer></script>
 <script src="{{ asset('js/pwa-push.js') }}?v={{ filemtime(public_path('js/pwa-push.js')) }}" defer></script>
 @endauth
 @auth

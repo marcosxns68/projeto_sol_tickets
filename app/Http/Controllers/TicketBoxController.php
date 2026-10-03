@@ -7,9 +7,9 @@ use App\Models\Label;
 use App\Models\Status;
 use App\Models\Ticket;
 use App\Services\DepartmentAccess;
+use App\Services\DepartmentSubscriptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class TicketBoxController extends Controller
 {
@@ -63,20 +63,21 @@ class TicketBoxController extends Controller
         ]);
     }
 
-    public function department(Request $request, Department $department, DepartmentAccess $departmentAccess)
-    {
+    public function department(
+        Request $request,
+        Department $department,
+        DepartmentAccess $departmentAccess,
+        DepartmentSubscriptions $subscriptions,
+    ) {
         $user = $request->user();
         abort_unless(
             $user->hasPermission('tickets.view_all') || $departmentAccess->canView($user, $department),
             403
         );
 
-        $seenAt = DB::table('department_user_access')
-            ->where('user_id', $user->id)
-            ->where('department_id', $department->id)
-            ->where('follow_department', true)
-            ->whereIn('access_level', ['view', 'edit'])
-            ->value('last_seen_at');
+        $seenAt = $subscriptions->isFollowing($user, $department)
+            ? $subscriptions->lastSeenAt($user, $department)
+            : null;
 
         $query = Ticket::query()->where('department_id', $department->id);
         $this->applyFilters($query, $request, false);

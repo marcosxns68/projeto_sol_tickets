@@ -24,6 +24,7 @@ use App\Http\Controllers\TicketBoxController;
 use App\Http\Controllers\TicketChecklistController;
 use App\Http\Controllers\TicketCommentController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TicketFolderController;
 use App\Http\Controllers\TicketLabelController;
 use App\Http\Controllers\TicketLifecycleController;
 use App\Http\Controllers\TicketParticipantController;
@@ -74,6 +75,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/departamentos', [AdminDepartmentController::class, 'index'])->name('departments.index');
     Route::patch('/departamentos/{department}/acompanhar', [AdminDepartmentController::class, 'follow'])->name('departments.follow');
     Route::post('/departamentos/{department}/marcar-vistos', [AdminDepartmentController::class, 'markSeen'])->name('departments.mark-seen');
+    Route::post('/departamentos/{department}/pastas', [TicketFolderController::class, 'store'])->name('departments.folders.store');
     Route::get('/usuarios/buscar', UserDirectoryController::class)->name('users.search');
     Route::get('/integracoes/{integration}/usuarios', IntegrationUserDirectoryController::class)
         ->middleware(RequireIntegrationTicketPermission::class)
