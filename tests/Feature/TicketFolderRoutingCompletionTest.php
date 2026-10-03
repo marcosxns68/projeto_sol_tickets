@@ -55,7 +55,7 @@ class TicketFolderRoutingCompletionTest extends TestCase
         ]);
     }
 
-    private function ticket(Department $department, ?TicketFolder $folder = null): Ticket
+    private function ticket(Department $department, ?TicketFolder $folder = null, ?User $assignee = null): Ticket
     {
         return Ticket::create([
             'number' => Ticket::nextNumber(),
@@ -66,6 +66,7 @@ class TicketFolderRoutingCompletionTest extends TestCase
             'status_id' => Status::system('in_progress')->id,
             'department_id' => $department->id,
             'folder_id' => $folder?->id,
+            'assignee_id' => $assignee?->id,
         ]);
     }
 
@@ -130,6 +131,26 @@ class TicketFolderRoutingCompletionTest extends TestCase
         $this->assertDatabaseMissing('ticket_events', ['ticket_id' => $ticket->id, 'event' => 'forwarded']);
     }
 
+    public function test_folder_only_move_preserves_existing_assignee_when_assignee_is_not_submitted(): void
+    {
+        $user = $this->user([]);
+        $assignee = $this->user([]);
+        $department = Department::create(['name' => 'Atendimento '.uniqid(), 'active' => true]);
+        $first = TicketFolder::create(['department_id' => $department->id, 'name' => 'Entrada']);
+        $second = TicketFolder::create(['department_id' => $department->id, 'name' => 'Execução']);
+        $this->access($user, $department, 'edit');
+        $ticket = $this->ticket($department, $first, $assignee);
+
+        $this->actingAs($user)->patch('/tickets/'.$ticket->id.'/atendimento', [
+            'department_id' => $department->id,
+            'folder_id' => $second->id,
+        ])->assertRedirect();
+
+        $ticket->refresh();
+        $this->assertSame($second->id, $ticket->folder_id);
+        $this->assertSame($assignee->id, $ticket->assignee_id);
+    }
+
     public function test_cross_department_move_clears_old_folder_when_target_folder_is_not_supplied(): void
     {
         $user = $this->user(['tickets.forward']);
@@ -150,7 +171,7 @@ class TicketFolderRoutingCompletionTest extends TestCase
         $this->assertSame('forwarded', $ticket->status->system_key);
     }
 
-    public function test_cross_department_move_accepts_folder_only_when_target_tree_is_visible(): void
+    public function test_cross_department_move_accepts_folder_only_when_target_tree_is_editable(): void
     {
         $user = $this->user(['tickets.forward']);
         $source = Department::create(['name' => 'Origem válida '.uniqid(), 'active' => true]);
@@ -158,7 +179,7 @@ class TicketFolderRoutingCompletionTest extends TestCase
         $oldFolder = TicketFolder::create(['department_id' => $source->id, 'name' => 'Origem']);
         $targetFolder = TicketFolder::create(['department_id' => $target->id, 'name' => 'Destino']);
         $this->access($user, $source, 'edit');
-        $this->access($user, $target, 'view');
+        $this->access($user, $target, 'edit');
         $ticket = $this->ticket($source, $oldFolder);
 
         $this->actingAs($user)->patch('/tickets/'.$ticket->id.'/atendimento', [
@@ -207,7 +228,7 @@ class TicketFolderRoutingCompletionTest extends TestCase
         $oldFolder = TicketFolder::create(['department_id' => $source->id, 'name' => 'Pasta atual']);
         $invalidFolder = TicketFolder::create(['department_id' => $third->id, 'name' => 'Pasta inválida']);
         $this->access($user, $source, 'edit');
-        $this->access($user, $target, 'view');
+        $this->access($user, $target, 'edit');
         $ticket = $this->ticket($source, $oldFolder);
 
         $this->actingAs($user)->patch('/tickets/'.$ticket->id.'/atendimento', [
