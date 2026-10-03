@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\DepartmentMembershipNotification;
 use App\Services\DepartmentAccess;
 use App\Services\DepartmentSubscriptions;
+use App\Services\TicketFolderTree;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -16,8 +17,12 @@ use Throwable;
 
 class DepartmentController extends Controller
 {
-    public function index(Request $request, DepartmentAccess $access, DepartmentSubscriptions $subscriptions)
-    {
+    public function index(
+        Request $request,
+        DepartmentAccess $access,
+        DepartmentSubscriptions $subscriptions,
+        TicketFolderTree $folderTree,
+    ) {
         $user = $request->user();
         $canManage = $user->hasPermission('departments.manage');
 
@@ -41,14 +46,24 @@ class DepartmentController extends Controller
 
         $departments = $query->get();
         $viewable = $access->viewableIds($user);
+        $departmentTrees = $folderTree->forDepartments(
+            $departments->filter(fn (Department $department) => in_array((int) $department->id, $viewable, true))->values()
+        );
         $unseenCounts = [];
         $subscriptionStates = [];
+        $departmentAccessStates = [];
         foreach ($departments as $department) {
             $membership = $department->users->firstWhere('id', $user->id);
             $subscription = $subscriptions->get($user, $department);
             $following = $subscriptions->isFollowing($user, $department);
             $seen = $subscriptions->lastSeenAt($user, $department);
+            $canView = in_array((int) $department->id, $viewable, true);
 
+            $departmentAccessStates[$department->id] = [
+                'level' => $access->level($user, $department),
+                'can_view' => $canView,
+                'can_edit' => $canManage || $access->canEdit($user, $department),
+            ];
             $subscriptionStates[$department->id] = [
                 'following' => $following,
                 'notify_email' => (bool) ($subscription?->notify_email ?? $membership?->pivot?->notify_email ?? false),
@@ -57,7 +72,7 @@ class DepartmentController extends Controller
                 'last_seen_at' => $seen,
             ];
 
-            if (!$following || !$seen || !in_array($department->id, $viewable, true)) {
+            if (!$following || !$seen || !$canView) {
                 continue;
             }
             $unseenCounts[$department->id] = $department->tickets()
@@ -70,6 +85,8 @@ class DepartmentController extends Controller
         return view('admin.departments.index', [
             'unseenCounts' => $unseenCounts,
             'subscriptionStates' => $subscriptionStates,
+            'departmentAccessStates' => $departmentAccessStates,
+            'departmentTrees' => $departmentTrees,
             'departments' => $departments,
             'canManage' => $canManage,
             'viewableDepartmentIds' => $viewable,
