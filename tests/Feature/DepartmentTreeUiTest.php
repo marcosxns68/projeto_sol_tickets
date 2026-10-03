@@ -79,6 +79,24 @@ class DepartmentTreeUiTest extends TestCase
             ->assertDontSee('clique no nome do departamento', false);
     }
 
+    public function test_department_mobile_header_hides_stats_and_moves_quick_add_into_more_menu(): void
+    {
+        $manager = $this->manager();
+        Department::create([
+            'name' => 'Desenvolvimento Mobile',
+            'description' => 'Teste responsivo',
+            'active' => true,
+        ]);
+
+        $response = $this->actingAs($manager)->get('/departamentos')->assertOk();
+
+        $response->assertSee('department-quick-add', false)
+            ->assertSee('mobile-tree-actions', false)
+            ->assertSee('.mobile-tree-actions{display:none}', false)
+            ->assertSee('.department-compact-stats,.department-quick-add{display:none}', false)
+            ->assertSee('.mobile-tree-actions{display:block}', false);
+    }
+
     public function test_department_description_is_created_and_updated(): void
     {
         $manager = $this->manager();
