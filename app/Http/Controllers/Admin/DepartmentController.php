@@ -99,15 +99,17 @@ class DepartmentController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120', 'unique:departments,name'],
+            'description' => ['nullable', 'string', 'max:2000'],
             'active' => ['nullable', 'boolean'],
         ]);
 
         $department = Department::create([
             'name' => trim($data['name']),
+            'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
             'active' => $request->boolean('active'),
         ]);
 
-        $this->audit($request, $department, 'department.created', null, $department->only(['name', 'active']));
+        $this->audit($request, $department, 'department.created', null, $department->only(['name', 'description', 'active']));
 
         return redirect()->route('admin.departments.index')->with('success', 'Departamento criado.');
     }
@@ -127,16 +129,18 @@ class DepartmentController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120', Rule::unique('departments', 'name')->ignore($department->id)],
+            'description' => ['nullable', 'string', 'max:2000'],
             'active' => ['nullable', 'boolean'],
         ]);
 
-        $old = $department->only(['name', 'active']);
+        $old = $department->only(['name', 'description', 'active']);
         $department->update([
             'name' => trim($data['name']),
+            'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
             'active' => $request->boolean('active'),
         ]);
 
-        $this->audit($request, $department, 'department.updated', $old, $department->fresh()->only(['name', 'active']));
+        $this->audit($request, $department, 'department.updated', $old, $department->fresh()->only(['name', 'description', 'active']));
 
         return redirect()->route('admin.departments.index')->with('success', 'Departamento atualizado.');
     }
