@@ -19,7 +19,7 @@ class Ticket extends Model
 
     protected $fillable = [
         'number', 'origin', 'title', 'description', 'priority', 'status_id', 'creator_id',
-        'assignee_id', 'department_id', 'company_id', 'system_id', 'requester_name',
+        'assignee_id', 'department_id', 'folder_id', 'company_id', 'system_id', 'requester_name',
         'requester_email', 'requester_user_id', 'external_requester_id', 'due_at', 'completed_at', 'trashed_at',
         'external_reference', 'requester_whatsapp', 'whatsapp_opened_sent_at', 'whatsapp_closed_sent_at',
     ];
@@ -34,6 +34,7 @@ class Ticket extends Model
     public function creator() { return $this->belongsTo(User::class, 'creator_id'); }
     public function requesterUser() { return $this->belongsTo(User::class, 'requester_user_id'); }
     public function department() { return $this->belongsTo(Department::class); }
+    public function folder() { return $this->belongsTo(TicketFolder::class, 'folder_id'); }
     public function company() { return $this->belongsTo(Company::class); }
     public function system() { return $this->belongsTo(ConnectedSystem::class, 'system_id'); }
     public function participants() { return $this->belongsToMany(User::class, 'ticket_participants')->withPivot(['type', 'notify_status', 'notify_comments', 'notify_attachments'])->withTimestamps(); }
