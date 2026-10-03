@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\DepartmentAccess;
+use App\Services\DepartmentSubscriptions;
 use App\Services\TicketWhatsAppAutomations;
 use App\Services\WhatsAppConnection;
 use Illuminate\Bus\Queueable;
@@ -51,20 +53,14 @@ class SendDepartmentWhatsApp implements ShouldQueue
         Cache::lock('tickets.wa.department.'.$lockKey, 40)->block(5, function () use ($connection, $automations, $automationEvent, $lockKey) {
             $ticket = Ticket::with('department')->find($this->ticketId);
             $user = User::find($this->userId);
-            if (!$ticket || !$user || !$user->active
+            if (!$ticket || !$user || !$user->active || !$ticket->department
                 || (int) $ticket->department_id !== $this->departmentId) {
                 return;
             }
 
-            $subscription = DB::table('department_user_access')
-                ->where('department_id', $this->departmentId)
-                ->where('user_id', $user->id)
-                ->whereIn('access_level', ['view', 'edit'])
-                ->where('follow_department', true)
-                ->where('notify_whatsapp', true)
-                ->first();
-
-            if (!$subscription || !$user->whatsapp_reply_enabled) {
+            if (!app(DepartmentAccess::class)->canView($user, $ticket->department)
+                || !app(DepartmentSubscriptions::class)->channelEnabled($user, $ticket->department, 'whatsapp')
+                || !$user->whatsapp_reply_enabled) {
                 return;
             }
 
@@ -73,7 +69,6 @@ class SendDepartmentWhatsApp implements ShouldQueue
                 return;
             }
 
-            // Evita reenvio em caso de execução repetida da mesma tarefa.
             $delivery = 'department_'.$this->event;
             $key = substr($lockKey, 0, 64);
             if (DB::table('whatsapp_notification_deliveries')

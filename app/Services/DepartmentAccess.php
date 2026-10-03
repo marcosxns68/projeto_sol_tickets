@@ -73,13 +73,10 @@ class DepartmentAccess
 
     public function followedDepartmentIds(User $user): array
     {
-        return DB::table('department_user_access')
-            ->where('user_id', $user->id)
-            ->whereIn('access_level', ['view', 'edit'])
-            ->where('follow_department', true)
-            ->pluck('department_id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
+        return array_values(array_filter(
+            app(DepartmentSubscriptions::class)->followedDepartmentIds($user),
+            fn (int $departmentId) => $this->canView($user, $departmentId)
+        ));
     }
 
     private function idsForLevels(User $user, array $levels): array

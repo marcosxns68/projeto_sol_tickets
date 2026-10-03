@@ -7,7 +7,6 @@ use App\Jobs\SendDepartmentWebPush;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Notifications\TicketActivityNotification;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -42,19 +41,8 @@ class DepartmentNotifications
             default => 'O solicitante adicionou uma resposta pública ao ticket da caixa '.$department->name.'.',
         };
 
-        $subscriptions = DB::table('department_user_access')
-            ->join('users', 'users.id', '=', 'department_user_access.user_id')
-            ->where('users.active', true)
-            ->where('department_user_access.department_id', $department->id)
-            ->where('department_user_access.follow_department', true)
-            ->whereIn('department_user_access.access_level', ['view', 'edit'])
-            ->select([
-                'users.id', 'users.email',
-                'department_user_access.notify_email',
-                'department_user_access.notify_whatsapp',
-                'department_user_access.notify_push',
-            ])
-            ->get();
+        $subscriptions = app(DepartmentSubscriptions::class)->recipients($department);
+        $access = app(DepartmentAccess::class);
 
         $eventKey = implode(':', [$ticket->id, $department->id, $event,
             $ticket->updated_at?->format('YmdHis.u') ?? now()->format('YmdHis.u')]);
@@ -69,14 +57,11 @@ class DepartmentNotifications
             }
 
             $user = User::find($userId);
-            if (!$user || !$user->active) {
+            if (!$user || !$user->active || !$access->canView($user, $department)) {
                 continue;
             }
 
-            // Acompanhamentos antigos criados pelo formulário anterior não
-            // possuíam escolhas individuais: preservar e-mail e sininho.
-            $legacySelection = !$subscriber->notify_email
-                && !$subscriber->notify_whatsapp && !$subscriber->notify_push;
+            $legacySelection = (bool) ($subscriber->legacy_selection ?? false);
             $channels = [];
             if ($subscriber->notify_push || $legacySelection) {
                 $channels[] = 'database';
@@ -85,7 +70,6 @@ class DepartmentNotifications
                 $channels[] = 'mail';
             }
 
-            // Evitar segundo aviso no sininho/e-mail por papel no MESMO evento.
             $alreadyNotifiedDirectly = $event === 'created'
                 && ($ticket->assignee_id === $userId || $ticket->creator_id === $userId
                     || $ticket->participants()->where('users.id', $userId)->exists());
@@ -113,16 +97,12 @@ class DepartmentNotifications
                 }
             }
 
-            // Push é disparado pelo servidor, mesmo sem sessão, navegador
-            // ou PWA aberto. O job confere novamente acesso e preferências.
             if ($subscriber->notify_push) {
                 SendDepartmentWebPush::dispatch(
                     $ticket->id, $department->id, $userId, $event
                 )->afterCommit();
             }
 
-            // Se o usuário já é o responsável, a resposta do cliente gera o
-            // WhatsApp próprio do responsável. Evitar aviso duplo pelo depto.
             if ($subscriber->notify_whatsapp
                 && !($event === 'replied' && $ticket->assignee_id === $userId)
                 && $user->whatsapp_reply_enabled
