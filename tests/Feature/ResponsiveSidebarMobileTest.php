@@ -88,7 +88,7 @@ class ResponsiveSidebarMobileTest extends TestCase
 
         $this->actingAs($user)->get('/admin/departamentos')
             ->assertOk()
-            ->assertSee('class="department-list"', false)
+            ->assertSee('class="department-tree"', false)
             ->assertSee('@media(max-width:800px)', false);
     }
 
