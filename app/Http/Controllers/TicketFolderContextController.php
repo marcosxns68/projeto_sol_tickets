@@ -12,11 +12,13 @@ class TicketFolderContextController extends Controller
 {
     public function department(Request $request, Department $department, DepartmentAccess $access)
     {
-        abort_unless($access->canView($request->user(), $department), 403);
+        $user = $request->user();
+        abort_unless($access->canView($user, $department), 403);
 
         return response()->json([
             'department_id' => (int) $department->id,
             'folders' => $this->folderOptions($department),
+            'folder_edit' => $access->canEdit($user, $department),
         ]);
     }
 
@@ -32,6 +34,7 @@ class TicketFolderContextController extends Controller
                 'folder_id' => null,
                 'folders' => [],
                 'folder_access' => false,
+                'folder_edit' => false,
             ]);
         }
 
@@ -40,6 +43,7 @@ class TicketFolderContextController extends Controller
             'folder_id' => $ticket->folder_id ? (int) $ticket->folder_id : null,
             'folders' => $this->folderOptions($department),
             'folder_access' => true,
+            'folder_edit' => $access->canEdit($user, $department),
         ]);
     }
 
