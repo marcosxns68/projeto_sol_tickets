@@ -150,7 +150,7 @@ class TicketFolderRoutingCompletionTest extends TestCase
         $this->assertSame('forwarded', $ticket->status->system_key);
     }
 
-    public function test_cross_department_move_accepts_only_folder_from_target_department(): void
+    public function test_cross_department_move_accepts_folder_only_when_target_tree_is_visible(): void
     {
         $user = $this->user(['tickets.forward']);
         $source = Department::create(['name' => 'Origem válida '.uniqid(), 'active' => true]);
@@ -158,7 +158,7 @@ class TicketFolderRoutingCompletionTest extends TestCase
         $oldFolder = TicketFolder::create(['department_id' => $source->id, 'name' => 'Origem']);
         $targetFolder = TicketFolder::create(['department_id' => $target->id, 'name' => 'Destino']);
         $this->access($user, $source, 'edit');
-        $this->access($user, $target, 'send');
+        $this->access($user, $target, 'view');
         $ticket = $this->ticket($source, $oldFolder);
 
         $this->actingAs($user)->patch('/tickets/'.$ticket->id.'/atendimento', [
@@ -171,6 +171,33 @@ class TicketFolderRoutingCompletionTest extends TestCase
         $this->assertSame($targetFolder->id, $ticket->folder_id);
     }
 
+    public function test_send_only_target_cannot_force_folder_but_can_forward_to_root(): void
+    {
+        $user = $this->user(['tickets.forward']);
+        $source = Department::create(['name' => 'Origem envio '.uniqid(), 'active' => true]);
+        $target = Department::create(['name' => 'Destino envio '.uniqid(), 'active' => true]);
+        $targetFolder = TicketFolder::create(['department_id' => $target->id, 'name' => 'Interna']);
+        $this->access($user, $source, 'edit');
+        $this->access($user, $target, 'send');
+        $ticket = $this->ticket($source);
+
+        $this->actingAs($user)->patch('/tickets/'.$ticket->id.'/atendimento', [
+            'department_id' => $target->id,
+            'folder_id' => $targetFolder->id,
+        ])->assertForbidden();
+
+        $ticket->refresh();
+        $this->assertSame($source->id, $ticket->department_id);
+
+        $this->actingAs($user)->patch('/tickets/'.$ticket->id.'/atendimento', [
+            'department_id' => $target->id,
+        ])->assertRedirect();
+
+        $ticket->refresh();
+        $this->assertSame($target->id, $ticket->department_id);
+        $this->assertNull($ticket->folder_id);
+    }
+
     public function test_invalid_folder_does_not_partially_move_ticket(): void
     {
         $user = $this->user(['tickets.forward']);
@@ -180,7 +207,7 @@ class TicketFolderRoutingCompletionTest extends TestCase
         $oldFolder = TicketFolder::create(['department_id' => $source->id, 'name' => 'Pasta atual']);
         $invalidFolder = TicketFolder::create(['department_id' => $third->id, 'name' => 'Pasta inválida']);
         $this->access($user, $source, 'edit');
-        $this->access($user, $target, 'send');
+        $this->access($user, $target, 'view');
         $ticket = $this->ticket($source, $oldFolder);
 
         $this->actingAs($user)->patch('/tickets/'.$ticket->id.'/atendimento', [
@@ -233,6 +260,16 @@ class TicketFolderRoutingCompletionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('department_id', $department->id)
             ->assertJsonPath('folder_id', $child->id);
+    }
+
+    public function test_send_only_user_cannot_enumerate_department_folders(): void
+    {
+        $user = $this->user(['tickets.create']);
+        $department = Department::create(['name' => 'Privado '.uniqid(), 'active' => true]);
+        TicketFolder::create(['department_id' => $department->id, 'name' => 'Segredo']);
+        $this->access($user, $department, 'send');
+
+        $this->actingAs($user)->getJson('/departamentos/'.$department->id.'/pastas')->assertForbidden();
     }
 
     public function test_folder_routing_script_is_loaded_in_authenticated_layout(): void
